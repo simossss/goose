@@ -65,9 +65,6 @@ final class GoosePacketIngestor {
     private Result ingestNow(byte[] value, String serviceUuid, String characteristicUuid, long capturedAtMillis) {
         String frameHex = Hex.encode(value);
         try {
-            if (!isGooseFrame(frameHex)) {
-                return new Result(frameHex, standardNotificationSummary(characteristicUuid, value), "not imported", null);
-            }
             JSONObject importReport = importFrame(frameHex, serviceUuid, characteristicUuid, capturedAtMillis);
             JSONArray issues = importReport.optJSONArray("issues");
             String importSummary = "raw inserted "
@@ -79,10 +76,14 @@ final class GoosePacketIngestor {
                     + ", issues "
                     + (issues != null ? issues.length() : 0);
             String parseSummary;
-            try {
-                parseSummary = parseFrame(frameHex);
-            } catch (Exception parseError) {
-                parseSummary = "parse failed after raw import: " + parseError;
+            if (isGooseFrame(frameHex)) {
+                try {
+                    parseSummary = parseFrame(frameHex);
+                } catch (Exception parseError) {
+                    parseSummary = "parse failed after raw import: " + parseError;
+                }
+            } else {
+                parseSummary = standardNotificationSummary(characteristicUuid, value);
             }
             return new Result(frameHex, parseSummary, importSummary, null);
         } catch (Exception error) {
