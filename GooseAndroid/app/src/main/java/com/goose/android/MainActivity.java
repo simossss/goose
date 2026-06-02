@@ -21,6 +21,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     private final GooseRustBridge bridge = new GooseRustBridge();
     private GooseBleClient ble;
+    private GooseCommandBuilder commandBuilder;
     private GoosePacketIngestor packetIngestor;
     private GooseStoreReporter storeReporter;
     private LinearLayout deviceList;
@@ -37,6 +38,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         ble = new GooseBleClient(this, this);
+        commandBuilder = new GooseCommandBuilder();
         packetIngestor = new GoosePacketIngestor(this);
         storeReporter = new GooseStoreReporter(this, packetIngestor.databasePath());
         setContentView(buildContentView());
@@ -47,6 +49,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     @Override
     protected void onDestroy() {
         ble.close();
+        commandBuilder.close();
         packetIngestor.close();
         storeReporter.close();
         super.onDestroy();
@@ -227,6 +230,22 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         commandActions.addView(recordsButton, weightWrap());
         root.addView(commandActions);
 
+        LinearLayout physicalCommandActions = new LinearLayout(this);
+        physicalCommandActions.setOrientation(LinearLayout.HORIZONTAL);
+        Button rangeButton = new Button(this);
+        rangeButton.setText("Range");
+        rangeButton.setOnClickListener(view -> sendBuiltCommand("get_data_range", ""));
+        physicalCommandActions.addView(rangeButton, weightWrap());
+        Button historyButton = new Button(this);
+        historyButton.setText("History");
+        historyButton.setOnClickListener(view -> sendBuiltCommand("send_historical_data", ""));
+        physicalCommandActions.addView(historyButton, weightWrap());
+        Button abortHistoryButton = new Button(this);
+        abortHistoryButton.setText("Abort");
+        abortHistoryButton.setOnClickListener(view -> sendBuiltCommand("abort_historical_transmits", ""));
+        physicalCommandActions.addView(abortHistoryButton, weightWrap());
+        root.addView(physicalCommandActions);
+
         reportStatus = bodyText("No report run");
         reportStatus.setPadding(0, 12, 0, 0);
         root.addView(reportStatus);
@@ -260,6 +279,18 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private void runReport(ReportRunner runner) {
         reportStatus.setText("Running report...");
         runner.run(report -> runOnUiThread(() -> reportStatus.setText(report)));
+    }
+
+    private void sendBuiltCommand(String command, String payloadHex) {
+        packetStatus.setText("Building command: " + command);
+        commandBuilder.build(command, payloadHex, result -> runOnUiThread(() -> {
+            if (result.error != null) {
+                packetStatus.setText("Command build failed: " + result.error);
+                return;
+            }
+            packetStatus.setText("Sending " + result.command + "\n" + result.frameHex);
+            ble.sendCommandFrame("command " + result.command, result.frame);
+        }));
     }
 
     private interface ReportRunner {

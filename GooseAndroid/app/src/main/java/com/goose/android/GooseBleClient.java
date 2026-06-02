@@ -203,6 +203,31 @@ final class GooseBleClient {
         gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE);
     }
 
+    void sendCommandFrame(String label, byte[] frame) {
+        if (!hasRuntimePermissions()) {
+            listener.onStateChanged("Bluetooth permissions required");
+            return;
+        }
+        if (gatt == null || commandCharacteristic == null) {
+            listener.onStateChanged(label + " blocked: no connected WHOOP command characteristic");
+            return;
+        }
+        byte[] frameCopy = frame.clone();
+        operationQueue.add(new GattOperation() {
+            @Override
+            public boolean start(BluetoothGatt gatt) {
+                return writeCommandFrame(gatt, commandCharacteristic, frameCopy, label);
+            }
+
+            @Override
+            public String label() {
+                return label;
+            }
+        });
+        listener.onStateChanged(label + " queued");
+        drainOperationQueue(gatt);
+    }
+
     void close() {
         stopScan();
         if (gatt != null && hasRuntimePermissions()) {
@@ -576,6 +601,34 @@ final class GooseBleClient {
             clientHelloSent = true;
         }
         return started;
+    }
+
+    private boolean writeCommandFrame(
+            BluetoothGatt gatt,
+            BluetoothGattCharacteristic command,
+            byte[] frame,
+            String label
+    ) {
+        if (command == null) {
+            listener.onStateChanged(label + " blocked: no command characteristic");
+            return false;
+        }
+        int properties = command.getProperties();
+        int writeType;
+        if ((properties & BluetoothGattCharacteristic.PROPERTY_WRITE) != 0) {
+            writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
+        } else if ((properties & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0) {
+            writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE;
+        } else {
+            listener.onStateChanged(label + " blocked: command not writable");
+            return false;
+        }
+        if (Build.VERSION.SDK_INT >= 33) {
+            return gatt.writeCharacteristic(command, frame, writeType) == BluetoothGatt.GATT_SUCCESS;
+        }
+        command.setWriteType(writeType);
+        command.setValue(frame);
+        return gatt.writeCharacteristic(command);
     }
 
     private BluetoothGattCharacteristic findCommandCharacteristic(BluetoothGatt gatt) {

@@ -23,7 +23,7 @@ use goose_core::{
     metrics::{GOOSE_HRV_V0_ID, GOOSE_HRV_V0_VERSION, built_in_algorithm_definitions},
     protocol::{
         DeviceType, PACKET_TYPE_EVENT, PACKET_TYPE_HISTORICAL_DATA, PACKET_TYPE_REALTIME_RAW_DATA,
-        build_v5_payload_frame, parse_frame_hex,
+        build_v5_command_frame, build_v5_payload_frame, parse_frame_hex,
     },
     recovery_rollup::{
         GOOSE_RECOVERY_UNAVAILABLE_STATUS_V0_ID, GOOSE_RECOVERY_UNAVAILABLE_STATUS_V0_VERSION,
@@ -6924,6 +6924,45 @@ fn bridge_persists_command_validation_and_returns_direct_send_gates() {
             .any(|record| record["command"] == "get_hello"
                 && record["risk_gate"] == "read_only"
                 && record["direct_send_ready"] == true)
+    );
+}
+
+#[test]
+fn bridge_builds_command_frames_by_name() {
+    let get_data_range = request(serde_json::json!({
+        "schema": "goose.bridge.request.v1",
+        "request_id": "command-build-get-data-range",
+        "method": "commands.build_frame",
+        "args": {
+            "command": "get_data_range",
+            "sequence": 7
+        }
+    }));
+    assert!(get_data_range.ok, "{:?}", get_data_range.error);
+    let result = get_data_range.result.unwrap();
+    assert_eq!(result["schema"], "goose.command-frame.v1");
+    assert_eq!(result["command"], "get_data_range");
+    assert_eq!(result["command_number"], 34);
+    assert_eq!(result["sequence"], 7);
+    assert_eq!(
+        result["frame_hex"],
+        hex::encode(build_v5_command_frame(7, 34, &[]))
+    );
+
+    let historical_result = request(serde_json::json!({
+        "schema": "goose.bridge.request.v1",
+        "request_id": "command-build-historical-result",
+        "method": "commands.build_frame",
+        "args": {
+            "command": "historical_data_result",
+            "sequence": 9,
+            "payload_hex": "00000000"
+        }
+    }));
+    assert!(historical_result.ok, "{:?}", historical_result.error);
+    assert_eq!(
+        historical_result.result.unwrap()["frame_hex"],
+        hex::encode(build_v5_command_frame(9, 23, &[0, 0, 0, 0]))
     );
 }
 

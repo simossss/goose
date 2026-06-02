@@ -115,7 +115,7 @@ use crate::{
     },
     protocol::{
         DataPacketBodySummary, DeviceType, I16SeriesSummary, ParsedFrame, ParsedPayload,
-        parse_frame_hex,
+        build_v5_command_frame, parse_frame_hex,
     },
     recovery_rollup::{
         RecoverySensorDailyRollupOptions, RecoveryUnavailableDailyStatusOptions,
@@ -1719,6 +1719,14 @@ struct CommandPromoteLocalFrameMatchesArgs {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+struct CommandBuildFrameArgs {
+    command: String,
+    sequence: u8,
+    #[serde(default)]
+    payload_hex: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 struct CommandDirectSendGateArgs {
     database_path: String,
     command: String,
@@ -2408,6 +2416,10 @@ fn handle_bridge_request_inner(request: BridgeRequest) -> BridgeResponse {
                 .map(|value| bridge_ok(&request.request_id, value))
                 .unwrap_or_else(|error| bridge_error(&request.request_id, "method_error", error))
         }
+        "commands.build_frame" => request_args::<CommandBuildFrameArgs>(&request)
+            .and_then(command_build_frame_bridge)
+            .map(|value| bridge_ok(&request.request_id, value))
+            .unwrap_or_else(|error| bridge_error(&request.request_id, "method_error", error)),
         "commands.direct_send_gate" => request_args::<CommandDirectSendGateArgs>(&request)
             .and_then(command_direct_send_gate_bridge)
             .map(|value| bridge_ok(&request.request_id, value))
@@ -7008,6 +7020,39 @@ fn command_promote_local_frame_matches_bridge(
             "cannot serialize command local-frame match report: {error}"
         ))
     })
+}
+
+fn command_build_frame_bridge(args: CommandBuildFrameArgs) -> GooseResult<serde_json::Value> {
+    let definition = COMMAND_DEFINITIONS
+        .iter()
+        .find(|definition| definition.id == args.command)
+        .ok_or_else(|| GooseError::message(format!("unknown command: {}", args.command)))?;
+    let command_number = definition.command_number.ok_or_else(|| {
+        GooseError::message(format!(
+            "command has no numeric protocol id: {}",
+            definition.id
+        ))
+    })?;
+    if command_number > u8::MAX as u16 {
+        return Err(GooseError::message(format!(
+            "command number out of v5 byte range: {command_number}"
+        )));
+    }
+    let payload_hex = args.payload_hex.unwrap_or_default();
+    let payload = crate::protocol::decode_hex_with_whitespace(&payload_hex)?;
+    let frame = build_v5_command_frame(args.sequence, command_number as u8, &payload);
+    let parsed = parse_frame_hex(DeviceType::Goose, &hex::encode(&frame))?;
+    serde_json::to_value(json!({
+        "schema": "goose.command-frame.v1",
+        "command": definition.id,
+        "command_number": command_number,
+        "sequence": args.sequence,
+        "payload_hex": hex::encode(payload),
+        "frame_hex": hex::encode(frame),
+        "device_type": "GOOSE",
+        "packet_type_name": parsed.packet_type_name,
+    }))
+    .map_err(|error| GooseError::message(format!("cannot serialize command frame: {error}")))
 }
 
 fn command_direct_send_gate_bridge(
