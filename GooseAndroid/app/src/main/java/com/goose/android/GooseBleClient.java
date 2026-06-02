@@ -93,6 +93,8 @@ final class GooseBleClient {
     private static final UUID MANUFACTURER_NAME = UUID.fromString("00002a29-0000-1000-8000-00805f9b34fb");
     private static final UUID CLIENT_CHARACTERISTIC_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
     private static final byte[] CLIENT_HELLO_FRAME = Hex.decode("aa0108000001e67123019101363e5c8d");
+    private static final int MAX_PUBLISHED_DEVICES = 20;
+    private static final long DEVICE_PUBLISH_INTERVAL_MS = 750;
 
     private final Context context;
     private final Listener listener;
@@ -105,6 +107,8 @@ final class GooseBleClient {
     private GattOperation activeOperation;
     private boolean scanning;
     private boolean filteredScan;
+    private boolean publishQueued;
+    private long lastDevicePublishAtMillis;
     private boolean clientHelloSent;
     private int subscriptionCount;
     private final Map<String, String> metadata = new LinkedHashMap<>();
@@ -164,7 +168,7 @@ final class GooseBleClient {
             return;
         }
         devices.clear();
-        publishDevices();
+        publishDevicesNow();
         startScanner(scanner, true);
     }
 
@@ -221,7 +225,13 @@ final class GooseBleClient {
                     looksLikeWhoop(result)
             );
             devices.put(row.address, row);
-            publishDevices();
+            if (row.likelyWhoop) {
+                stopScan();
+                publishDevicesNow();
+                listener.onStateChanged("WHOOP candidate found; scan stopped so you can tap it");
+            } else {
+                scheduleDevicePublish();
+            }
         }
 
         @Override
@@ -251,7 +261,7 @@ final class GooseBleClient {
 
         if (withWhoopFilters) {
             mainHandler.postDelayed(() -> {
-                if (!scanning || !filteredScan || !devices.isEmpty() || adapter == null || !hasRuntimePermissions()) {
+                if (!scanning || !filteredScan || hasLikelyWhoopDevice() || adapter == null || !hasRuntimePermissions()) {
                     return;
                 }
                 BluetoothLeScanner fallbackScanner = adapter.getBluetoothLeScanner();
@@ -282,11 +292,40 @@ final class GooseBleClient {
         return false;
     }
 
-    private void publishDevices() {
+    private boolean hasLikelyWhoopDevice() {
+        for (DeviceRow row : devices.values()) {
+            if (row.likelyWhoop) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void scheduleDevicePublish() {
+        long now = System.currentTimeMillis();
+        if (now - lastDevicePublishAtMillis >= DEVICE_PUBLISH_INTERVAL_MS) {
+            publishDevicesNow();
+            return;
+        }
+        if (publishQueued) {
+            return;
+        }
+        publishQueued = true;
+        mainHandler.postDelayed(() -> {
+            publishQueued = false;
+            publishDevicesNow();
+        }, DEVICE_PUBLISH_INTERVAL_MS);
+    }
+
+    private void publishDevicesNow() {
+        lastDevicePublishAtMillis = System.currentTimeMillis();
         List<DeviceRow> rows = new ArrayList<>(devices.values());
         rows.sort(Comparator
                 .comparing((DeviceRow row) -> row.likelyWhoop).reversed()
                 .thenComparing((DeviceRow row) -> row.rssi, Comparator.reverseOrder()));
+        if (rows.size() > MAX_PUBLISHED_DEVICES) {
+            rows = new ArrayList<>(rows.subList(0, MAX_PUBLISHED_DEVICES));
+        }
         listener.onDevicesChanged(rows);
     }
 
