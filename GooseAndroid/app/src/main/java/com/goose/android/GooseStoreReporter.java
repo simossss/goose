@@ -1,6 +1,8 @@
 package com.goose.android;
 
 import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -53,6 +55,10 @@ final class GooseStoreReporter {
 
     void rawExport(Callback callback) {
         executor.execute(() -> callback.onReport(runRawExport()));
+    }
+
+    void decodeBackfill(Callback callback) {
+        executor.execute(() -> callback.onReport(runDecodeBackfill()));
     }
 
     void close() {
@@ -168,5 +174,62 @@ final class GooseStoreReporter {
         } catch (Exception error) {
             return "Raw export failed\n" + error;
         }
+    }
+
+    private String runDecodeBackfill() {
+        try {
+            JSONArray frames = pendingGooseRawFrames();
+            if (frames.length() == 0) {
+                return "Decode backfill\nNo raw Goose frames pending decode.";
+            }
+            JSONObject args = new JSONObject()
+                    .put("database_path", databasePath)
+                    .put("parser_version", "goose-android/backfill")
+                    .put("include_timeline_rows", false)
+                    .put("compact_raw_payloads", false)
+                    .put("include_results", false)
+                    .put("frames", frames);
+            JSONObject report = bridge.request("capture.import_frame_batch", args);
+            return "Decode backfill\n"
+                    + "pending batch: " + frames.length() + "\n"
+                    + "raw inserted: " + report.optInt("raw_inserted", 0) + "\n"
+                    + "raw existing: " + report.optInt("raw_existing", 0) + "\n"
+                    + "decoded inserted: " + report.optInt("frames_inserted", 0) + "\n"
+                    + "decoded existing: " + report.optInt("frames_existing", 0) + "\n"
+                    + "issues: " + report.optJSONArray("issues");
+        } catch (Exception error) {
+            return "Decode backfill failed\n" + error;
+        }
+    }
+
+    private JSONArray pendingGooseRawFrames() throws Exception {
+        JSONArray frames = new JSONArray();
+        SQLiteDatabase database = SQLiteDatabase.openDatabase(databasePath, null, SQLiteDatabase.OPEN_READONLY);
+        try (Cursor cursor = database.rawQuery(
+                "SELECT r.evidence_id, r.source, r.captured_at, r.device_model, r.payload_hex, r.sensitivity "
+                        + "FROM raw_evidence r "
+                        + "LEFT JOIN decoded_frames d ON d.evidence_id = r.evidence_id "
+                        + "WHERE d.evidence_id IS NULL AND lower(r.payload_hex) LIKE 'aa%' "
+                        + "ORDER BY r.created_at LIMIT 500",
+                null
+        )) {
+            while (cursor.moveToNext()) {
+                String evidenceId = cursor.getString(0);
+                JSONObject frame = new JSONObject()
+                        .put("evidence_id", evidenceId)
+                        .put("frame_id", evidenceId + ".backfill.0")
+                        .put("source", cursor.getString(1))
+                        .put("captured_at", cursor.getString(2))
+                        .put("device_model", cursor.getString(3))
+                        .put("frame_hex", cursor.getString(4))
+                        .put("sensitivity", cursor.getString(5))
+                        .put("capture_session_id", JSONObject.NULL)
+                        .put("device_type", "GOOSE");
+                frames.put(frame);
+            }
+        } finally {
+            database.close();
+        }
+        return frames;
     }
 }

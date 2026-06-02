@@ -205,6 +205,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         exportButton.setText("Export");
         exportButton.setOnClickListener(view -> runReport(storeReporter::rawExport));
         reportActionsBottom.addView(exportButton, weightWrap());
+        Button backfillButton = new Button(this);
+        backfillButton.setText("Backfill");
+        backfillButton.setOnClickListener(view -> runReport(storeReporter::decodeBackfill));
+        reportActionsBottom.addView(backfillButton, weightWrap());
         root.addView(reportActionsBottom);
 
         LinearLayout commandActions = new LinearLayout(this);

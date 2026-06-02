@@ -13,6 +13,7 @@ use goose_core::{
 use rusqlite::{Connection, params};
 
 const GET_HELLO_FRAME: &str = "aa0108000001e67123019101363e5c8d";
+const LIVE_ANDROID_HELLO_RESPONSE_FRAME: &str = "aa01740001003fb1244291010101e60000000042091f6ae17a000035414d30323938333739003638656530303735353938353835323264643835663133623762363463633637613534356434636661613232363832393931316163660d0000000000000000000000322601000000000b0100010100000000386c4aab";
 
 #[test]
 fn imports_indexed_frame_fixture_into_sqlite_raw_and_decoded_tables() {
@@ -199,6 +200,46 @@ fn imports_app_captured_frame_batch_and_returns_timeline_rows() {
     assert_eq!(
         raw.capture_session_id.as_deref(),
         Some("capture-import-session")
+    );
+}
+
+#[test]
+fn imports_live_android_goose_command_response_frame() {
+    let store = GooseStore::open_in_memory().unwrap();
+    let frames = vec![CapturedFrameInput {
+        evidence_id: "android-live-command-response".to_string(),
+        frame_id: Some("android-live-command-response.frame.0".to_string()),
+        source: "goose-android/live-notification/fd4b0001-cce1-4033-93ce-002d5875f58a/fd4b0003-cce1-4033-93ce-002d5875f58a".to_string(),
+        captured_at: "2026-06-02T16:48:35.343Z".to_string(),
+        device_model: "WHOOP 5.0 Goose Android".to_string(),
+        frame_hex: LIVE_ANDROID_HELLO_RESPONSE_FRAME.to_string(),
+        sensitivity: "raw_device_evidence".to_string(),
+        capture_session_id: None,
+        device_type: DeviceType::Goose,
+    }];
+
+    let report = import_captured_frame_batch(
+        &store,
+        &frames,
+        CapturedFrameBatchOptions {
+            parser_version: "goose-core/test",
+        },
+    )
+    .unwrap();
+
+    assert!(report.pass, "{:?}", report.issues);
+    assert_eq!(report.raw_inserted, 1);
+    assert_eq!(report.frames_inserted, 1);
+    assert_eq!(store.table_count("raw_evidence").unwrap(), 1);
+    assert_eq!(store.table_count("decoded_frames").unwrap(), 1);
+    assert_eq!(
+        report.results[0].packet_type_name.as_deref(),
+        Some("COMMAND_RESPONSE")
+    );
+    assert_eq!(report.results[0].command_or_event, Some(145));
+    assert_eq!(
+        report.results[0].parsed_payload_kind.as_deref(),
+        Some("command_response")
     );
 }
 

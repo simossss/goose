@@ -111,7 +111,7 @@ final class GoosePacketIngestor {
 
     private String parseFrame(String frameHex) throws Exception {
         JSONObject args = new JSONObject()
-                .put("device_type", "Goose")
+                .put("device_type", "GOOSE")
                 .put("frame_hex", frameHex);
         JSONObject parsed = bridge.request("protocol.parse_frame_hex", args);
         String summary = parsed.optString("summary", "");
@@ -141,7 +141,7 @@ final class GoosePacketIngestor {
                 .put("frame_hex", frameHex)
                 .put("sensitivity", "raw_device_evidence")
                 .put("capture_session_id", JSONObject.NULL)
-                .put("device_type", "Goose");
+                .put("device_type", "GOOSE");
 
         JSONObject args = new JSONObject()
                 .put("database_path", databaseFile.getAbsolutePath())
