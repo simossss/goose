@@ -61,6 +61,18 @@ final class GooseStoreReporter {
         executor.execute(() -> callback.onReport(runDecodeBackfill()));
     }
 
+    void heartRateFeatures(Callback callback) {
+        executor.execute(() -> callback.onReport(runHeartRateFeatures()));
+    }
+
+    void stepDiscovery(Callback callback) {
+        executor.execute(() -> callback.onReport(runStepDiscovery()));
+    }
+
+    void recoverySensors(Callback callback) {
+        executor.execute(() -> callback.onReport(runRecoverySensors()));
+    }
+
     void close() {
         executor.shutdownNow();
     }
@@ -231,5 +243,64 @@ final class GooseStoreReporter {
             database.close();
         }
         return frames;
+    }
+
+    private String runHeartRateFeatures() {
+        try {
+            JSONObject args = new JSONObject()
+                    .put("database_path", databasePath)
+                    .put("start", "0000")
+                    .put("end", "9999");
+            JSONObject report = bridge.request("metrics.heart_rate_features", args);
+            return "Heart-rate features\n"
+                    + "pass: " + report.optBoolean("pass", false) + "\n"
+                    + "candidate frames: " + report.optInt("candidate_frame_count", 0) + "\n"
+                    + "features: " + report.optInt("feature_count", 0) + "\n"
+                    + "trusted features: " + report.optInt("trusted_feature_count", 0) + "\n"
+                    + "issues: " + report.optJSONArray("issues");
+        } catch (Exception error) {
+            return "Heart-rate features failed\n" + error;
+        }
+    }
+
+    private String runStepDiscovery() {
+        try {
+            JSONObject args = new JSONObject()
+                    .put("database_path", databasePath)
+                    .put("start", "0000")
+                    .put("end", "9999")
+                    .put("max_candidate_fields", 5000);
+            JSONObject report = bridge.request("metrics.step_packet_discovery", args);
+            return "Step discovery\n"
+                    + "pass: " + report.optBoolean("pass", false) + "\n"
+                    + "decoded frames: " + report.optInt("decoded_frame_count", 0) + "\n"
+                    + "inspected frames: " + report.optInt("inspected_frame_count", 0) + "\n"
+                    + "candidate fields: " + report.optInt("candidate_field_count", 0) + "\n"
+                    + "counter deltas: " + report.optInt("counter_delta_candidate_count", 0) + "\n"
+                    + "issues: " + report.optJSONArray("issues");
+        } catch (Exception error) {
+            return "Step discovery failed\n" + error;
+        }
+    }
+
+    private String runRecoverySensors() {
+        try {
+            JSONObject args = new JSONObject()
+                    .put("database_path", databasePath)
+                    .put("start", "0000")
+                    .put("end", "9999");
+            JSONObject report = bridge.request("metrics.recovery_sensor_discovery", args);
+            JSONObject hrv = report.optJSONObject("hrv_report");
+            JSONObject vitals = report.optJSONObject("vital_event_report");
+            return "Recovery sensors\n"
+                    + "pass: " + report.optBoolean("pass", false) + "\n"
+                    + "HRV RR intervals: " + (hrv != null ? hrv.optInt("rr_interval_count", 0) : 0) + "\n"
+                    + "vital data packets: " + (vitals != null ? vitals.optInt("data_packet_frame_count", 0) : 0) + "\n"
+                    + "respiratory candidates: " + (vitals != null ? vitals.optInt("respiratory_rate_input_count", 0) : 0) + "\n"
+                    + "temperature candidates: " + (vitals != null ? vitals.optInt("skin_temperature_input_count", 0) : 0) + "\n"
+                    + "issues: " + report.optJSONArray("issues");
+        } catch (Exception error) {
+            return "Recovery sensors failed\n" + error;
+        }
     }
 }

@@ -246,6 +246,22 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         physicalCommandActions.addView(abortHistoryButton, weightWrap());
         root.addView(physicalCommandActions);
 
+        LinearLayout metricActions = new LinearLayout(this);
+        metricActions.setOrientation(LinearLayout.HORIZONTAL);
+        Button heartRateButton = new Button(this);
+        heartRateButton.setText("HR");
+        heartRateButton.setOnClickListener(view -> runReport(storeReporter::heartRateFeatures));
+        metricActions.addView(heartRateButton, weightWrap());
+        Button stepsButton = new Button(this);
+        stepsButton.setText("Steps");
+        stepsButton.setOnClickListener(view -> runReport(storeReporter::stepDiscovery));
+        metricActions.addView(stepsButton, weightWrap());
+        Button sensorsButton = new Button(this);
+        sensorsButton.setText("Sensors");
+        sensorsButton.setOnClickListener(view -> runReport(storeReporter::recoverySensors));
+        metricActions.addView(sensorsButton, weightWrap());
+        root.addView(metricActions);
+
         reportStatus = bodyText("No report run");
         reportStatus.setPadding(0, 12, 0, 0);
         root.addView(reportStatus);
