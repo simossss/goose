@@ -14,14 +14,20 @@ import android.widget.TextView;
 import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayDeque;
 import java.util.Date;
+import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
 
 public final class MainActivity extends Activity implements GooseBleClient.Listener {
     private static final int PERMISSION_REQUEST_BLE = 1001;
+    private static final int MAX_NOTIFICATION_LOG_ROWS = 40;
+    private static final int MAX_NOTIFICATION_HEX_CHARS = 160;
+    private static final int MAX_REPORT_CHARS = 12000;
 
     private final GooseRustBridge bridge = new GooseRustBridge();
+    private final Deque<String> notificationLogRows = new ArrayDeque<>();
     private GooseBleClient ble;
     private GooseCommandBuilder commandBuilder;
     private GoosePacketIngestor packetIngestor;
@@ -102,7 +108,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                     ? result.error
                     : result.parseSummary + "\n" + result.importSummary;
             packetStatus.setText("Notifications: " + notificationCount + "\n" + summary);
-            notificationLog.setText(stamp + " " + notification.characteristicUuid + "\n" + result.frameHex + "\n\n" + notificationLog.getText());
+            appendNotificationLog(stamp, notification.characteristicUuid, result.frameHex);
         }));
     }
 
@@ -320,7 +326,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     private void runReport(ReportRunner runner) {
         reportStatus.setText("Running report...");
-        runner.run(report -> runOnUiThread(() -> reportStatus.setText(report)));
+        runner.run(report -> runOnUiThread(() -> reportStatus.setText(truncateForDisplay(report))));
     }
 
     private void sendBuiltCommand(String command, String payloadHex) {
@@ -355,7 +361,39 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         }
         reportStatus.setText("Running step validation...");
         storeReporter.stepValidation(validationStart, validationEnd, manualSteps,
-                report -> runOnUiThread(() -> reportStatus.setText(report)));
+                report -> runOnUiThread(() -> reportStatus.setText(truncateForDisplay(report))));
+    }
+
+    private void appendNotificationLog(String stamp, String characteristicUuid, String frameHex) {
+        String displayHex = truncateHex(frameHex);
+        notificationLogRows.addFirst(stamp + " " + characteristicUuid + "\n" + displayHex);
+        while (notificationLogRows.size() > MAX_NOTIFICATION_LOG_ROWS) {
+            notificationLogRows.removeLast();
+        }
+        StringBuilder log = new StringBuilder();
+        for (String row : notificationLogRows) {
+            if (log.length() > 0) {
+                log.append("\n\n");
+            }
+            log.append(row);
+        }
+        notificationLog.setText(log.toString());
+    }
+
+    private String truncateHex(String frameHex) {
+        if (frameHex.length() <= MAX_NOTIFICATION_HEX_CHARS) {
+            return frameHex;
+        }
+        return frameHex.substring(0, MAX_NOTIFICATION_HEX_CHARS)
+                + "... (" + (frameHex.length() / 2) + " bytes)";
+    }
+
+    private String truncateForDisplay(String value) {
+        if (value.length() <= MAX_REPORT_CHARS) {
+            return value;
+        }
+        return value.substring(0, MAX_REPORT_CHARS)
+                + "\n\n[truncated " + (value.length() - MAX_REPORT_CHARS) + " chars for display]";
     }
 
     private String iso8601(long millis) {
