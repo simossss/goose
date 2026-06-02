@@ -46,15 +46,20 @@ final class GooseBleClient {
         final String address;
         final String name;
         final int rssi;
+        final String advertisementSummary;
+        final boolean likelyWhoop;
 
-        DeviceRow(String address, String name, int rssi) {
+        DeviceRow(String address, String name, int rssi, String advertisementSummary, boolean likelyWhoop) {
             this.address = address;
             this.name = name;
             this.rssi = rssi;
+            this.advertisementSummary = advertisementSummary;
+            this.likelyWhoop = likelyWhoop;
         }
 
         String displayText() {
-            return name + "  " + rssi + " dBm\n" + address;
+            String prefix = likelyWhoop ? "WHOOP candidate: " : "";
+            return prefix + name + "  " + rssi + " dBm\n" + address + "\n" + advertisementSummary;
         }
     }
 
@@ -203,12 +208,15 @@ final class GooseBleClient {
     private final ScanCallback scanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
-            if (!filteredScan && !looksLikeWhoop(result)) {
-                return;
-            }
             BluetoothDevice device = result.getDevice();
             String name = displayName(device);
-            DeviceRow row = new DeviceRow(device.getAddress(), name, result.getRssi());
+            DeviceRow row = new DeviceRow(
+                    device.getAddress(),
+                    name,
+                    result.getRssi(),
+                    advertisementSummary(result),
+                    looksLikeWhoop(result)
+            );
             devices.put(row.address, row);
             listener.onDevicesChanged(new ArrayList<>(devices.values()));
         }
@@ -226,7 +234,7 @@ final class GooseBleClient {
         filteredScan = withWhoopFilters;
         listener.onStateChanged(withWhoopFilters
                 ? "Scanning for WHOOP advertisements"
-                : "Scanning all BLE advertisements for WHOOP-like devices");
+                : "Fallback scan: showing all BLE advertisers");
 
         List<ScanFilter> filters = new ArrayList<>();
         if (withWhoopFilters) {
@@ -269,6 +277,21 @@ final class GooseBleClient {
             }
         }
         return false;
+    }
+
+    private String advertisementSummary(ScanResult result) {
+        if (result.getScanRecord() == null || result.getScanRecord().getServiceUuids() == null) {
+            return "No advertised services";
+        }
+        List<ParcelUuid> services = result.getScanRecord().getServiceUuids();
+        if (services.isEmpty()) {
+            return "No advertised services";
+        }
+        StringBuilder builder = new StringBuilder("Services:");
+        for (ParcelUuid serviceUuid : services) {
+            builder.append('\n').append(serviceUuid.getUuid());
+        }
+        return builder.toString();
     }
 
     private String scanFailureName(int errorCode) {
