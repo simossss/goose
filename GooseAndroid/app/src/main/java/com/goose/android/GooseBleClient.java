@@ -24,6 +24,7 @@ import android.os.Looper;
 
 import java.util.ArrayList;
 import java.util.ArrayDeque;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -163,7 +164,7 @@ final class GooseBleClient {
             return;
         }
         devices.clear();
-        listener.onDevicesChanged(new ArrayList<>(devices.values()));
+        publishDevices();
         startScanner(scanner, true);
     }
 
@@ -220,7 +221,7 @@ final class GooseBleClient {
                     looksLikeWhoop(result)
             );
             devices.put(row.address, row);
-            listener.onDevicesChanged(new ArrayList<>(devices.values()));
+            publishDevices();
         }
 
         @Override
@@ -279,6 +280,14 @@ final class GooseBleClient {
             }
         }
         return false;
+    }
+
+    private void publishDevices() {
+        List<DeviceRow> rows = new ArrayList<>(devices.values());
+        rows.sort(Comparator
+                .comparing((DeviceRow row) -> row.likelyWhoop).reversed()
+                .thenComparing((DeviceRow row) -> row.rssi, Comparator.reverseOrder()));
+        listener.onDevicesChanged(rows);
     }
 
     private String advertisementSummary(ScanResult result) {
@@ -641,7 +650,7 @@ final class GooseBleClient {
             name = device.getName();
         }
         if (name == null || name.trim().isEmpty()) {
-            return "WHOOP strap";
+            return "Unknown BLE device";
         }
         return name;
     }
