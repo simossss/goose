@@ -1,11 +1,14 @@
 package com.goose.android;
 
 import android.content.Context;
+import android.content.ContentValues;
+import android.database.sqlite.SQLiteDatabase;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -69,6 +72,8 @@ final class GoosePacketIngestor {
             JSONArray issues = importReport.optJSONArray("issues");
             String importSummary = "raw inserted "
                     + importReport.optInt("raw_inserted", 0)
+                    + ", direct raw inserted "
+                    + importReport.optInt("direct_raw_inserted", 0)
                     + ", decoded inserted "
                     + importReport.optInt("frames_inserted", 0)
                     + ", existing "
@@ -123,12 +128,15 @@ final class GoosePacketIngestor {
             long capturedAtMillis
     ) throws Exception {
         frameCounter += 1;
+        String evidenceId = UUID.randomUUID().toString();
         String frameId = "android-live-" + capturedAtMillis + "-" + frameCounter;
+        String capturedAt = iso8601(capturedAtMillis);
+        String source = "goose-android/live-notification/" + serviceUuid + "/" + characteristicUuid;
         JSONObject row = new JSONObject()
-                .put("evidence_id", UUID.randomUUID().toString())
+                .put("evidence_id", evidenceId)
                 .put("frame_id", frameId)
-                .put("source", "goose-android/live-notification/" + serviceUuid + "/" + characteristicUuid)
-                .put("captured_at", iso8601(capturedAtMillis))
+                .put("source", source)
+                .put("captured_at", capturedAt)
                 .put("device_model", "WHOOP 5.0 Goose Android")
                 .put("frame_hex", frameHex)
                 .put("sensitivity", "raw_device_evidence")
@@ -143,7 +151,46 @@ final class GoosePacketIngestor {
                 .put("include_results", false)
                 .put("frames", new JSONArray().put(row));
 
-        return bridge.request("capture.import_frame_batch", args);
+        JSONObject report;
+        try {
+            report = bridge.request("capture.import_frame_batch", args);
+        } catch (Exception error) {
+            report = new JSONObject()
+                    .put("raw_inserted", 0)
+                    .put("frames_inserted", 0)
+                    .put("frames_existing", 0)
+                    .put("issues", new JSONArray().put(error.toString()));
+        }
+        boolean directInserted = insertRawEvidenceDirect(evidenceId, source, capturedAt, frameHex);
+        report.put("direct_raw_inserted", directInserted ? 1 : 0);
+        return report;
+    }
+
+    private boolean insertRawEvidenceDirect(
+            String evidenceId,
+            String source,
+            String capturedAt,
+            String payloadHex
+    ) throws Exception {
+        ContentValues values = new ContentValues();
+        values.put("evidence_id", evidenceId);
+        values.put("source", source);
+        values.put("captured_at", capturedAt);
+        values.put("device_model", "WHOOP 5.0 Goose Android");
+        values.put("payload_hex", payloadHex);
+        values.put("sha256", sha256Hex(Hex.decode(payloadHex)));
+        values.put("sensitivity", "raw_device_evidence");
+        SQLiteDatabase database = SQLiteDatabase.openDatabase(databaseFile.getAbsolutePath(), null, SQLiteDatabase.OPEN_READWRITE);
+        try {
+            return database.insertWithOnConflict("raw_evidence", null, values, SQLiteDatabase.CONFLICT_IGNORE) != -1;
+        } finally {
+            database.close();
+        }
+    }
+
+    private String sha256Hex(byte[] value) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        return Hex.encode(digest.digest(value));
     }
 
     private String iso8601(long millis) {
