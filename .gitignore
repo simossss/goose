@@ -1,10 +1,12 @@
 .DS_Store
 .idea/
+local.properties
 xcuserdata/
 *.xcuserstate
 DerivedData/
 build/
 GooseAndroid/.gradle/
+GooseAndroid/gradle/gradle-daemon-jvm.properties
 GooseAndroid/**/.cxx/
 GooseAndroid/**/build/
 *.ipa

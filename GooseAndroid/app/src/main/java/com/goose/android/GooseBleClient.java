@@ -18,7 +18,9 @@ import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.Handler;
 import android.os.ParcelUuid;
+import android.os.Looper;
 
 import java.util.ArrayList;
 import java.util.ArrayDeque;
@@ -88,6 +90,7 @@ final class GooseBleClient {
 
     private final Context context;
     private final Listener listener;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Map<String, DeviceRow> devices = new LinkedHashMap<>();
     private BluetoothAdapter adapter;
     private BluetoothGatt gatt;
@@ -95,6 +98,7 @@ final class GooseBleClient {
     private final Queue<GattOperation> operationQueue = new ArrayDeque<>();
     private GattOperation activeOperation;
     private boolean scanning;
+    private boolean filteredScan;
     private boolean clientHelloSent;
     private int subscriptionCount;
     private final Map<String, String> metadata = new LinkedHashMap<>();
@@ -147,18 +151,13 @@ final class GooseBleClient {
             listener.onStateChanged("BLE scanner unavailable");
             return;
         }
+        if (scanning) {
+            listener.onStateChanged("Scan already running; press Stop before starting again");
+            return;
+        }
         devices.clear();
-        scanning = true;
         listener.onDevicesChanged(new ArrayList<>(devices.values()));
-        listener.onStateChanged("Scanning for WHOOP");
-
-        List<ScanFilter> filters = new ArrayList<>();
-        filters.add(new ScanFilter.Builder().setServiceUuid(new ParcelUuid(WHOOP_GEN5_SERVICE)).build());
-        filters.add(new ScanFilter.Builder().setServiceUuid(new ParcelUuid(WHOOP_GEN4_SERVICE)).build());
-        ScanSettings settings = new ScanSettings.Builder()
-                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-                .build();
-        scanner.startScan(filters, settings, scanCallback);
+        startScanner(scanner, true);
     }
 
     void stopScan() {
@@ -170,6 +169,7 @@ final class GooseBleClient {
             scanner.stopScan(scanCallback);
         }
         scanning = false;
+        filteredScan = false;
         listener.onStateChanged("Scan stopped");
     }
 
@@ -203,6 +203,9 @@ final class GooseBleClient {
     private final ScanCallback scanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
+            if (!filteredScan && !looksLikeWhoop(result)) {
+                return;
+            }
             BluetoothDevice device = result.getDevice();
             String name = displayName(device);
             DeviceRow row = new DeviceRow(device.getAddress(), name, result.getRssi());
@@ -213,9 +216,75 @@ final class GooseBleClient {
         @Override
         public void onScanFailed(int errorCode) {
             scanning = false;
-            listener.onStateChanged("Scan failed: " + errorCode);
+            filteredScan = false;
+            listener.onStateChanged("Scan failed: " + scanFailureName(errorCode));
         }
     };
+
+    private void startScanner(BluetoothLeScanner scanner, boolean withWhoopFilters) {
+        scanning = true;
+        filteredScan = withWhoopFilters;
+        listener.onStateChanged(withWhoopFilters
+                ? "Scanning for WHOOP advertisements"
+                : "Scanning all BLE advertisements for WHOOP-like devices");
+
+        List<ScanFilter> filters = new ArrayList<>();
+        if (withWhoopFilters) {
+            filters.add(new ScanFilter.Builder().setServiceUuid(new ParcelUuid(WHOOP_GEN5_SERVICE)).build());
+            filters.add(new ScanFilter.Builder().setServiceUuid(new ParcelUuid(WHOOP_GEN4_SERVICE)).build());
+        }
+        ScanSettings settings = new ScanSettings.Builder()
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                .build();
+        scanner.startScan(filters, settings, scanCallback);
+
+        if (withWhoopFilters) {
+            mainHandler.postDelayed(() -> {
+                if (!scanning || !filteredScan || !devices.isEmpty() || adapter == null || !hasRuntimePermissions()) {
+                    return;
+                }
+                BluetoothLeScanner fallbackScanner = adapter.getBluetoothLeScanner();
+                if (fallbackScanner == null) {
+                    return;
+                }
+                fallbackScanner.stopScan(scanCallback);
+                startScanner(fallbackScanner, false);
+            }, 8000);
+        }
+    }
+
+    private boolean looksLikeWhoop(ScanResult result) {
+        BluetoothDevice device = result.getDevice();
+        String name = displayName(device).toLowerCase(Locale.US);
+        if (name.contains("whoop")) {
+            return true;
+        }
+        if (result.getScanRecord() == null || result.getScanRecord().getServiceUuids() == null) {
+            return false;
+        }
+        for (ParcelUuid serviceUuid : result.getScanRecord().getServiceUuids()) {
+            UUID uuid = serviceUuid.getUuid();
+            if (WHOOP_GEN5_SERVICE.equals(uuid) || WHOOP_GEN4_SERVICE.equals(uuid)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String scanFailureName(int errorCode) {
+        switch (errorCode) {
+            case ScanCallback.SCAN_FAILED_ALREADY_STARTED:
+                return "already started (press Stop, then Scan once)";
+            case ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED:
+                return "app registration failed";
+            case ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED:
+                return "feature unsupported";
+            case ScanCallback.SCAN_FAILED_INTERNAL_ERROR:
+                return "internal error";
+            default:
+                return "code " + errorCode;
+        }
+    }
 
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
         @Override
