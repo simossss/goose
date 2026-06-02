@@ -2,9 +2,11 @@ package com.goose.android;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -32,6 +34,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private TextView packetStatus;
     private TextView reportStatus;
     private TextView notificationLog;
+    private EditText manualStepsInput;
+    private String validationStart = "0000";
+    private String validationEnd = "9999";
     private int notificationCount;
 
     @Override
@@ -262,6 +267,27 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         metricActions.addView(sensorsButton, weightWrap());
         root.addView(metricActions);
 
+        LinearLayout validationActions = new LinearLayout(this);
+        validationActions.setOrientation(LinearLayout.HORIZONTAL);
+        manualStepsInput = new EditText(this);
+        manualStepsInput.setSingleLine(true);
+        manualStepsInput.setText("100");
+        manualStepsInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED);
+        validationActions.addView(manualStepsInput, weightWrap());
+        Button validationStartButton = new Button(this);
+        validationStartButton.setText("Start");
+        validationStartButton.setOnClickListener(view -> markValidationStart());
+        validationActions.addView(validationStartButton, weightWrap());
+        Button validationEndButton = new Button(this);
+        validationEndButton.setText("End");
+        validationEndButton.setOnClickListener(view -> markValidationEnd());
+        validationActions.addView(validationEndButton, weightWrap());
+        Button validationRunButton = new Button(this);
+        validationRunButton.setText("Validate");
+        validationRunButton.setOnClickListener(view -> runStepValidation());
+        validationActions.addView(validationRunButton, weightWrap());
+        root.addView(validationActions);
+
         reportStatus = bodyText("No report run");
         reportStatus.setPadding(0, 12, 0, 0);
         root.addView(reportStatus);
@@ -307,6 +333,35 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             packetStatus.setText("Sending " + result.command + "\n" + result.frameHex);
             ble.sendCommandFrame("command " + result.command, result.frame);
         }));
+    }
+
+    private void markValidationStart() {
+        validationStart = iso8601(System.currentTimeMillis());
+        reportStatus.setText("Step validation start\n" + validationStart);
+    }
+
+    private void markValidationEnd() {
+        validationEnd = iso8601(System.currentTimeMillis());
+        reportStatus.setText("Step validation end\n" + validationEnd);
+    }
+
+    private void runStepValidation() {
+        long manualSteps;
+        try {
+            manualSteps = Long.parseLong(manualStepsInput.getText().toString().trim());
+        } catch (NumberFormatException error) {
+            reportStatus.setText("Manual steps must be a number");
+            return;
+        }
+        reportStatus.setText("Running step validation...");
+        storeReporter.stepValidation(validationStart, validationEnd, manualSteps,
+                report -> runOnUiThread(() -> reportStatus.setText(report)));
+    }
+
+    private String iso8601(long millis) {
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+        formatter.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+        return formatter.format(new Date(millis));
     }
 
     private interface ReportRunner {

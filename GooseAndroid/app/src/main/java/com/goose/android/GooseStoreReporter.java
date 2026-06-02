@@ -69,6 +69,10 @@ final class GooseStoreReporter {
         executor.execute(() -> callback.onReport(runStepDiscovery()));
     }
 
+    void stepValidation(String start, String end, long manualStepDelta, Callback callback) {
+        executor.execute(() -> callback.onReport(runStepValidation(start, end, manualStepDelta)));
+    }
+
     void recoverySensors(Callback callback) {
         executor.execute(() -> callback.onReport(runRecoverySensors()));
     }
@@ -280,6 +284,36 @@ final class GooseStoreReporter {
                     + "issues: " + report.optJSONArray("issues");
         } catch (Exception error) {
             return "Step discovery failed\n" + error;
+        }
+    }
+
+    private String runStepValidation(String start, String end, long manualStepDelta) {
+        try {
+            JSONObject args = new JSONObject()
+                    .put("database_path", databasePath)
+                    .put("start", start)
+                    .put("end", end)
+                    .put("max_candidate_fields", 5000)
+                    .put("capture_kind", "android_counted_steps")
+                    .put("manual_step_delta", manualStepDelta)
+                    .put("tolerance_steps", 10)
+                    .put("label_provenance", new JSONObject()
+                            .put("label_source", "android_manual_count")
+                            .put("capture_app", "goose_android")
+                            .put("owner", "user"));
+            JSONObject report = bridge.request("metrics.step_capture_validation", args);
+            JSONObject selected = report.optJSONObject("selected_counter_delta");
+            return "Step validation\n"
+                    + "window: " + start + " -> " + end + "\n"
+                    + "manual steps: " + manualStepDelta + "\n"
+                    + "pass: " + report.optBoolean("pass", false) + "\n"
+                    + "inspected frames: " + report.optInt("inspected_frame_count", 0) + "\n"
+                    + "candidate fields: " + report.optInt("counter_candidate_count", 0) + "\n"
+                    + "counter deltas: " + report.optInt("counter_delta_candidate_count", 0) + "\n"
+                    + "selected delta: " + (selected != null ? selected.optLong("delta", 0) : "none") + "\n"
+                    + "issues: " + report.optJSONArray("issues");
+        } catch (Exception error) {
+            return "Step validation failed\n" + error;
         }
     }
 
