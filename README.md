@@ -19,6 +19,8 @@ GooseSwift/                         SwiftUI app source
 GooseWorkoutLiveActivityExtension/  Live Activity widget extension
 Rust/                               iOS static library, headers, per-platform outputs
 Scripts/build_ios_rust.sh           Xcode build phase for the Goose Rust core
+Scripts/build_android_rust.sh       Android shared library build for the Goose Rust core
+GooseAndroid/                       Android JNI bridge smoke app
 docs/goose-swift-mvp/               MVP plans, contracts, and data-readiness docs
 GooseSwift.xcodeproj                Xcode project
 ```
@@ -166,6 +168,79 @@ PLATFORM_NAME=iphoneos CURRENT_ARCH=arm64 Scripts/build_ios_rust.sh
 
 You normally do not need to run these by hand; the Xcode build phase runs the
 script before compiling Swift.
+
+### Android Rust Build
+
+The Rust core can also be built as Android `.so` libraries through
+`Scripts/build_android_rust.sh`. This is shared-core build support only; the
+Android app/JNI module is separate work.
+
+Prerequisites:
+
+- Rust via `rustup`.
+- Android SDK and NDK installed.
+- `ANDROID_NDK_HOME`, `ANDROID_NDK_ROOT`, `ANDROID_HOME`, or `ANDROID_SDK_ROOT`
+  set, or the NDK installed under `~/Library/Android/sdk/ndk`.
+- Android Rust targets:
+
+```bash
+rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+```
+
+Manual Android build:
+
+```bash
+Scripts/build_android_rust.sh
+```
+
+Set `ANDROID_ABIS` to build a subset, for example
+`ANDROID_ABIS="arm64-v8a x86_64" Scripts/build_android_rust.sh`. Set
+`ANDROID_API_LEVEL` to override the default API level `23`.
+
+By default the script builds:
+
+- `arm64-v8a` -> `aarch64-linux-android`
+- `armeabi-v7a` -> `armv7-linux-androideabi`
+- `x86_64` -> `x86_64-linux-android`
+
+Outputs are staged into:
+
+```text
+Rust/android/arm64-v8a/libgoose_core.so
+Rust/android/armeabi-v7a/libgoose_core.so
+Rust/android/x86_64/libgoose_core.so
+```
+
+`Rust/android/` is ignored because these shared libraries are generated build
+artifacts.
+
+## Android Port
+
+`GooseAndroid/` contains the Android port work in progress: a Java app that
+loads the Goose Rust core through a JNI shim, scans/connects over Android BLE,
+subscribes to WHOOP notification characteristics, parses live frames through
+the Rust bridge, imports captured frames into app-local SQLite, and exposes
+early Rust-backed Health/Debug report controls.
+
+Build the Rust Android libraries first, then assemble the app:
+
+```bash
+Scripts/build_android_rust.sh
+cd GooseAndroid
+./gradlew :app:assembleDebug
+```
+
+Run the Android bridge/storage/protocol smoke harness on an emulator or device:
+
+```bash
+./gradlew :app:assembleDebugAndroidTest
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w com.goose.android.test/com.goose.android.GooseRustBridgeInstrumentationTest
+```
+
+The Android port still needs physical WHOOP strap validation, historical sync,
+Health Connect integration, full health surfaces, and production UI polish.
 
 ## Data And Privacy
 

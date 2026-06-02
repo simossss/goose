@@ -175,6 +175,29 @@ The generated static libraries are build artifacts staged outside this source
 crate at `Rust/iphonesimulator/libgoose_core.a` and
 `Rust/iphoneos/libgoose_core.a`; they should not be committed.
 
+The shared core can also be built for Android from the repository root:
+
+```sh
+rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+Scripts/build_android_rust.sh
+```
+
+Set `ANDROID_ABIS` to build a subset and `ANDROID_API_LEVEL` to override the
+default API level `23`.
+
+The Android script locates the NDK from `ANDROID_NDK_HOME`,
+`ANDROID_NDK_ROOT`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, or
+`~/Library/Android/sdk/ndk`, then stages generated shared libraries outside this
+crate:
+
+```text
+Rust/android/arm64-v8a/libgoose_core.so
+Rust/android/armeabi-v7a/libgoose_core.so
+Rust/android/x86_64/libgoose_core.so
+```
+
+These Android `.so` files are build artifacts and should not be committed.
+
 Initial methods:
 
 - `core.version`

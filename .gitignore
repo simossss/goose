@@ -1,8 +1,12 @@
 .DS_Store
+.idea/
 xcuserdata/
 *.xcuserstate
 DerivedData/
 build/
+GooseAndroid/.gradle/
+GooseAndroid/**/.cxx/
+GooseAndroid/**/build/
 *.ipa
 *.dSYM
 *.xcarchive
@@ -14,5 +18,6 @@ Rust/libcodex_ios_auth_bridge.a
 Rust/.goose_core.active-target
 Rust/iphoneos/
 Rust/iphonesimulator/
+Rust/android/
 Vendor/CodexRust/codex-rs/target/
 tmp/
