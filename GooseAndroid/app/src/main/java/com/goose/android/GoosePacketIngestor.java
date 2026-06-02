@@ -65,18 +65,42 @@ final class GoosePacketIngestor {
     private Result ingestNow(byte[] value, String serviceUuid, String characteristicUuid, long capturedAtMillis) {
         String frameHex = Hex.encode(value);
         try {
-            String parseSummary = parseFrame(frameHex);
+            if (!isGooseFrame(frameHex)) {
+                return new Result(frameHex, standardNotificationSummary(characteristicUuid, value), "not imported", null);
+            }
             JSONObject importReport = importFrame(frameHex, serviceUuid, characteristicUuid, capturedAtMillis);
+            JSONArray issues = importReport.optJSONArray("issues");
             String importSummary = "raw inserted "
                     + importReport.optInt("raw_inserted", 0)
                     + ", decoded inserted "
                     + importReport.optInt("frames_inserted", 0)
                     + ", existing "
-                    + importReport.optInt("frames_existing", 0);
+                    + importReport.optInt("frames_existing", 0)
+                    + ", issues "
+                    + (issues != null ? issues.length() : 0);
+            String parseSummary;
+            try {
+                parseSummary = parseFrame(frameHex);
+            } catch (Exception parseError) {
+                parseSummary = "parse failed after raw import: " + parseError;
+            }
             return new Result(frameHex, parseSummary, importSummary, null);
         } catch (Exception error) {
             return new Result(frameHex, "", "", error.toString());
         }
+    }
+
+    private boolean isGooseFrame(String frameHex) {
+        return frameHex.toLowerCase(Locale.US).startsWith("aa");
+    }
+
+    private String standardNotificationSummary(String characteristicUuid, byte[] value) {
+        if ("00002a37-0000-1000-8000-00805f9b34fb".equalsIgnoreCase(characteristicUuid)
+                && value.length >= 2
+                && (value[0] & 0x01) == 0) {
+            return "standard heart rate: " + (value[1] & 0xff) + " bpm";
+        }
+        return "non-Goose notification";
     }
 
     private String parseFrame(String frameHex) throws Exception {
