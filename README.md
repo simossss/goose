@@ -267,6 +267,13 @@ Scripts/pull_android_database.sh tmp/goose-phone.sqlite
 Scripts/inspect_android_capture.sh tmp/goose-phone.sqlite
 ```
 
+For a timestamped phone evidence bundle, including status, adb device details,
+logcat, pulled SQLite files, and inspection output:
+
+```bash
+Scripts/collect_android_phone_evidence.sh
+```
+
 Run the Android bridge/storage/protocol smoke harness on an emulator or device:
 
 ```bash

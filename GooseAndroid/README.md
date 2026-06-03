@@ -73,6 +73,12 @@ Scripts/pull_android_database.sh tmp/goose-phone.sqlite
 Scripts/inspect_android_capture.sh tmp/goose-phone.sqlite
 ```
 
+Collect a timestamped phone evidence bundle after a real-device test:
+
+```sh
+Scripts/collect_android_phone_evidence.sh
+```
+
 Set `ANDROID_SERIAL` when more than one adb device is online. The helper uses
 `run-as com.goose.android`, so it expects the debug APK. It also pulls the
 bounded Health Connect sync audit log when present. The inspector prints table
@@ -180,6 +186,8 @@ These files are build artifacts and are ignored by git.
 8. Pull and inspect the debug store:
    `Scripts/pull_android_database.sh tmp/goose-phone.sqlite`, then
    `Scripts/inspect_android_capture.sh tmp/goose-phone.sqlite`.
+9. For a PR/phone-session artifact, run
+   `Scripts/collect_android_phone_evidence.sh`.
 
 The current build has captured live heart-rate packets and imported WHOOP
 historical data from a physical WHOOP 5.0. Explicit step-counter extraction is
