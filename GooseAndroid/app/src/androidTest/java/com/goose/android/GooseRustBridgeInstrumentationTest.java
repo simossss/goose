@@ -7,6 +7,10 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.FeatureInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.health.connect.datatypes.ActiveCaloriesBurnedRecord;
+import android.health.connect.datatypes.HeartRateRecord;
+import android.health.connect.datatypes.Record;
+import android.health.connect.datatypes.StepsRecord;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Process;
@@ -164,6 +168,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 || plannedDailyActivity.optInt("planned_write_count", 0) != 2) {
             throw new AssertionError("daily activity candidates did not plan cleanly: " + plannedDailyActivity);
         }
+        Log.i(TAG, "checking Android Health Connect record conversion");
+        assertHealthConnectRecordConversion();
 
         Log.i(TAG, "checking declared Health Connect permissions");
         assertHealthConnectManifestScope(context);
@@ -186,6 +192,97 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         if (privacyLint.length() == 0) {
             throw new AssertionError("privacy.lint returned an empty object");
         }
+    }
+
+    private void assertHealthConnectRecordConversion() throws Exception {
+        if (Build.VERSION.SDK_INT < 34) {
+            return;
+        }
+        Record steps = HealthConnectSupport.recordFromPlannedWrite(plannedWrite(
+                "StepsRecord",
+                "android-smoke-steps",
+                "2026-01-01T00:00:00.000Z",
+                "2026-01-01T01:00:00.000Z",
+                1200.0
+        ));
+        if (!(steps instanceof StepsRecord)) {
+            throw new AssertionError("planned steps did not build StepsRecord: " + steps);
+        }
+        Record heartRate = HealthConnectSupport.recordFromPlannedWrite(plannedWrite(
+                "HeartRateRecord",
+                "android-smoke-heart-rate",
+                "2026-01-01T00:00:00.000Z",
+                "2026-01-01T00:00:05.000Z",
+                64.0
+        ));
+        if (!(heartRate instanceof HeartRateRecord)) {
+            throw new AssertionError("planned heart rate did not build HeartRateRecord: " + heartRate);
+        }
+        Record activeEnergy = HealthConnectSupport.recordFromPlannedWrite(plannedWrite(
+                "ActiveCaloriesBurnedRecord",
+                "android-smoke-active-energy",
+                "2026-01-01T00:00:00.000Z",
+                "2026-01-01T01:00:00.000Z",
+                42.5
+        ));
+        if (!(activeEnergy instanceof ActiveCaloriesBurnedRecord)) {
+            throw new AssertionError("planned active energy did not build ActiveCaloriesBurnedRecord: " + activeEnergy);
+        }
+        Record unsupported = HealthConnectSupport.recordFromPlannedWrite(plannedWrite(
+                "DistanceRecord",
+                "android-smoke-distance",
+                "2026-01-01T00:00:00.000Z",
+                "2026-01-01T01:00:00.000Z",
+                10.0
+        ));
+        if (unsupported != null) {
+            throw new AssertionError("unsupported Health Connect record should return null: " + unsupported);
+        }
+        assertPlannedWriteRejected("bad time range", plannedWrite(
+                "StepsRecord",
+                "android-smoke-bad-range",
+                "2026-01-01T01:00:00.000Z",
+                "2026-01-01T00:00:00.000Z",
+                10.0
+        ));
+        assertPlannedWriteRejected("negative steps", plannedWrite(
+                "StepsRecord",
+                "android-smoke-negative-steps",
+                "2026-01-01T00:00:00.000Z",
+                "2026-01-01T01:00:00.000Z",
+                -1.0
+        ));
+        assertPlannedWriteRejected("zero heart rate", plannedWrite(
+                "HeartRateRecord",
+                "android-smoke-zero-heart-rate",
+                "2026-01-01T00:00:00.000Z",
+                "2026-01-01T00:00:05.000Z",
+                0.0
+        ));
+    }
+
+    private void assertPlannedWriteRejected(String label, JSONObject write) {
+        try {
+            HealthConnectSupport.recordFromPlannedWrite(write);
+            throw new AssertionError("planned write should have been rejected: " + label);
+        } catch (IllegalArgumentException expected) {
+        }
+    }
+
+    private JSONObject plannedWrite(
+            String destinationType,
+            String id,
+            String start,
+            String end,
+            double value
+    ) throws Exception {
+        return new JSONObject()
+                .put("destination_type", destinationType)
+                .put("source_record_id", id)
+                .put("idempotency_key", id + "-key")
+                .put("start_time", start)
+                .put("end_time", end)
+                .put("value", value);
     }
 
     private void assertApplicationInstallScope(Context context) throws Exception {

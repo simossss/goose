@@ -200,7 +200,7 @@ final class HealthConnectSupport {
     }
 
     @SuppressLint("NewApi")
-    private Record recordFromPlannedWrite(JSONObject write) {
+    static Record recordFromPlannedWrite(JSONObject write) {
         String destinationType = write.optString("destination_type");
         Instant start = Instant.parse(write.optString("start_time"));
         Instant end = Instant.parse(write.optString("end_time"));
@@ -244,7 +244,7 @@ final class HealthConnectSupport {
     }
 
     @SuppressLint("NewApi")
-    private Metadata metadataFor(JSONObject write) {
+    private static Metadata metadataFor(JSONObject write) {
         return new Metadata.Builder()
                 .setClientRecordId(write.optString("idempotency_key"))
                 .setClientRecordVersion(0L)
