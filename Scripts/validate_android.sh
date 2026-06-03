@@ -25,9 +25,13 @@ fi
 IFS=' ' read -r -a GOOSE_ANDROID_ABIS <<< "${ANDROID_ABIS:-arm64-v8a armeabi-v7a x86_64}"
 
 TMP_FILES=()
+TMP_DIRS=()
 cleanup_tmp_files() {
   for file in "${TMP_FILES[@]}"; do
     rm -f "$file"
+  done
+  for dir in "${TMP_DIRS[@]}"; do
+    rm -rf "$dir"
   done
 }
 trap cleanup_tmp_files EXIT
@@ -37,7 +41,7 @@ assert_file_contains() {
   local needle="$2"
   local label="$3"
 
-  if ! grep -Fq "$needle" "$file"; then
+  if ! grep -Fq -- "$needle" "$file"; then
     echo "$label missing expected output: $needle" >&2
     exit 1
   fi
@@ -59,13 +63,77 @@ echo "==> Checking Android handoff helper output"
 checklist_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-checklist.XXXXXX")"
 readiness_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness.XXXXXX")"
 readiness_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-strict.XXXXXX")"
-TMP_FILES+=("$checklist_output" "$readiness_output" "$readiness_strict_output")
+readiness_strict_pass_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-strict-pass.XXXXXX")"
+TMP_FILES+=("$checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output")
+synthetic_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-final-evidence.XXXXXX")"
+TMP_DIRS+=("$synthetic_evidence_dir")
 "$SCRIPT_DIR/android_final_phone_checklist.sh" > "$checklist_output"
 "$SCRIPT_DIR/android_pr_readiness.sh" > "$readiness_output"
 if "$SCRIPT_DIR/android_pr_readiness.sh" --strict > "$readiness_strict_output" 2>&1; then
   echo "PR readiness strict mode unexpectedly passed without phone evidence" >&2
   exit 1
 fi
+cat > "$synthetic_evidence_dir/phone-handoff-summary.md" <<'SUMMARY'
+# Goose Android Phone Evidence
+
+Generated at: 20260603T000000Z
+Device serial: physical-android-smoke
+Device kind: physical
+Device: Synthetic Android
+Android: 16 (SDK 36)
+Commit: synthetic
+Result: PASS
+
+## Installed App
+
+- Result: PASS
+- Package path: package:/data/app/com.goose.android/base.apk
+
+## Capture
+
+- Raw evidence rows: 2
+- Decoded frame rows: 1
+- Capture sessions: 1
+- Session raw evidence rows: 1
+- Session live notification raw evidence rows: 1
+- Finished nonempty capture sessions: 1
+- Step samples: 1
+- Daily activity metrics: 1
+
+## BLE Session
+
+- Ready events: 1
+- Hello sent events: 1
+- Command ready events: 1
+
+## Health Connect
+
+- Write started events: 1
+- Ready write started events: 1
+- Planned write started events: 1
+- Candidate write started events: 1
+- Records attempted events: 1
+- Write succeeded events: 1
+- Write failed events: 0
+
+## Step Validation
+
+- Completed events: 1
+- Passed events: 1
+- Failed events: 0
+- Session-bound events: 1
+- Session decoded events: 1
+- Selected delta events: 1
+SUMMARY
+cat > "$synthetic_evidence_dir/evidence-gates.txt" <<'GATES'
+GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1
+GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1
+GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION=1
+GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1
+GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN=1
+GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=0
+GATES
+"$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_evidence_dir" > "$readiness_strict_pass_output"
 assert_file_contains "$checklist_output" "Goose Android Final Phone Checklist" "final phone checklist"
 assert_file_contains "$checklist_output" "Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation" "final phone checklist"
 assert_file_contains "$checklist_output" "BLE session hello sent events: at least 1." "final phone checklist"
@@ -78,6 +146,8 @@ assert_file_contains "$readiness_output" "No phone evidence directory supplied."
 assert_file_contains "$readiness_output" "Remaining Phone-Bound Acceptance" "PR readiness"
 assert_file_contains "$readiness_output" "Scripts/android_pr_readiness.sh --strict [output-dir]" "PR readiness"
 assert_file_contains "$readiness_strict_output" "Strict PR readiness: FAIL" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Strict PR readiness: PASS" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "- None from the supplied evidence bundle." "PR readiness strict"
 
 find_build_tool() {
   local tool="$1"
