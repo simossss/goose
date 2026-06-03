@@ -232,7 +232,8 @@ Scripts/validate_android.sh
 
 The script builds the Rust Android libraries, assembles the debug, release, and
 instrumentation APKs, and runs the bridge/storage/protocol/Health Connect/privacy
-smoke harness when an emulator or device is online. Set
+smoke harness when an emulator or device is online. It also checks packaged APK
+metadata, including local-first permission boundaries. Set
 `GOOSE_ANDROID_SKIP_INSTRUMENTATION=1` to skip the adb install/smoke step.
 
 Print a PR/phone-handoff snapshot of the Android port:
