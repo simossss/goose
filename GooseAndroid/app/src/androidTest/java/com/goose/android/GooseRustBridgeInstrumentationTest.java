@@ -439,8 +439,19 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         if (!report.contains("status: PASS")
                 || !report.contains("raw evidence: 1")
                 || !report.contains("capture sessions: 1")
+                || !report.contains("session raw evidence: 1")
+                || !report.contains("session live notification raw evidence: 1")
+                || !report.contains("finished nonempty capture sessions: 1")
+                || !report.contains("ble session ready events:")
+                || !report.contains("ble session hello sent events:")
+                || !report.contains("ble session command ready events:")
                 || !report.contains("health sync audit bytes:")
-                || !report.contains("step validation audit bytes:")) {
+                || !report.contains("health sync ready write started events:")
+                || !report.contains("health sync records attempted events:")
+                || !report.contains("step validation audit bytes:")
+                || !report.contains("step validation session-bound events:")
+                || !report.contains("step validation session decoded events:")
+                || !report.contains("step validation selected delta events:")) {
             throw new AssertionError("evidence readiness report did not pass after capture smoke: " + report);
         }
     }

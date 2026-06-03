@@ -7,11 +7,14 @@ import android.database.sqlite.SQLiteDatabase;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
 
 final class GooseStoreReporter {
     private static final long MAX_STEP_VALIDATION_AUDIT_BYTES = 256L * 1024L;
@@ -27,6 +30,7 @@ final class GooseStoreReporter {
     private final GooseRustBridge bridge = new GooseRustBridge();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final File exportDirectory;
+    private final File bleSessionAuditFile;
     private final File healthSyncAuditFile;
     private final File stepValidationAuditFile;
     private final String databasePath;
@@ -34,6 +38,7 @@ final class GooseStoreReporter {
     GooseStoreReporter(Context context, String databasePath) {
         this.databasePath = databasePath;
         File databaseDirectory = new File(databasePath).getParentFile();
+        bleSessionAuditFile = BleSessionAudit.auditFileFor(context);
         healthSyncAuditFile = new File(databaseDirectory != null ? databaseDirectory : context.getFilesDir(),
                 "health-connect-sync-log.jsonl");
         stepValidationAuditFile = new File(databaseDirectory != null ? databaseDirectory : context.getFilesDir(),
@@ -302,20 +307,87 @@ final class GooseStoreReporter {
             database = SQLiteDatabase.openDatabase(databasePath, null, SQLiteDatabase.OPEN_READONLY);
             int rawRows = countRows(database, "raw_evidence");
             int captureSessions = countRows(database, "capture_sessions");
+            int sessionRawRows = countRowsWhere(database, "raw_evidence",
+                    "capture_session_id IS NOT NULL AND capture_session_id != ''");
+            int sessionLiveNotificationRows = countRowsWhere(database, "raw_evidence",
+                    "capture_session_id IS NOT NULL AND capture_session_id != '' "
+                            + "AND source LIKE 'goose-android/live-notification/%'");
+            int finishedNonemptySessions = countRowsWhere(database, "capture_sessions",
+                    "status = 'finished' AND frame_count > 0");
             int decodedFrames = countRows(database, "decoded_frames");
             int stepSamples = countRows(database, "step_counter_samples");
             String latestCapture = latestValue(database, "raw_evidence", "captured_at");
-            boolean strictReady = rawRows > 0 && captureSessions > 0;
+            int bleReadyEvents = countFileRowsContainingAll(bleSessionAuditFile,
+                    "\"schema\":\"goose.android.ble-session-audit.v1\"",
+                    "\"phase\":\"ready\"");
+            int bleHelloSentEvents = countFileRowsContainingAll(bleSessionAuditFile,
+                    "\"schema\":\"goose.android.ble-session-audit.v1\"",
+                    "\"hello_sent\":true");
+            int bleCommandReadyEvents = countFileRowsContainingAll(bleSessionAuditFile,
+                    "\"schema\":\"goose.android.ble-session-audit.v1\"",
+                    "\"command_ready\":true");
+            int healthWriteStartedEvents = countFileRowsContainingAll(healthSyncAuditFile,
+                    "\"schema\":\"goose.android.health-connect-sync-audit.v1\"",
+                    "\"event\":\"write_started\"");
+            int healthReadyWriteStartedEvents = countFileRowsContainingAll(healthSyncAuditFile,
+                    "\"schema\":\"goose.android.health-connect-sync-audit.v1\"",
+                    "\"event\":\"write_started\"",
+                    "\"permissions_ready\":true");
+            int healthPlannedWriteStartedEvents = countFileRowsMatching(healthSyncAuditFile,
+                    Pattern.compile(".*\"event\":\"write_started\".*\"planned_write_count\":[1-9][0-9]*.*"));
+            int healthCandidateWriteStartedEvents = countFileRowsMatching(healthSyncAuditFile,
+                    Pattern.compile(".*\"event\":\"write_started\".*\"candidate_count\":[1-9][0-9]*.*"));
+            int healthRecordsAttemptedEvents = countFileRowsMatching(healthSyncAuditFile,
+                    Pattern.compile(".*\"event\":\"write_started\".*\"records_attempted\":[1-9][0-9]*.*"));
+            int healthWriteSucceededEvents = countFileRowsContainingAll(healthSyncAuditFile,
+                    "\"schema\":\"goose.android.health-connect-sync-audit.v1\"",
+                    "\"event\":\"write_succeeded\"");
+            int stepValidationCompletedEvents = countFileRowsContainingAll(stepValidationAuditFile,
+                    "\"schema\":\"goose.android.step-validation-audit.v1\"",
+                    "\"event\":\"completed\"");
+            int stepValidationPassedEvents = countFileRowsContainingAll(stepValidationAuditFile,
+                    "\"schema\":\"goose.android.step-validation-audit.v1\"",
+                    "\"event\":\"completed\"",
+                    "\"pass\":true");
+            int stepValidationSessionBoundEvents = countFileRowsMatching(stepValidationAuditFile,
+                    Pattern.compile(".*\"event\":\"completed\".*\"capture_session_id\":\"[^\"]+\".*"));
+            int stepValidationSessionDecodedEvents = countFileRowsMatching(stepValidationAuditFile,
+                    Pattern.compile(".*\"event\":\"completed\".*\"capture_session_decoded_frame_count\":[1-9][0-9]*.*"));
+            int stepValidationSelectedDeltaEvents = countFileRowsMatching(stepValidationAuditFile,
+                    Pattern.compile(".*\"event\":\"completed\".*\"selected_delta\":-?[0-9]+.*"));
+            boolean strictReady = rawRows > 0
+                    && captureSessions > 0
+                    && sessionRawRows > 0
+                    && sessionLiveNotificationRows > 0
+                    && finishedNonemptySessions > 0;
             return "Android evidence readiness\n"
                     + "status: " + (strictReady ? "PASS" : "WAIT") + "\n"
                     + "database: " + databasePath + "\n"
                     + "raw evidence: " + rawRows + "\n"
                     + "capture sessions: " + captureSessions + "\n"
+                    + "session raw evidence: " + sessionRawRows + "\n"
+                    + "session live notification raw evidence: " + sessionLiveNotificationRows + "\n"
+                    + "finished nonempty capture sessions: " + finishedNonemptySessions + "\n"
                     + "decoded frames: " + decodedFrames + "\n"
                     + "step samples: " + stepSamples + "\n"
                     + "latest capture: " + latestCapture + "\n"
+                    + "ble session audit bytes: " + bleSessionAuditFile.length() + "\n"
+                    + "ble session ready events: " + bleReadyEvents + "\n"
+                    + "ble session hello sent events: " + bleHelloSentEvents + "\n"
+                    + "ble session command ready events: " + bleCommandReadyEvents + "\n"
                     + "health sync audit bytes: " + healthSyncAuditFile.length() + "\n"
-                    + "step validation audit bytes: " + stepValidationAuditFile.length();
+                    + "health sync write started events: " + healthWriteStartedEvents + "\n"
+                    + "health sync ready write started events: " + healthReadyWriteStartedEvents + "\n"
+                    + "health sync planned write started events: " + healthPlannedWriteStartedEvents + "\n"
+                    + "health sync candidate write started events: " + healthCandidateWriteStartedEvents + "\n"
+                    + "health sync records attempted events: " + healthRecordsAttemptedEvents + "\n"
+                    + "health sync write succeeded events: " + healthWriteSucceededEvents + "\n"
+                    + "step validation audit bytes: " + stepValidationAuditFile.length() + "\n"
+                    + "step validation completed events: " + stepValidationCompletedEvents + "\n"
+                    + "step validation passed events: " + stepValidationPassedEvents + "\n"
+                    + "step validation session-bound events: " + stepValidationSessionBoundEvents + "\n"
+                    + "step validation session decoded events: " + stepValidationSessionDecodedEvents + "\n"
+                    + "step validation selected delta events: " + stepValidationSelectedDeltaEvents;
         } catch (Exception error) {
             return "Android evidence readiness\nstatus: FAIL\n" + error;
         } finally {
@@ -752,6 +824,12 @@ final class GooseStoreReporter {
         }
     }
 
+    private int countRowsWhere(SQLiteDatabase database, String table, String whereClause) {
+        try (Cursor cursor = database.rawQuery("SELECT COUNT(*) FROM " + table + " WHERE " + whereClause, null)) {
+            return cursor.moveToFirst() ? cursor.getInt(0) : 0;
+        }
+    }
+
     private String latestValue(SQLiteDatabase database, String table, String column) {
         try (Cursor cursor = database.rawQuery(
                 "SELECT " + column + " FROM " + table + " ORDER BY " + column + " DESC LIMIT 1",
@@ -759,6 +837,43 @@ final class GooseStoreReporter {
         )) {
             return cursor.moveToFirst() ? cursor.getString(0) : "none";
         }
+    }
+
+    private int countFileRowsContainingAll(File file, String... needles) {
+        return countFileRowsMatching(file, line -> {
+            for (String needle : needles) {
+                if (!line.contains(needle)) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }
+
+    private int countFileRowsMatching(File file, Pattern pattern) {
+        return countFileRowsMatching(file, line -> pattern.matcher(line).matches());
+    }
+
+    private int countFileRowsMatching(File file, LineMatcher matcher) {
+        if (!file.isFile()) {
+            return 0;
+        }
+        int rows = 0;
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (matcher.matches(line)) {
+                    rows += 1;
+                }
+            }
+        } catch (Exception ignored) {
+            return 0;
+        }
+        return rows;
+    }
+
+    private interface LineMatcher {
+        boolean matches(String line);
     }
 
     private int exportFileCount() {

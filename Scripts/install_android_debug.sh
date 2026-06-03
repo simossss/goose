@@ -135,6 +135,7 @@ Phone test checklist:
 6. Generate PR evidence:
    Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-real
 
-Still phone-bound: counted-step decoder confirmation and Health Connect write
-evidence from a real Android phone.
+Still phone-bound: physical WHOOP BLE session evidence, live-notification raw
+capture provenance, counted-step decoder confirmation, and Health Connect
+ready write-attempt evidence from a real Android phone.
 NEXT_STEPS

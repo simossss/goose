@@ -124,4 +124,4 @@ fi
 
 echo
 echo "Final gate summary:"
-sed -n '1,80p' "$OUTPUT_DIR/phone-handoff-summary.md"
+sed -n '1,120p' "$OUTPUT_DIR/phone-handoff-summary.md"
