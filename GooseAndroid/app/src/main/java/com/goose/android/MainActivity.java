@@ -78,10 +78,12 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private PendingCommand pendingCommand;
     private long clearLocalDataConfirmUntilMillis;
     private int notificationCount;
+    private boolean destroyed;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        destroyed = false;
         ble = new GooseBleClient(this, this);
         commandBuilder = new GooseCommandBuilder();
         packetIngestor = new GoosePacketIngestor(this);
@@ -94,6 +96,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     @Override
     protected void onDestroy() {
+        destroyed = true;
         ble.close();
         commandBuilder.close();
         packetIngestor.close();
@@ -101,6 +104,14 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         healthConnectSupport.close();
         sessionExecutor.shutdownNow();
         super.onDestroy();
+    }
+
+    private void runOnUiThreadIfAlive(Runnable action) {
+        runOnUiThread(() -> {
+            if (!destroyed && !isFinishing()) {
+                action.run();
+            }
+        });
     }
 
     @Override
@@ -115,7 +126,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     @Override
     public void onStateChanged(String status) {
-        runOnUiThread(() -> {
+        runOnUiThreadIfAlive(() -> {
             if (status.toLowerCase(Locale.US).contains("disconnect")) {
                 pendingCommand = null;
             }
@@ -125,7 +136,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     @Override
     public void onDevicesChanged(List<GooseBleClient.DeviceRow> devices) {
-        runOnUiThread(() -> {
+        runOnUiThreadIfAlive(() -> {
             deviceList.removeAllViews();
             if (devices.isEmpty()) {
                 TextView empty = bodyText("No WHOOP devices discovered");
@@ -145,7 +156,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     public void onNotification(GooseBleClient.GooseNotification notification) {
         notificationCount += 1;
         String stamp = new SimpleDateFormat("HH:mm:ss", Locale.US).format(new Date(notification.capturedAtMillis));
-        packetIngestor.ingest(notification, result -> runOnUiThread(() -> {
+        packetIngestor.ingest(notification, result -> runOnUiThreadIfAlive(() -> {
             String summary = result.error != null
                     ? result.error
                     : result.parseSummary + "\n" + result.importSummary;
@@ -158,13 +169,13 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     @Override
     public void onMetadataChanged(String metadata) {
-        runOnUiThread(() -> metadataStatus.setText(metadata));
+        runOnUiThreadIfAlive(() -> metadataStatus.setText(metadata));
     }
 
     @Override
     public void onCommandEvent(GooseBleClient.CommandEvent event) {
         String stamp = new SimpleDateFormat("HH:mm:ss", Locale.US).format(new Date(event.occurredAtMillis));
-        runOnUiThread(() -> {
+        runOnUiThreadIfAlive(() -> {
             transferProgress.recordCommand(event);
             transferStatus.setText(transferProgress.summary());
             appendCommandRow(commandEventSummary(stamp, event));
@@ -173,7 +184,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     @Override
     public void onConnectionProgress(GooseBleClient.ConnectionProgress progress) {
-        runOnUiThread(() -> {
+        runOnUiThreadIfAlive(() -> {
             if (connectionStatus != null) {
                 connectionStatus.setText(connectionProgressSummary(progress));
             }
@@ -188,9 +199,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                         .put("database_path", packetIngestor.databasePath())
                         .put("self_test", true);
                 JSONObject report = bridge.request("storage.check", args);
-                runOnUiThread(() -> storeStatus.setText(compactStoreSummary(report)));
+                runOnUiThreadIfAlive(() -> storeStatus.setText(compactStoreSummary(report)));
             } catch (Exception error) {
-                runOnUiThread(() -> storeStatus.setText(
+                runOnUiThreadIfAlive(() -> storeStatus.setText(
                         "Store check failed\n" + packetIngestor.databasePath() + "\n" + error));
             }
         });
@@ -472,9 +483,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             try {
                 JSONObject version = bridge.request("core.version");
                 String summary = "Rust bridge ready\n" + version.toString(2);
-                runOnUiThread(() -> bridgeStatus.setText(summary));
+                runOnUiThreadIfAlive(() -> bridgeStatus.setText(summary));
             } catch (Exception error) {
-                runOnUiThread(() -> bridgeStatus.setText("Rust bridge failed\n" + error));
+                runOnUiThreadIfAlive(() -> bridgeStatus.setText("Rust bridge failed\n" + error));
             }
         });
     }
@@ -509,7 +520,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     private void runReport(ReportRunner runner) {
         reportStatus.setText("Running report...");
-        runner.run(report -> runOnUiThread(() -> reportStatus.setText(truncateForDisplay(report))));
+        runner.run(report -> runOnUiThreadIfAlive(() -> reportStatus.setText(truncateForDisplay(report))));
     }
 
     private void runHealthConnectDryRun() {
@@ -517,7 +528,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         refreshHealthConnectStatus();
         storeReporter.healthConnectDryRun(
                 healthConnectSupport.healthSyncPermissionGrants(),
-                report -> runOnUiThread(() -> reportStatus.setText(truncateForDisplay(report)))
+                report -> runOnUiThreadIfAlive(() -> reportStatus.setText(truncateForDisplay(report)))
         );
     }
 
@@ -526,7 +537,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         refreshHealthConnectStatus();
         storeReporter.healthConnectDryRunPlan(
                 healthConnectSupport.healthSyncPermissionGrants(),
-                (report, summary) -> runOnUiThread(() -> {
+                (report, summary) -> runOnUiThreadIfAlive(() -> {
                     if (report == null) {
                         reportStatus.setText(truncateForDisplay(summary));
                         return;
@@ -538,7 +549,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                     }
                     reportStatus.setText(truncateForDisplay(summary + "\n\nWriting Health Connect records..."));
                     healthConnectSupport.writePlannedRecords(report,
-                            writeReport -> runOnUiThread(() -> {
+                            writeReport -> runOnUiThreadIfAlive(() -> {
                                 reportStatus.setText(truncateForDisplay(summary + "\n\n" + writeReport));
                                 refreshHealthConnectStatus();
                             }));
@@ -548,7 +559,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     private void runStorageMutation(ReportRunner runner) {
         reportStatus.setText("Running storage operation...");
-        runner.run(report -> runOnUiThread(() -> {
+        runner.run(report -> runOnUiThreadIfAlive(() -> {
             reportStatus.setText(truncateForDisplay(report));
             refreshStoreStatus();
         }));
@@ -592,7 +603,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         }
         pendingCommand = null;
         packetStatus.setText("Preparing command: " + command);
-        commandBuilder.build(command, payloadHex, result -> runOnUiThread(() -> {
+        commandBuilder.build(command, payloadHex, result -> runOnUiThreadIfAlive(() -> {
             if (result.error != null) {
                 packetStatus.setText("Command build failed: " + result.error);
                 return;
@@ -628,7 +639,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                     expiresAt,
                     summary
             );
-            runOnUiThread(() -> {
+            runOnUiThreadIfAlive(() -> {
                 if (pendingCommand == null
                         || !pendingCommand.matches(result.command, payloadHex)
                         || !pendingCommand.frameHex.equals(result.frameHex)) {
@@ -712,9 +723,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 bridge.request("capture.start_session", args);
                 packetIngestor.startCaptureSession(sessionId);
                 activeCaptureSessionId = sessionId;
-                runOnUiThread(() -> sessionStatus.setText("Capture session active\n" + sessionId));
+                runOnUiThreadIfAlive(() -> sessionStatus.setText("Capture session active\n" + sessionId));
             } catch (Exception error) {
-                runOnUiThread(() -> sessionStatus.setText("Capture session start failed\n" + error));
+                runOnUiThreadIfAlive(() -> sessionStatus.setText("Capture session start failed\n" + error));
             }
         });
     }
@@ -739,12 +750,12 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                         .put("ended_at_unix_ms", endedAt)
                         .put("frame_count", frameCount);
                 JSONObject report = bridge.request("capture.finish_session", args);
-                runOnUiThread(() -> sessionStatus.setText("Capture session finished\n"
+                runOnUiThreadIfAlive(() -> sessionStatus.setText("Capture session finished\n"
                         + sessionId
                         + "\nframes: " + frameCount
                         + "\n" + summarizeSession(report.optJSONObject("session"))));
             } catch (Exception error) {
-                runOnUiThread(() -> sessionStatus.setText("Capture session finish failed\n" + error));
+                runOnUiThreadIfAlive(() -> sessionStatus.setText("Capture session finish failed\n" + error));
             }
         });
     }
@@ -758,9 +769,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                         .put("start_unix_ms", 0)
                         .put("end_unix_ms", System.currentTimeMillis() + 86400000L);
                 JSONObject report = bridge.request("capture.list_sessions", args);
-                runOnUiThread(() -> reportStatus.setText(captureSessionListSummary(report)));
+                runOnUiThreadIfAlive(() -> reportStatus.setText(captureSessionListSummary(report)));
             } catch (Exception error) {
-                runOnUiThread(() -> reportStatus.setText("Capture sessions failed\n" + error));
+                runOnUiThreadIfAlive(() -> reportStatus.setText("Capture sessions failed\n" + error));
             }
         });
     }
@@ -785,7 +796,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         }
         reportStatus.setText("Running step validation...");
         storeReporter.stepValidation(validationStart, validationEnd, manualSteps,
-                report -> runOnUiThread(() -> reportStatus.setText(truncateForDisplay(report))));
+                report -> runOnUiThreadIfAlive(() -> reportStatus.setText(truncateForDisplay(report))));
     }
 
     private void appendNotificationLog(String stamp, String characteristicUuid, String frameHex) {

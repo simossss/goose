@@ -193,6 +193,7 @@ final class GooseBleClient {
     private boolean scanning;
     private boolean filteredScan;
     private boolean publishQueued;
+    private boolean closed;
     private long lastDevicePublishAtMillis;
     private boolean clientHelloSent;
     private int subscriptionCount;
@@ -244,6 +245,7 @@ final class GooseBleClient {
     }
 
     void startScan() {
+        closed = false;
         if (!hasRuntimePermissions()) {
             listener.onStateChanged("Bluetooth permissions required");
             return;
@@ -281,6 +283,7 @@ final class GooseBleClient {
     }
 
     void connect(String address) {
+        closed = false;
         if (!hasRuntimePermissions()) {
             listener.onStateChanged("Bluetooth permissions required");
             return;
@@ -376,12 +379,17 @@ final class GooseBleClient {
     }
 
     void close() {
+        closed = true;
+        mainHandler.removeCallbacksAndMessages(null);
         stopScan();
         if (gatt != null && hasRuntimePermissions()) {
             gatt.close();
         }
         gatt = null;
         activeDeviceId = null;
+        scanning = false;
+        filteredScan = false;
+        publishQueued = false;
         resetOperations();
         resetDiscoveryCounts();
         emitConnectionProgress("closed", null);
@@ -390,6 +398,9 @@ final class GooseBleClient {
     private final ScanCallback scanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
+            if (closed) {
+                return;
+            }
             BluetoothDevice device = result.getDevice();
             String name = displayName(device);
             DeviceRow row = new DeviceRow(
@@ -412,6 +423,9 @@ final class GooseBleClient {
 
         @Override
         public void onScanFailed(int errorCode) {
+            if (closed) {
+                return;
+            }
             scanning = false;
             filteredScan = false;
             listener.onStateChanged("Scan failed: " + scanFailureName(errorCode));
@@ -439,7 +453,7 @@ final class GooseBleClient {
 
         if (withWhoopFilters) {
             mainHandler.postDelayed(() -> {
-                if (!scanning || !filteredScan || hasLikelyWhoopDevice() || adapter == null || !hasRuntimePermissions()) {
+                if (closed || !scanning || !filteredScan || hasLikelyWhoopDevice() || adapter == null || !hasRuntimePermissions()) {
                     return;
                 }
                 BluetoothLeScanner fallbackScanner = adapter.getBluetoothLeScanner();
@@ -480,6 +494,9 @@ final class GooseBleClient {
     }
 
     private void scheduleDevicePublish() {
+        if (closed) {
+            return;
+        }
         long now = System.currentTimeMillis();
         if (now - lastDevicePublishAtMillis >= DEVICE_PUBLISH_INTERVAL_MS) {
             publishDevicesNow();
@@ -490,12 +507,18 @@ final class GooseBleClient {
         }
         publishQueued = true;
         mainHandler.postDelayed(() -> {
+            if (closed) {
+                return;
+            }
             publishQueued = false;
             publishDevicesNow();
         }, DEVICE_PUBLISH_INTERVAL_MS);
     }
 
     private void publishDevicesNow() {
+        if (closed) {
+            return;
+        }
         lastDevicePublishAtMillis = System.currentTimeMillis();
         List<DeviceRow> rows = new ArrayList<>(devices.values());
         rows.sort(Comparator
