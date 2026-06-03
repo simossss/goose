@@ -207,6 +207,8 @@ These files are build artifacts and are ignored by git.
 - Replaces the initial debug-only surface with a styled Android utility UI:
   Capture, Insights, More, and Log tabs with primary and destructive actions
   visually separated.
+- Keeps the capture activity alive across orientation and screen-size changes
+  so a controlled BLE capture is not torn down by accidental rotation.
 - Exposes Android storage/privacy controls for export inventory, export cache
   clearing, and two-tap local SQLite data deletion.
 - Exposes an Android evidence readiness report for phone handoff checks:

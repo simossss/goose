@@ -683,6 +683,13 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 if (!activity.exported) {
                     throw new AssertionError("MainActivity must remain exported for launcher access");
                 }
+                int expectedConfigChanges = ActivityInfo.CONFIG_KEYBOARD_HIDDEN
+                        | ActivityInfo.CONFIG_ORIENTATION
+                        | ActivityInfo.CONFIG_SCREEN_SIZE;
+                if ((activity.configChanges & expectedConfigChanges) != expectedConfigChanges) {
+                    throw new AssertionError("MainActivity must handle orientation/screen changes during captures: "
+                            + activity.configChanges);
+                }
                 return;
             }
         }
