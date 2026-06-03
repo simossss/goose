@@ -22,17 +22,50 @@ if [[ -n "${JAVA_HOME:-}" ]]; then
   export PATH="$JAVA_HOME/bin:$PATH"
 fi
 
+IFS=' ' read -r -a GOOSE_ANDROID_ABIS <<< "${ANDROID_ABIS:-arm64-v8a armeabi-v7a x86_64}"
+
+assert_apk_native_libs() {
+  local apk_path="$1"
+  local label="$2"
+
+  if [[ ! -f "$apk_path" ]]; then
+    echo "Missing $label APK: $apk_path" >&2
+    exit 1
+  fi
+  if ! command -v zipinfo >/dev/null 2>&1; then
+    echo "zipinfo is required to validate $label APK native libraries" >&2
+    exit 1
+  fi
+
+  local listing
+  listing="$(zipinfo -1 "$apk_path")"
+  for abi in "${GOOSE_ANDROID_ABIS[@]}"; do
+    for library in libgoose_core.so libgoose_android_bridge.so; do
+      if ! grep -qx "lib/$abi/$library" <<<"$listing"; then
+        echo "$label APK missing lib/$abi/$library" >&2
+        exit 1
+      fi
+    done
+  done
+}
+
 echo "==> Building Android Rust libraries (debug)"
 CONFIGURATION=Debug "$APP_DIR/Scripts/build_android_rust.sh"
 
 echo "==> Building Android debug and instrumentation APKs"
 (cd "$ANDROID_DIR" && "$GRADLEW" :app:assembleDebug :app:assembleDebugAndroidTest)
 
+echo "==> Validating Android debug APK native libraries"
+assert_apk_native_libs "$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk" "debug"
+
 echo "==> Building Android Rust libraries (release)"
 CONFIGURATION=Release "$APP_DIR/Scripts/build_android_rust.sh"
 
 echo "==> Building Android release APK"
 (cd "$ANDROID_DIR" && "$GRADLEW" :app:assembleRelease)
+
+echo "==> Validating Android release APK native libraries"
+assert_apk_native_libs "$ANDROID_DIR/app/build/outputs/apk/release/app-release-unsigned.apk" "release"
 
 if [[ "${GOOSE_ANDROID_SKIP_INSTRUMENTATION:-0}" == "1" ]]; then
   echo "==> Skipping Android instrumentation because GOOSE_ANDROID_SKIP_INSTRUMENTATION=1"
