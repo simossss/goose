@@ -7,6 +7,7 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUTPUT_DIR="${1:-$APP_DIR/tmp/android-phone-evidence-$STAMP}"
 REQUIRE_INSTALLED_PACKAGE="${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}"
 REQUIRE_PHYSICAL_DEVICE="${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}"
+REQUIRE_NO_ANDROID_RUNTIME_CRASH="${GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH:-0}"
 
 if [[ -z "${ADB:-}" && -x "$HOME/Library/Android/sdk/platform-tools/adb" ]]; then
   ADB="$HOME/Library/Android/sdk/platform-tools/adb"
@@ -93,6 +94,7 @@ GOOSE_ANDROID_MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE=${GOOSE_ANDROID_MIN_SES
 GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=${GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS:-0}
 GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}
 GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE=${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}
+GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH=${GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH:-0}
 GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT=${GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT:-0}
 GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=${GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT:-0}
 GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT:-0}
@@ -143,6 +145,7 @@ if [[ -z "$inspection_result" ]]; then
   inspection_result="$(awk -F': ' '$1 == "RESULT" { print $2; exit }' "$OUTPUT_DIR/evidence-result.txt")"
 fi
 package_path="$(first_line "$OUTPUT_DIR/goose-package-path.txt")"
+android_runtime_crash_count="$(grep -c 'com.goose.android' "$OUTPUT_DIR/logcat-goose-brief.txt" 2>/dev/null || true)"
 package_result="PASS"
 if [[ "$package_path" != package:* ]] \
   || ! grep -q 'versionName=0.1.0' "$OUTPUT_DIR/goose-package-summary.txt" 2>/dev/null; then
@@ -160,6 +163,12 @@ if [[ "$REQUIRE_PHYSICAL_DEVICE" == "1" && "$device_kind" != "physical" ]]; then
   inspection_status=1
   inspection_result="FAIL"
   echo "FAIL: final evidence requires a physical Android device, got $device_kind ($device_serial)" >> "$OUTPUT_DIR/collect-error.txt"
+  echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
+fi
+if [[ "$REQUIRE_NO_ANDROID_RUNTIME_CRASH" == "1" && "$android_runtime_crash_count" -gt 0 ]]; then
+  inspection_status=1
+  inspection_result="FAIL"
+  echo "FAIL: focused AndroidRuntime logcat contains com.goose.android crash lines" >> "$OUTPUT_DIR/collect-error.txt"
   echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
 fi
 
@@ -180,6 +189,7 @@ Result: ${inspection_result:-unknown}
 - Strict evidence: ${GOOSE_ANDROID_STRICT_EVIDENCE:-0}
 - Require installed package: ${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}
 - Require physical device: ${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}
+- Require no AndroidRuntime crash: ${GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH:-0}
 - Require BLE hello sent: ${GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT:-0}
 - Require step validation pass: ${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}
 - Require step validation session: ${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION:-0}
@@ -191,6 +201,7 @@ Result: ${inspection_result:-unknown}
 
 - Device result: $device_result
 - Kind: $device_kind
+- Focused AndroidRuntime crash lines: $android_runtime_crash_count
 
 ## Installed App
 
@@ -300,6 +311,8 @@ one session-tagged Android BLE live-notification raw_evidence row, and a finishe
 nonempty capture session. Set GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=1 to
 require installed com.goose.android package metadata.
 Set GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE=1 to reject emulator evidence.
+Set GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH=1 to fail the bundle when
+the focused AndroidRuntime logcat contains com.goose.android crash lines.
 Set GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT=1 to require a pulled BLE session
 audit log and GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1 to require proof that the
 client hello was sent after connecting.

@@ -130,6 +130,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       fi
     fi
     installed_result="$(summary_bullet_value "Result" "$summary")"
+    android_runtime_crash_lines="$(summary_bullet_value "Focused AndroidRuntime crash lines" "$summary")"
     raw_rows="$(summary_bullet_value "Raw evidence rows" "$summary")"
     capture_sessions="$(summary_bullet_value "Capture sessions" "$summary")"
     session_raw_rows="$(summary_bullet_value "Session raw evidence rows" "$summary")"
@@ -221,6 +222,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Device kind: $device_kind"
     echo "Device: $(status_value "Device" "$summary")"
     echo "Android: $(status_value "Android" "$summary")"
+    echo "Focused AndroidRuntime crash lines: $android_runtime_crash_lines"
     echo
     echo "Installed app:"
     echo "- Result: $installed_result"
