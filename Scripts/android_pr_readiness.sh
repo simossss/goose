@@ -109,6 +109,7 @@ capture_verified=0
 physical_capture_verified=0
 ble_hello_verified=0
 installed_package_verified=0
+no_android_runtime_crash_verified=0
 step_validation_verified=0
 health_attempt_verified=0
 health_success_verified=0
@@ -177,6 +178,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     fi
     if [[ "$phone_result" == "PASS" && "$installed_result" == "PASS" ]]; then
       installed_package_verified=1
+    fi
+    if [[ "$phone_result" == "PASS" && "$android_runtime_crash_lines" =~ ^[0-9]+$ && "$android_runtime_crash_lines" -eq 0 ]]; then
+      no_android_runtime_crash_verified=1
     fi
     if [[ "$phone_result" == "PASS" && "$require_ble_hello" == "1" ]] \
       && is_positive_int "$ble_ready_events" \
@@ -307,6 +311,10 @@ if [[ "$installed_package_verified" == "1" ]]; then
   echo "- Installed com.goose.android package metadata is present and passed the evidence gate."
   verified_any=1
 fi
+if [[ "$no_android_runtime_crash_verified" == "1" ]]; then
+  echo "- Focused AndroidRuntime logcat has no com.goose.android crash lines."
+  verified_any=1
+fi
 if [[ "$ble_hello_verified" == "1" ]]; then
   echo "- BLE session audit proves the app reached ready state with command characteristic ready and client hello sent."
   verified_any=1
@@ -340,6 +348,10 @@ if [[ "$physical_capture_verified" != "1" ]]; then
 fi
 if [[ "$ble_hello_verified" != "1" ]]; then
   echo "- BLE session audit from the final gate must prove command characteristic readiness and client hello sent."
+  remaining_any=1
+fi
+if [[ "$no_android_runtime_crash_verified" != "1" ]]; then
+  echo "- Focused AndroidRuntime logcat must have 0 com.goose.android crash lines."
   remaining_any=1
 fi
 if [[ "$step_validation_verified" != "1" ]]; then
