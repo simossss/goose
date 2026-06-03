@@ -74,7 +74,10 @@ These files are build artifacts and are ignored by git.
   service discovery, notification/read candidate discovery, queued/completed GATT
   operations, subscription count, command readiness, and client-hello state.
 - Keeps the default Capture tab status compact; full JSON-heavy storage,
-  privacy, export, and bridge reports live behind report buttons.
+  privacy, export, and bridge reports live behind Insights and More.
+- Replaces the initial debug-only surface with a styled Android utility UI:
+  Capture, Insights, More, and Log tabs with primary and destructive actions
+  visually separated.
 - Exposes Android storage/privacy controls for export inventory, export cache
   clearing, and two-tap local SQLite data deletion.
 - Runs Rust-backed operational reports:
@@ -103,8 +106,8 @@ These files are build artifacts and are ignored by git.
 2. Grant Bluetooth and location permissions.
 3. Press `Scan`, then tap the WHOOP candidate when it appears.
 4. Wait for `Ready; subscribed ...; hello sent`.
-5. Optional but recommended for owned captures: press `Cap Start` before a
-   controlled test and `Cap End` afterwards.
+5. Optional but recommended for owned captures: press `Start` in the capture
+   session row before a controlled test and `Finish` afterwards.
 6. Press `Range` to prepare a command write, review the frame/preflight text,
    then press `Range` again within 15 seconds to send. Use the same two-tap
    flow for `History` and `Abort`.
@@ -118,12 +121,9 @@ decoder work separately.
 
 ## Remaining Port Slices
 
-- Replace the Java debug surface with a production Android UI once BLE and
-  report behavior are stable.
 - Continue packet decoder work for step counters and other packet-derived
   metrics.
 - Health Connect write adapter implementation after phone/platform permission
   testing.
-- Replace remaining Java debug-only surfaces with production More-tab UI once
-  BLE, storage, export, and report behavior are stable.
-- Kotlin/Compose UI migration once the bridge and BLE behavior are stable.
+- Optional Kotlin/Compose UI migration once the bridge and BLE behavior are
+  stable.
