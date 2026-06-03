@@ -93,8 +93,8 @@ These files are build artifacts and are ignored by git.
   - `metrics.step_packet_discovery`
   - `metrics.step_capture_validation`
   - `metrics.recovery_sensor_discovery`
-- Declares the Android Health Connect read/write permissions for Goose-owned
-  metric families, exposes permission/status actions, feeds granted
+- Declares the Android Health Connect write permissions for Goose-owned metric
+  families, exposes permission/status actions, feeds granted
   permissions into the Rust `health_sync.dry_run` gate, and routes approved
   Android 14+ planned writes through the platform `HealthConnectManager`
   adapter for steps, heart rate, and active calories. Android builds

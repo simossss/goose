@@ -35,24 +35,9 @@ final class HealthConnectSupport {
     private static final String ACTION_MANAGE_HEALTH_PERMISSIONS =
             "android.health.connect.action.MANAGE_HEALTH_PERMISSIONS";
 
-    private static final String[] REQUIRED_PERMISSIONS = {
-            "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+    private static final String[] WRITE_PERMISSIONS = {
             "android.permission.health.WRITE_ACTIVE_CALORIES_BURNED",
-            "android.permission.health.READ_HEART_RATE",
             "android.permission.health.WRITE_HEART_RATE",
-            "android.permission.health.READ_HEART_RATE_VARIABILITY",
-            "android.permission.health.WRITE_HEART_RATE_VARIABILITY",
-            "android.permission.health.READ_OXYGEN_SATURATION",
-            "android.permission.health.WRITE_OXYGEN_SATURATION",
-            "android.permission.health.READ_RESPIRATORY_RATE",
-            "android.permission.health.WRITE_RESPIRATORY_RATE",
-            "android.permission.health.READ_RESTING_HEART_RATE",
-            "android.permission.health.WRITE_RESTING_HEART_RATE",
-            "android.permission.health.READ_SKIN_TEMPERATURE",
-            "android.permission.health.WRITE_SKIN_TEMPERATURE",
-            "android.permission.health.READ_SLEEP",
-            "android.permission.health.WRITE_SLEEP",
-            "android.permission.health.READ_STEPS",
             "android.permission.health.WRITE_STEPS",
     };
 
@@ -72,7 +57,7 @@ final class HealthConnectSupport {
         if (!platformAvailable()) {
             return grants;
         }
-        for (String permission : REQUIRED_PERMISSIONS) {
+        for (String permission : WRITE_PERMISSIONS) {
             if (context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED) {
                 grants.add(permission);
             }
@@ -100,14 +85,14 @@ final class HealthConnectSupport {
         }
         int granted = grantedPermissions().size();
         return "Health Connect: Android platform available\n"
-                + "permissions: " + granted + "/" + REQUIRED_PERMISSIONS.length + " granted";
+                + "write permissions: " + granted + "/" + WRITE_PERMISSIONS.length + " granted";
     }
 
     void requestPermissions(Activity activity) {
         if (!platformAvailable()) {
             return;
         }
-        activity.requestPermissions(REQUIRED_PERMISSIONS, REQUEST_HEALTH_CONNECT);
+        activity.requestPermissions(WRITE_PERMISSIONS, REQUEST_HEALTH_CONNECT);
     }
 
     void openSettings(Activity activity) {
