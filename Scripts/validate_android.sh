@@ -85,6 +85,8 @@ echo "==> Installing debug APKs on $device_serial"
 "$ADB" -s "$device_serial" install -r "$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk"
 "$ADB" -s "$device_serial" install -r "$ANDROID_DIR/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
 
+"$ADB" -s "$device_serial" logcat -c || true
+
 echo "==> Launching Goose Android app on $device_serial"
 launch_output="$("$ADB" -s "$device_serial" shell am start -W -n com.goose.android/.MainActivity 2>&1)"
 printf '%s\n' "$launch_output"
@@ -96,6 +98,13 @@ fi
 launch_status="$(awk -F': ' '$1 == "Status" { print $2; exit }' <<<"$launch_output")"
 if [[ -n "$launch_status" && "$launch_status" != "ok" ]]; then
   echo "Android app launch failed with status: $launch_status" >&2
+  exit 1
+fi
+sleep 2
+launch_crash_log="$("$ADB" -s "$device_serial" logcat -d -v brief AndroidRuntime:E '*:S' 2>/dev/null || true)"
+if grep -q "com.goose.android" <<<"$launch_crash_log"; then
+  printf '%s\n' "$launch_crash_log" >&2
+  echo "Android app logged a fatal exception after launch" >&2
   exit 1
 fi
 
