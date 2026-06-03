@@ -113,6 +113,7 @@ no_android_runtime_crash_verified=0
 step_validation_verified=0
 health_attempt_verified=0
 health_success_verified=0
+require_health_success=0
 bundle_profile="not supplied"
 if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
   summary="$PHONE_EVIDENCE_DIR/phone-handoff-summary.md"
@@ -156,7 +157,6 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     require_ble_hello=0
     require_health_attempt=0
     require_health_ready_plan=0
-    require_health_success=0
     if [[ -f "$gates" ]]; then
       require_ble_hello="$(gate_value "GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT" "$gates")"
       require_step_pass="$(gate_value "GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS" "$gates")"
@@ -364,6 +364,10 @@ if [[ "$step_validation_verified" != "1" ]]; then
 fi
 if [[ "$health_attempt_verified" != "1" ]]; then
   echo "- Health Connect permission grant and real planned write attempt on Android 14+, including permissions-ready planned-write context."
+  remaining_any=1
+fi
+if [[ "$require_health_success" == "1" && "$health_success_verified" != "1" ]]; then
+  echo "- Health Connect successful platform write must be recorded because the final gate required it."
   remaining_any=1
 fi
 if [[ "$remaining_any" == "0" ]]; then

@@ -72,16 +72,18 @@ readiness_partial_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-part
 readiness_partial_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-partial-strict.XXXXXX")"
 readiness_crash_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-crash-strict.XXXXXX")"
 readiness_package_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-package-strict.XXXXXX")"
+readiness_health_success_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-health-success-strict.XXXXXX")"
 final_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-final-gate-dry-run.XXXXXX")"
 partial_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-partial-gate-dry-run.XXXXXX")"
 inspect_session_detail_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-inspect-session-detail.XXXXXX")"
 synthetic_session_db="$(mktemp "${TMPDIR:-/tmp}/goose-android-session-detail.XXXXXX.sqlite")"
-TMP_FILES+=("$checklist_output" "$partial_checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$readiness_crash_strict_output" "$readiness_package_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output" "$inspect_session_detail_output" "$synthetic_session_db")
+TMP_FILES+=("$checklist_output" "$partial_checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$readiness_crash_strict_output" "$readiness_package_strict_output" "$readiness_health_success_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output" "$inspect_session_detail_output" "$synthetic_session_db")
 synthetic_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-final-evidence.XXXXXX")"
 synthetic_partial_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-partial-evidence.XXXXXX")"
 synthetic_crash_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-crash-evidence.XXXXXX")"
 synthetic_package_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-package-evidence.XXXXXX")"
-TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir" "$synthetic_crash_evidence_dir" "$synthetic_package_evidence_dir")
+synthetic_health_success_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-health-success-evidence.XXXXXX")"
+TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir" "$synthetic_crash_evidence_dir" "$synthetic_package_evidence_dir" "$synthetic_health_success_evidence_dir")
 "$SCRIPT_DIR/android_final_phone_checklist.sh" > "$checklist_output"
 "$SCRIPT_DIR/android_partial_phone_checklist.sh" > "$partial_checklist_output"
 "$SCRIPT_DIR/android_final_pr_gate.sh" tmp/android-phone-final-gate-real --skip-validate --require-health-success --dry-run > "$final_gate_dry_run_output"
@@ -249,6 +251,32 @@ if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_package_evidence_d
   echo "PR readiness strict mode unexpectedly passed with failed installed package evidence" >&2
   exit 1
 fi
+cp "$synthetic_evidence_dir/phone-handoff-summary.md" "$synthetic_health_success_evidence_dir/phone-handoff-summary.md"
+cp "$synthetic_evidence_dir/evidence-gates.txt" "$synthetic_health_success_evidence_dir/evidence-gates.txt"
+health_success_gates_tmp="$synthetic_health_success_evidence_dir/evidence-gates.txt.tmp"
+awk '
+  $0 == "GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=0" && !replaced {
+    print "GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1"
+    replaced = 1
+    next
+  }
+  { print }
+' "$synthetic_health_success_evidence_dir/evidence-gates.txt" > "$health_success_gates_tmp"
+mv "$health_success_gates_tmp" "$synthetic_health_success_evidence_dir/evidence-gates.txt"
+health_success_summary_tmp="$synthetic_health_success_evidence_dir/phone-handoff-summary.md.tmp"
+awk '
+  $0 == "- Write succeeded events: 1" && !replaced {
+    print "- Write succeeded events: 0"
+    replaced = 1
+    next
+  }
+  { print }
+' "$synthetic_health_success_evidence_dir/phone-handoff-summary.md" > "$health_success_summary_tmp"
+mv "$health_success_summary_tmp" "$synthetic_health_success_evidence_dir/phone-handoff-summary.md"
+if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_health_success_evidence_dir" > "$readiness_health_success_strict_output" 2>&1; then
+  echo "PR readiness strict mode unexpectedly passed with missing required Health Connect success" >&2
+  exit 1
+fi
 cat > "$synthetic_partial_evidence_dir/phone-handoff-summary.md" <<'SUMMARY'
 # Goose Android Phone Evidence
 
@@ -346,6 +374,8 @@ assert_file_contains "$readiness_crash_strict_output" "Focused AndroidRuntime lo
 assert_file_contains "$readiness_crash_strict_output" "Strict PR readiness: FAIL" "PR readiness crash strict"
 assert_file_contains "$readiness_package_strict_output" "Installed com.goose.android package metadata must pass the evidence gate." "PR readiness package strict"
 assert_file_contains "$readiness_package_strict_output" "Strict PR readiness: FAIL" "PR readiness package strict"
+assert_file_contains "$readiness_health_success_strict_output" "Health Connect successful platform write must be recorded because the final gate required it." "PR readiness health success strict"
+assert_file_contains "$readiness_health_success_strict_output" "Strict PR readiness: FAIL" "PR readiness health success strict"
 assert_file_contains "$readiness_partial_output" "Bundle profile: partial phone evidence" "PR readiness partial"
 assert_file_contains "$readiness_partial_output" "not enough for final PR readiness" "PR readiness partial"
 assert_file_contains "$readiness_partial_strict_output" "Strict PR readiness: FAIL" "PR readiness partial strict"
