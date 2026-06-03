@@ -135,6 +135,7 @@ final class HealthConnectSupport {
             return;
         }
         List<Record> records = new ArrayList<>();
+        List<String> attempted = new ArrayList<>();
         List<String> skipped = new ArrayList<>();
         for (int index = 0; index < plannedWrites.length(); index += 1) {
             JSONObject write = plannedWrites.optJSONObject(index);
@@ -146,6 +147,7 @@ final class HealthConnectSupport {
                 Record record = recordFromPlannedWrite(write);
                 if (record != null) {
                     records.add(record);
+                    attempted.add(plannedWriteSummary(write));
                 } else {
                     skipped.add(write.optString("source_record_id", "write " + index)
                             + ": unsupported " + write.optString("destination_type"));
@@ -161,11 +163,16 @@ final class HealthConnectSupport {
                     + "skipped: " + skipped);
             return;
         }
-        insertRecords(records, skipped, callback);
+        insertRecords(records, attempted, skipped, callback);
     }
 
     @SuppressLint("NewApi")
-    private void insertRecords(List<Record> records, List<String> skipped, WriteCallback callback) {
+    private void insertRecords(
+            List<Record> records,
+            List<String> attempted,
+            List<String> skipped,
+            WriteCallback callback
+    ) {
         HealthConnectManager manager = context.getSystemService(HealthConnectManager.class);
         if (manager == null) {
             callback.onReport("Health Connect sync\nHealthConnectManager unavailable.");
@@ -176,6 +183,7 @@ final class HealthConnectSupport {
             public void onResult(InsertRecordsResponse result) {
                 callback.onReport("Health Connect sync\n"
                         + "inserted records: " + records.size() + "\n"
+                        + "attempted detail: " + attempted + "\n"
                         + "skipped: " + skipped.size() + "\n"
                         + "skipped detail: " + skipped);
             }
@@ -184,6 +192,7 @@ final class HealthConnectSupport {
             public void onError(HealthConnectException error) {
                 callback.onReport("Health Connect sync failed\n"
                         + "records attempted: " + records.size() + "\n"
+                        + "attempted detail: " + attempted + "\n"
                         + "skipped before write: " + skipped.size() + "\n"
                         + error);
             }
@@ -241,6 +250,13 @@ final class HealthConnectSupport {
                 .setClientRecordVersion(0L)
                 .setRecordingMethod(Metadata.RECORDING_METHOD_AUTOMATICALLY_RECORDED)
                 .build();
+    }
+
+    private String plannedWriteSummary(JSONObject write) {
+        return write.optString("source_record_id", "unknown")
+                + " -> " + write.optString("destination_type", "unknown")
+                + " (" + write.optString("start_time", "?")
+                + " to " + write.optString("end_time", "?") + ")";
     }
 
     private boolean platformAvailable() {
