@@ -242,6 +242,13 @@ Print a PR/phone-handoff snapshot of the Android port:
 Scripts/android_port_status.sh
 ```
 
+Generate a markdown PR readiness summary from the current build state, optionally
+including a collected phone evidence bundle:
+
+```bash
+Scripts/android_pr_readiness.sh [tmp/android-phone-final-gate-...]
+```
+
 Manual app build:
 
 ```bash

@@ -25,6 +25,13 @@ Print a concise Android port status snapshot for PR and phone handoff:
 Scripts/android_port_status.sh
 ```
 
+Generate a markdown PR readiness summary from current build state and an
+optional phone evidence bundle:
+
+```sh
+Scripts/android_pr_readiness.sh [tmp/android-phone-final-gate-...]
+```
+
 Manual build from Android Studio or the command line:
 
 ```sh
@@ -228,6 +235,9 @@ These files are build artifacts and are ignored by git.
    `Scripts/inspect_android_capture.sh tmp/goose-phone.sqlite`.
 9. For a PR/phone-session artifact, run
    `Scripts/collect_android_phone_evidence.sh`.
+10. After final evidence collection, run
+    `Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-...` for the
+    PR checklist summary.
 
 The current build has captured live heart-rate packets and imported WHOOP
 historical data from a physical WHOOP 5.0. Explicit step-counter extraction is
