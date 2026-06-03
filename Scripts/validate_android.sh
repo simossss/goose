@@ -22,11 +22,17 @@ if [[ -n "${JAVA_HOME:-}" ]]; then
   export PATH="$JAVA_HOME/bin:$PATH"
 fi
 
-echo "==> Building Android Rust libraries"
-"$APP_DIR/Scripts/build_android_rust.sh"
+echo "==> Building Android Rust libraries (debug)"
+CONFIGURATION=Debug "$APP_DIR/Scripts/build_android_rust.sh"
 
-echo "==> Building Android debug, release, and instrumentation APKs"
-(cd "$ANDROID_DIR" && "$GRADLEW" :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest)
+echo "==> Building Android debug and instrumentation APKs"
+(cd "$ANDROID_DIR" && "$GRADLEW" :app:assembleDebug :app:assembleDebugAndroidTest)
+
+echo "==> Building Android Rust libraries (release)"
+CONFIGURATION=Release "$APP_DIR/Scripts/build_android_rust.sh"
+
+echo "==> Building Android release APK"
+(cd "$ANDROID_DIR" && "$GRADLEW" :app:assembleRelease)
 
 if [[ "${GOOSE_ANDROID_SKIP_INSTRUMENTATION:-0}" == "1" ]]; then
   echo "==> Skipping Android instrumentation because GOOSE_ANDROID_SKIP_INSTRUMENTATION=1"
