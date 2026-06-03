@@ -56,5 +56,7 @@ pull_file "$REMOTE_DIR/health-connect-sync-log.jsonl" "$OUTPUT_BASENAME-health-c
 pull_file "$REMOTE_DIR/health-connect-sync-log.jsonl.old" "$OUTPUT_BASENAME-health-connect-sync-log.jsonl.old" 0
 pull_file "$REMOTE_DIR/step-validation-log.jsonl" "$OUTPUT_BASENAME-step-validation-log.jsonl" 0
 pull_file "$REMOTE_DIR/step-validation-log.jsonl.old" "$OUTPUT_BASENAME-step-validation-log.jsonl.old" 0
+pull_file "$REMOTE_DIR/ble-session-log.jsonl" "$OUTPUT_BASENAME-ble-session-log.jsonl" 0
+pull_file "$REMOTE_DIR/ble-session-log.jsonl.old" "$OUTPUT_BASENAME-ble-session-log.jsonl.old" 0
 
 echo "Android Goose database pull complete from $device_serial."

@@ -64,6 +64,9 @@ Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-real
 ## Evidence Expected To Pass
 
 - Installed com.goose.android package metadata: PASS.
+- BLE session ready events: at least 1.
+- BLE session hello sent events: at least 1.
+- BLE session command ready events: at least 1.
 - Raw evidence rows: at least 1.
 - Capture sessions: at least 1.
 - Session-tagged raw evidence rows: at least 1.
@@ -80,6 +83,7 @@ Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-real
 - \`inspect-android-capture.txt\`
 - \`goose-package-summary.txt\`
 - \`goose-phone.sqlite\`
+- \`goose-phone-ble-session-log.jsonl\`
 - \`goose-phone-health-connect-sync-log.jsonl\`
 - \`goose-phone-step-validation-log.jsonl\`
 - \`logcat-goose-brief.txt\`

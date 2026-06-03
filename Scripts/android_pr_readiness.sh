@@ -68,6 +68,7 @@ phone_result=""
 device_kind=""
 capture_verified=0
 physical_capture_verified=0
+ble_hello_verified=0
 installed_package_verified=0
 step_validation_verified=0
 health_attempt_verified=0
@@ -93,14 +94,19 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     capture_sessions="$(summary_bullet_value "Capture sessions" "$summary")"
     session_raw_rows="$(summary_bullet_value "Session raw evidence rows" "$summary")"
     finished_sessions="$(summary_bullet_value "Finished nonempty capture sessions" "$summary")"
+    ble_ready_events="$(summary_bullet_value "Ready events" "$summary")"
+    ble_hello_sent_events="$(summary_bullet_value "Hello sent events" "$summary")"
+    ble_command_ready_events="$(summary_bullet_value "Command ready events" "$summary")"
     health_write_started="$(summary_bullet_value "Write started events" "$summary")"
     health_write_succeeded="$(summary_bullet_value "Write succeeded events" "$summary")"
     step_completed="$(summary_bullet_value "Completed events" "$summary")"
     step_passed="$(summary_bullet_value "Passed events" "$summary")"
     require_step_pass=0
+    require_ble_hello=0
     require_health_attempt=0
     require_health_success=0
     if [[ -f "$gates" ]]; then
+      require_ble_hello="$(gate_value "GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT" "$gates")"
       require_step_pass="$(gate_value "GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS" "$gates")"
       require_health_attempt="$(gate_value "GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT" "$gates")"
       require_health_success="$(gate_value "GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS" "$gates")"
@@ -117,6 +123,12 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     fi
     if [[ "$phone_result" == "PASS" && "$installed_result" == "PASS" ]]; then
       installed_package_verified=1
+    fi
+    if [[ "$phone_result" == "PASS" && "$require_ble_hello" == "1" ]] \
+      && is_positive_int "$ble_ready_events" \
+      && is_positive_int "$ble_hello_sent_events" \
+      && is_positive_int "$ble_command_ready_events"; then
+      ble_hello_verified=1
     fi
     if [[ "$phone_result" == "PASS" && "$require_step_pass" == "1" ]] \
       && is_positive_int "$step_completed" \
@@ -149,6 +161,11 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Finished nonempty capture sessions: $finished_sessions"
     echo "- Step samples: $(summary_bullet_value "Step samples" "$summary")"
     echo "- Daily activity metrics: $(summary_bullet_value "Daily activity metrics" "$summary")"
+    echo
+    echo "BLE session evidence:"
+    echo "- Ready events: $ble_ready_events"
+    echo "- Hello sent events: $ble_hello_sent_events"
+    echo "- Command ready events: $ble_command_ready_events"
     echo
     echo "Health Connect evidence:"
     echo "- Write started events: $health_write_started"
@@ -188,6 +205,10 @@ if [[ "$installed_package_verified" == "1" ]]; then
   echo "- Installed com.goose.android package metadata is present and passed the evidence gate."
   verified_any=1
 fi
+if [[ "$ble_hello_verified" == "1" ]]; then
+  echo "- BLE session audit proves the app reached ready state with command characteristic ready and client hello sent."
+  verified_any=1
+fi
 if [[ "$step_validation_verified" == "1" ]]; then
   echo "- Counted-step validation passed under the required final gate."
   verified_any=1
@@ -212,7 +233,11 @@ if [[ "$phone_evidence_supplied" != "1" || "$phone_summary_valid" != "1" || "$ph
   remaining_any=1
 fi
 if [[ "$physical_capture_verified" != "1" ]]; then
-  echo "- Physical WHOOP scan/connect/client-hello validation and controlled capture pull inspected with \`Scripts/inspect_android_capture.sh\`."
+  echo "- Physical WHOOP scan/connect validation and controlled capture pull inspected with \`Scripts/inspect_android_capture.sh\`."
+  remaining_any=1
+fi
+if [[ "$ble_hello_verified" != "1" ]]; then
+  echo "- BLE session audit from the final gate must prove command characteristic readiness and client hello sent."
   remaining_any=1
 fi
 if [[ "$step_validation_verified" != "1" ]]; then

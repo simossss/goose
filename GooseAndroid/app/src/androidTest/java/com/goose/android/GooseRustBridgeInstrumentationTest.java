@@ -187,6 +187,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertHealthConnectRecordConversion();
         Log.i(TAG, "checking Android Health Connect sync audit log");
         assertHealthConnectSyncAudit(context);
+        Log.i(TAG, "checking Android BLE session audit log");
+        assertBleSessionAudit(context);
         Log.i(TAG, "checking Android Health Connect ready-plan audit path");
         assertHealthConnectReadyPlanAudit(context);
 
@@ -517,6 +519,45 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             }
         } finally {
             reader.close();
+        }
+    }
+
+    private void assertBleSessionAudit(Context context) throws Exception {
+        File auditFile = BleSessionAudit.auditFileFor(context);
+        if (auditFile.exists() && !auditFile.delete()) {
+            throw new AssertionError("could not clear stale BLE session audit log: " + auditFile);
+        }
+        BleSessionAudit.appendProgress(context, new GooseBleClient.ConnectionProgress(
+                "ready",
+                "android-smoke-device",
+                1,
+                5,
+                3,
+                6,
+                4,
+                0,
+                11,
+                6,
+                true,
+                true,
+                null,
+                1_767_225_600_000L
+        ));
+        if (!auditFile.isFile()) {
+            throw new AssertionError("BLE session audit log was not created: " + auditFile);
+        }
+        String audit = readFile(auditFile);
+        if (!audit.contains("goose.android.ble-session-audit.v1")) {
+            throw new AssertionError("BLE session audit missing schema: " + audit);
+        }
+        if (!audit.contains("\"phase\":\"ready\"")) {
+            throw new AssertionError("BLE session audit missing ready phase: " + audit);
+        }
+        if (!audit.contains("\"hello_sent\":true")) {
+            throw new AssertionError("BLE session audit missing hello_sent=true: " + audit);
+        }
+        if (!audit.contains("\"command_ready\":true")) {
+            throw new AssertionError("BLE session audit missing command_ready=true: " + audit);
         }
     }
 

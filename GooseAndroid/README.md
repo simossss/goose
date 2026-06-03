@@ -116,19 +116,21 @@ bounded Health Connect sync audit log when present, snapshots the installed
 `com.goose.android` package metadata, and writes `evidence-gates.txt` with the
 effective gate configuration. The inspector prints table presence, row counts,
 recent raw evidence, recent capture sessions, step sample rows when available,
-and recent Health Connect audit rows. For a stricter post-capture gate, set
+recent BLE session audit rows, and recent Health Connect audit rows. For a
+stricter post-capture gate, set
 `GOOSE_ANDROID_MIN_RAW_EVIDENCE=1`,
 `GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1`,
 `GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=1`,
-`GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1`, or
+`GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1`,
+`GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1`, or
 `GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1`. For Health Connect phone validation, add
 `GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1` to require a platform write
 attempt and `GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1` to require a
 successful write. `Scripts/android_phone_final_gate.sh` enables the physical
-device, raw, session, session-tagged raw, finished-session, installed-package,
-Health Connect audit, and write-attempt gates by default. Add `--skip-health`
-only for development smoke tests and `--allow-emulator` only for emulator smoke
-tests.
+device, BLE hello, raw, session, session-tagged raw, finished-session,
+installed-package, Health Connect audit, and write-attempt gates by default.
+Add `--skip-health` only for development smoke tests and `--allow-emulator`
+only for emulator smoke tests.
 For counted-step validation, set `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1`
 or `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1`.
 
@@ -182,6 +184,9 @@ These files are build artifacts and are ignored by git.
   raw evidence rows, capture-session rows, decoded/step counts, latest capture,
   Health Connect audit bytes, step-validation audit bytes, and strict PASS/WAIT
   status.
+- Records BLE scan/connect/session progress to
+  `files/goose/ble-session-log.jsonl`, including ready state, command
+  characteristic readiness, and client-hello state for final phone evidence.
 - Binds Android counted-step validation to the active or most recently finished
   capture session when one is available, so final phone checks do not mix
   packets from unrelated sessions in the same time window.

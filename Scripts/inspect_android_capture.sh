@@ -5,10 +5,13 @@ DATABASE="${1:-tmp/goose-phone.sqlite}"
 DATABASE_BASENAME="${DATABASE%.sqlite}"
 HEALTH_AUDIT_LOG="${HEALTH_AUDIT_LOG:-$DATABASE_BASENAME-health-connect-sync-log.jsonl}"
 STEP_VALIDATION_LOG="${STEP_VALIDATION_LOG:-$DATABASE_BASENAME-step-validation-log.jsonl}"
+BLE_SESSION_LOG="${BLE_SESSION_LOG:-$DATABASE_BASENAME-ble-session-log.jsonl}"
 MIN_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_RAW_EVIDENCE:-0}"
 MIN_CAPTURE_SESSIONS="${GOOSE_ANDROID_MIN_CAPTURE_SESSIONS:-0}"
 MIN_SESSION_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE:-0}"
 MIN_FINISHED_CAPTURE_SESSIONS="${GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS:-0}"
+REQUIRE_BLE_SESSION_AUDIT="${GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT:-0}"
+REQUIRE_BLE_HELLO_SENT="${GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT:-0}"
 REQUIRE_STEP_VALIDATION_AUDIT="${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT:-0}"
 REQUIRE_STEP_VALIDATION_PASS="${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}"
 REQUIRE_HEALTH_AUDIT="${GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT:-0}"
@@ -30,6 +33,8 @@ Optional assertions:
   GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1
   GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=1
   GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1
+  GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT=1
+  GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1
   GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1
   GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1
   GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1
@@ -109,6 +114,10 @@ health_audit_blocked=0
 health_audit_write_started=0
 health_audit_write_succeeded=0
 health_audit_write_failed=0
+ble_session_bytes=0
+ble_session_ready=0
+ble_session_hello_sent=0
+ble_session_command_ready=0
 step_validation_bytes=0
 step_validation_completed=0
 step_validation_passed=0
@@ -119,6 +128,12 @@ if [[ -f "$HEALTH_AUDIT_LOG" ]]; then
   health_audit_write_started="$(grep -c '"event":"write_started"' "$HEALTH_AUDIT_LOG" || true)"
   health_audit_write_succeeded="$(grep -c '"event":"write_succeeded"' "$HEALTH_AUDIT_LOG" || true)"
   health_audit_write_failed="$(grep -c '"event":"write_failed"' "$HEALTH_AUDIT_LOG" || true)"
+fi
+if [[ -f "$BLE_SESSION_LOG" ]]; then
+  ble_session_bytes="$(wc -c < "$BLE_SESSION_LOG" | tr -d ' ')"
+  ble_session_ready="$(grep -c '"phase":"ready"' "$BLE_SESSION_LOG" || true)"
+  ble_session_hello_sent="$(grep -c '"hello_sent":true' "$BLE_SESSION_LOG" || true)"
+  ble_session_command_ready="$(grep -c '"command_ready":true' "$BLE_SESSION_LOG" || true)"
 fi
 if [[ -f "$STEP_VALIDATION_LOG" ]]; then
   step_validation_bytes="$(wc -c < "$STEP_VALIDATION_LOG" | tr -d ' ')"
@@ -144,6 +159,11 @@ echo "health sync blocked events: $health_audit_blocked"
 echo "health sync write started events: $health_audit_write_started"
 echo "health sync write succeeded events: $health_audit_write_succeeded"
 echo "health sync write failed events: $health_audit_write_failed"
+echo "ble session audit: $BLE_SESSION_LOG"
+echo "ble session audit bytes: $ble_session_bytes"
+echo "ble session ready events: $ble_session_ready"
+echo "ble session hello sent events: $ble_session_hello_sent"
+echo "ble session command ready events: $ble_session_command_ready"
 echo "step validation audit: $STEP_VALIDATION_LOG"
 echo "step validation audit bytes: $step_validation_bytes"
 echo "step validation completed events: $step_validation_completed"
@@ -216,6 +236,12 @@ if [[ -f "$HEALTH_AUDIT_LOG" ]]; then
   tail -n 5 "$HEALTH_AUDIT_LOG"
 fi
 
+if [[ -f "$BLE_SESSION_LOG" ]]; then
+  echo
+  echo "Recent BLE session audit rows"
+  tail -n 8 "$BLE_SESSION_LOG"
+fi
+
 if [[ -f "$STEP_VALIDATION_LOG" ]]; then
   echo
   echo "Recent step validation audit rows"
@@ -257,6 +283,26 @@ fi
 
 if [[ "$REQUIRE_STEP_VALIDATION_AUDIT" == "1" && "$step_validation_completed" -le 0 ]]; then
   echo "FAIL: step validation audit has no completed event" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_BLE_SESSION_AUDIT" == "1" && "$ble_session_bytes" -le 0 ]]; then
+  echo "FAIL: BLE session audit log missing or empty" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_BLE_HELLO_SENT" == "1" && "$ble_session_hello_sent" -le 0 ]]; then
+  echo "FAIL: BLE session audit has no hello_sent=true event" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_BLE_HELLO_SENT" == "1" && "$ble_session_command_ready" -le 0 ]]; then
+  echo "FAIL: BLE session audit has no command_ready=true event" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_BLE_HELLO_SENT" == "1" && "$ble_session_ready" -le 0 ]]; then
+  echo "FAIL: BLE session audit has no ready phase event" >&2
   failures=$((failures + 1))
 fi
 

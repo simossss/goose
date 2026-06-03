@@ -303,8 +303,9 @@ Add `--require-health-success` when the final session should require a
 successful Health Connect platform write in addition to a write attempt.
 The final gate also requires session-tagged raw evidence and a finished capture
 session with `frame_count > 0`, plus installed `com.goose.android` package
-metadata from the device. Add `--allow-emulator` only for development smoke
-tests; PR acceptance still needs physical-phone evidence.
+metadata from the device and a BLE session audit proving command readiness and
+client hello sent. Add `--allow-emulator` only for development smoke tests; PR
+acceptance still needs physical-phone evidence.
 Add `--require-step-validation` after running the in-app counted-step validation
 when the final session should require a passing step-validation audit row.
 For that validation, start a capture session before the counted walk, finish it
@@ -320,9 +321,9 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w com.goose.android.test/com.goose.android.GooseRustBridgeInstrumentationTest
 ```
 
-The remaining phone-dependent work is physical WHOOP strap validation, final
-step-counter decoder confirmation, and Health Connect permission/write testing
-with real planned writes on a real Android device.
+The remaining phone-dependent work is physical WHOOP strap validation with the
+BLE session audit, final step-counter decoder confirmation, and Health Connect
+permission/write testing with real planned writes on a real Android device.
 
 ## Data And Privacy
 

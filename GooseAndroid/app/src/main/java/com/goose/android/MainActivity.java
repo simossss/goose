@@ -191,6 +191,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     @Override
     public void onConnectionProgress(GooseBleClient.ConnectionProgress progress) {
+        BleSessionAudit.appendProgress(this, progress);
         runOnUiThreadIfAlive(() -> {
             if (connectionStatus != null) {
                 connectionStatus.setText(connectionProgressSummary(progress));

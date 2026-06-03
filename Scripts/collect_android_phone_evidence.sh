@@ -76,6 +76,8 @@ GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=${GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE:
 GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=${GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS:-0}
 GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}
 GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE=${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}
+GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT=${GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT:-0}
+GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=${GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT:-0}
 GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT:-0}
 GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}
 GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=${GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT:-0}
@@ -150,6 +152,7 @@ Result: ${inspection_result:-unknown}
 - Strict evidence: ${GOOSE_ANDROID_STRICT_EVIDENCE:-0}
 - Require installed package: ${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}
 - Require physical device: ${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}
+- Require BLE hello sent: ${GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT:-0}
 - Require step validation pass: ${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}
 - Require Health Connect write attempt: ${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT:-0}
 - Require Health Connect write success: ${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS:-0}
@@ -176,6 +179,14 @@ Result: ${inspection_result:-unknown}
 - Step samples: $(summary_value "step samples")
 - Daily activity metrics: $(summary_value "daily activity metrics")
 - Latest raw capture: $(summary_value "latest raw capture")
+
+## BLE Session
+
+- Audit log: $(summary_value "ble session audit")
+- Audit bytes: $(summary_value "ble session audit bytes")
+- Ready events: $(summary_value "ble session ready events")
+- Hello sent events: $(summary_value "ble session hello sent events")
+- Command ready events: $(summary_value "ble session command ready events")
 
 ## Health Connect
 
@@ -204,6 +215,7 @@ Result: ${inspection_result:-unknown}
 - goose-package-dumpsys.txt
 - inspect-android-capture.txt
 - goose-phone.sqlite
+- goose-phone-ble-session-log.jsonl, when present
 - goose-phone-health-connect-sync-log.jsonl, when present
 - goose-phone-step-validation-log.jsonl, when present
 - logcat-goose-brief.txt
@@ -227,6 +239,7 @@ Key files:
 - logcat-threadtime.txt: full device logcat snapshot.
 - logcat-goose-brief.txt: focused AndroidRuntime/Goose instrumentation logcat.
 - goose-phone.sqlite plus -wal/-shm: pulled debug app database files when present.
+- goose-phone-ble-session-log.jsonl: BLE scan/connect/session audit log when present.
 - goose-phone-health-connect-sync-log.jsonl: Health Connect sync audit log when present.
 - goose-phone-step-validation-log.jsonl: counted-step validation audit log when present.
 - inspect-android-capture.txt: read-only SQLite capture summary.
@@ -242,6 +255,9 @@ The final phone gate additionally requires session-tagged raw_evidence and a
 finished nonempty capture session. Set GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=1
 to require installed com.goose.android package metadata.
 Set GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE=1 to reject emulator evidence.
+Set GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT=1 to require a pulled BLE session
+audit log and GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1 to require proof that the
+client hello was sent after connecting.
 Set GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1 after a counted-step
 validation attempt, or GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1 when the
 step validation should pass.
