@@ -271,7 +271,9 @@ This runs local Android validation, collects final phone evidence with required
 step validation, then applies strict PR readiness. Add
 `--require-health-success` when the run must prove a successful Health Connect
 platform write, `--skip-validate` when local validation was already run, or
-`--dry-run` to print the command sequence without using adb.
+`--dry-run` to print the command sequence without using adb. The final PR gate
+requires a clean git worktree by default so the evidence bundle maps to a
+pushed commit; `--allow-dirty` is for local debugging only.
 
 When counted-step validation is intentionally parked, use the partial phone gate
 to prove the real-phone BLE/capture/installed-package/Health Connect evidence
