@@ -27,6 +27,7 @@ IFS=' ' read -r -a GOOSE_ANDROID_ABIS <<< "${ANDROID_ABIS:-arm64-v8a armeabi-v7a
 echo "==> Checking Android helper shell syntax"
 bash -n "$SCRIPT_DIR/build_android_rust.sh"
 bash -n "$SCRIPT_DIR/install_android_debug.sh"
+bash -n "$SCRIPT_DIR/inspect_android_capture.sh"
 bash -n "$SCRIPT_DIR/pull_android_database.sh"
 bash -n "$SCRIPT_DIR/validate_android.sh"
 

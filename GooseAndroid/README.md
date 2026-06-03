@@ -63,11 +63,17 @@ Pull the debug app's local SQLite store for desktop inspection:
 
 ```sh
 Scripts/pull_android_database.sh tmp/goose-phone.sqlite
+Scripts/inspect_android_capture.sh tmp/goose-phone.sqlite
 ```
 
 Set `ANDROID_SERIAL` when more than one adb device is online. The helper uses
 `run-as com.goose.android`, so it expects the debug APK. It also pulls the
-bounded Health Connect sync audit log when present.
+bounded Health Connect sync audit log when present. The inspector prints table
+presence, row counts, recent raw evidence, recent capture sessions, step sample
+rows when available, and recent Health Connect audit rows. For a stricter
+post-capture gate, set `GOOSE_ANDROID_MIN_RAW_EVIDENCE=1`,
+`GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1`, or
+`GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1`.
 
 The Android build expects generated Rust libraries under `Rust/android/`:
 
@@ -164,6 +170,9 @@ These files are build artifacts and are ignored by git.
    flow for `History` and `Abort`.
 7. Use `Heart`, `Sensors`, `Steps`, `Blocked`, and `Sessions` for compact
    summaries instead of dumping large raw JSON in the UI.
+8. Pull and inspect the debug store:
+   `Scripts/pull_android_database.sh tmp/goose-phone.sqlite`, then
+   `Scripts/inspect_android_capture.sh tmp/goose-phone.sqlite`.
 
 The current build has captured live heart-rate packets and imported WHOOP
 historical data from a physical WHOOP 5.0. Explicit step-counter extraction is

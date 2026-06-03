@@ -253,6 +253,13 @@ Use `Scripts/install_android_debug.sh --no-build` after Android Studio has
 already built the debug APK. Set `ANDROID_SERIAL` when multiple adb devices are
 online.
 
+After a phone capture, pull and inspect the debug store:
+
+```bash
+Scripts/pull_android_database.sh tmp/goose-phone.sqlite
+Scripts/inspect_android_capture.sh tmp/goose-phone.sqlite
+```
+
 Run the Android bridge/storage/protocol smoke harness on an emulator or device:
 
 ```bash
