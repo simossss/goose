@@ -17,6 +17,7 @@ REQUIRE_STEP_VALIDATION_PASS="${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}"
 REQUIRE_STEP_VALIDATION_SESSION="${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION:-0}"
 REQUIRE_HEALTH_AUDIT="${GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT:-0}"
 REQUIRE_HEALTH_WRITE_ATTEMPT="${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT:-0}"
+REQUIRE_HEALTH_READY_WRITE_PLAN="${GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN:-0}"
 REQUIRE_HEALTH_WRITE_SUCCESS="${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS:-0}"
 
 usage() {
@@ -41,6 +42,7 @@ Optional assertions:
   GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION=1
   GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1
   GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1
+  GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN=1
   GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1
 USAGE
 }
@@ -114,6 +116,10 @@ activity_metric_count="$(table_count daily_activity_metrics)"
 health_audit_bytes=0
 health_audit_blocked=0
 health_audit_write_started=0
+health_audit_ready_write_started=0
+health_audit_planned_write_started=0
+health_audit_candidate_write_started=0
+health_audit_records_attempted=0
 health_audit_write_succeeded=0
 health_audit_write_failed=0
 ble_session_bytes=0
@@ -131,6 +137,10 @@ if [[ -f "$HEALTH_AUDIT_LOG" ]]; then
   health_audit_bytes="$(wc -c < "$HEALTH_AUDIT_LOG" | tr -d ' ')"
   health_audit_blocked="$(grep -c '"event":"blocked"' "$HEALTH_AUDIT_LOG" || true)"
   health_audit_write_started="$(grep -c '"event":"write_started"' "$HEALTH_AUDIT_LOG" || true)"
+  health_audit_ready_write_started="$(grep -Ec '"event":"write_started".*"permissions_ready":true' "$HEALTH_AUDIT_LOG" || true)"
+  health_audit_planned_write_started="$(grep -Ec '"event":"write_started".*"planned_write_count":[1-9][0-9]*' "$HEALTH_AUDIT_LOG" || true)"
+  health_audit_candidate_write_started="$(grep -Ec '"event":"write_started".*"candidate_count":[1-9][0-9]*' "$HEALTH_AUDIT_LOG" || true)"
+  health_audit_records_attempted="$(grep -Ec '"event":"write_started".*"records_attempted":[1-9][0-9]*' "$HEALTH_AUDIT_LOG" || true)"
   health_audit_write_succeeded="$(grep -c '"event":"write_succeeded"' "$HEALTH_AUDIT_LOG" || true)"
   health_audit_write_failed="$(grep -c '"event":"write_failed"' "$HEALTH_AUDIT_LOG" || true)"
 fi
@@ -165,6 +175,10 @@ echo "health sync audit: $HEALTH_AUDIT_LOG"
 echo "health sync audit bytes: $health_audit_bytes"
 echo "health sync blocked events: $health_audit_blocked"
 echo "health sync write started events: $health_audit_write_started"
+echo "health sync ready write started events: $health_audit_ready_write_started"
+echo "health sync planned write started events: $health_audit_planned_write_started"
+echo "health sync candidate write started events: $health_audit_candidate_write_started"
+echo "health sync records attempted events: $health_audit_records_attempted"
 echo "health sync write succeeded events: $health_audit_write_succeeded"
 echo "health sync write failed events: $health_audit_write_failed"
 echo "ble session audit: $BLE_SESSION_LOG"
@@ -344,6 +358,26 @@ fi
 
 if [[ "$REQUIRE_HEALTH_WRITE_ATTEMPT" == "1" && "$health_audit_write_started" -le 0 ]]; then
   echo "FAIL: Health Connect audit has no write_started event" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_HEALTH_READY_WRITE_PLAN" == "1" && "$health_audit_ready_write_started" -le 0 ]]; then
+  echo "FAIL: Health Connect write_started audit has no permissions_ready=true context" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_HEALTH_READY_WRITE_PLAN" == "1" && "$health_audit_planned_write_started" -le 0 ]]; then
+  echo "FAIL: Health Connect write_started audit has no planned_write_count > 0" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_HEALTH_READY_WRITE_PLAN" == "1" && "$health_audit_candidate_write_started" -le 0 ]]; then
+  echo "FAIL: Health Connect write_started audit has no candidate_count > 0" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_HEALTH_READY_WRITE_PLAN" == "1" && "$health_audit_records_attempted" -le 0 ]]; then
+  echo "FAIL: Health Connect write_started audit has no records_attempted > 0" >&2
   failures=$((failures + 1))
 fi
 

@@ -77,6 +77,10 @@ Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-real
 - Step validation session decoded events: at least 1.
 - Step validation selected delta events: at least 1.
 - Health Connect write started events: at least 1.
+- Health Connect ready write started events: at least 1.
+- Health Connect planned write started events: at least 1.
+- Health Connect candidate write started events: at least 1.
+- Health Connect records attempted events: at least 1.
 - Health Connect write succeeded events: at least 1 only when \`--require-health-success\` is used.
 
 ## Files To Keep For PR Review

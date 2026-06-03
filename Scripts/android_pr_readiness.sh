@@ -98,6 +98,10 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     ble_hello_sent_events="$(summary_bullet_value "Hello sent events" "$summary")"
     ble_command_ready_events="$(summary_bullet_value "Command ready events" "$summary")"
     health_write_started="$(summary_bullet_value "Write started events" "$summary")"
+    health_ready_write_started="$(summary_bullet_value "Ready write started events" "$summary")"
+    health_planned_write_started="$(summary_bullet_value "Planned write started events" "$summary")"
+    health_candidate_write_started="$(summary_bullet_value "Candidate write started events" "$summary")"
+    health_records_attempted="$(summary_bullet_value "Records attempted events" "$summary")"
     health_write_succeeded="$(summary_bullet_value "Write succeeded events" "$summary")"
     step_completed="$(summary_bullet_value "Completed events" "$summary")"
     step_passed="$(summary_bullet_value "Passed events" "$summary")"
@@ -108,12 +112,14 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     require_step_session=0
     require_ble_hello=0
     require_health_attempt=0
+    require_health_ready_plan=0
     require_health_success=0
     if [[ -f "$gates" ]]; then
       require_ble_hello="$(gate_value "GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT" "$gates")"
       require_step_pass="$(gate_value "GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS" "$gates")"
       require_step_session="$(gate_value "GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION" "$gates")"
       require_health_attempt="$(gate_value "GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT" "$gates")"
+      require_health_ready_plan="$(gate_value "GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN" "$gates")"
       require_health_success="$(gate_value "GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS" "$gates")"
     fi
     if [[ "$phone_result" == "PASS" ]] \
@@ -145,7 +151,12 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       step_validation_verified=1
     fi
     if [[ "$phone_result" == "PASS" && "$require_health_attempt" == "1" ]] \
-      && is_positive_int "$health_write_started"; then
+      && is_positive_int "$health_write_started" \
+      && { [[ "$require_health_ready_plan" != "1" ]] \
+        || { is_positive_int "$health_ready_write_started" \
+          && is_positive_int "$health_planned_write_started" \
+          && is_positive_int "$health_candidate_write_started" \
+          && is_positive_int "$health_records_attempted"; }; }; then
       health_attempt_verified=1
     fi
     if [[ "$phone_result" == "PASS" && "$require_health_success" == "1" ]] \
@@ -178,6 +189,10 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo
     echo "Health Connect evidence:"
     echo "- Write started events: $health_write_started"
+    echo "- Ready write started events: $health_ready_write_started"
+    echo "- Planned write started events: $health_planned_write_started"
+    echo "- Candidate write started events: $health_candidate_write_started"
+    echo "- Records attempted events: $health_records_attempted"
     echo "- Write succeeded events: $health_write_succeeded"
     echo "- Write failed events: $(summary_bullet_value "Write failed events" "$summary")"
     echo
@@ -226,7 +241,7 @@ if [[ "$step_validation_verified" == "1" ]]; then
   verified_any=1
 fi
 if [[ "$health_attempt_verified" == "1" ]]; then
-  echo "- Health Connect write attempt was recorded under the required final gate."
+  echo "- Health Connect write attempt was recorded under the required final gate with permissions-ready planned-write context."
   verified_any=1
 fi
 if [[ "$health_success_verified" == "1" ]]; then
@@ -257,7 +272,7 @@ if [[ "$step_validation_verified" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$health_attempt_verified" != "1" ]]; then
-  echo "- Health Connect permission grant and real planned write attempt on Android 14+."
+  echo "- Health Connect permission grant and real planned write attempt on Android 14+, including permissions-ready planned-write context."
   remaining_any=1
 fi
 if [[ "$remaining_any" == "0" ]]; then

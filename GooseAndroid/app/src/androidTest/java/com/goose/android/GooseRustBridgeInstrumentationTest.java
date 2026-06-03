@@ -607,6 +607,15 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         if (!audit.contains("records_attempted")) {
             throw new AssertionError("ready-plan audit missing records_attempted: " + audit);
         }
+        if (!audit.contains("\"permissions_ready\":true")) {
+            throw new AssertionError("ready-plan audit missing permissions_ready=true: " + audit);
+        }
+        if (!audit.contains("\"planned_write_count\":1")) {
+            throw new AssertionError("ready-plan audit missing planned_write_count: " + audit);
+        }
+        if (!audit.contains("\"candidate_count\":1")) {
+            throw new AssertionError("ready-plan audit missing candidate_count: " + audit);
+        }
     }
 
     private String readFile(File file) throws Exception {

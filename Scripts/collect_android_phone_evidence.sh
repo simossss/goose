@@ -83,6 +83,7 @@ GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=${GOOSE_ANDROID_REQUIRE_STEP_VALIDATI
 GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION=${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION:-0}
 GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=${GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT:-0}
 GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT:-0}
+GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN=${GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN:-0}
 GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS:-0}
 GATES
 
@@ -157,6 +158,7 @@ Result: ${inspection_result:-unknown}
 - Require step validation pass: ${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}
 - Require step validation session: ${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION:-0}
 - Require Health Connect write attempt: ${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT:-0}
+- Require Health Connect ready write plan: ${GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN:-0}
 - Require Health Connect write success: ${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS:-0}
 
 ## Device
@@ -196,6 +198,10 @@ Result: ${inspection_result:-unknown}
 - Audit bytes: $(summary_value "health sync audit bytes")
 - Blocked events: $(summary_value "health sync blocked events")
 - Write started events: $(summary_value "health sync write started events")
+- Ready write started events: $(summary_value "health sync ready write started events")
+- Planned write started events: $(summary_value "health sync planned write started events")
+- Candidate write started events: $(summary_value "health sync candidate write started events")
+- Records attempted events: $(summary_value "health sync records attempted events")
 - Write succeeded events: $(summary_value "health sync write succeeded events")
 - Write failed events: $(summary_value "health sync write failed events")
 
@@ -270,7 +276,9 @@ to require a capture-session-bound validation with decoded session frames and a
 selected counter delta.
 Set GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1 as well when validating a Health
 Connect sync attempt. Set GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1 to
-require a platform write attempt and GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1
+require a platform write attempt, GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN=1
+to require permissions-ready dry-run context with planned writes and attempted
+records on the write attempt, and GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1
 to require a successful write.
 README
 

@@ -96,7 +96,7 @@ Phone-bound completion checks:
   2. BLE session audit proving command readiness and client hello sent.
   3. Controlled capture pull inspected with Scripts/inspect_android_capture.sh.
   4. Step-counter decoder confirmation from real counted-step evidence bound to a decoded capture session.
-  5. Health Connect permission grant and real planned write attempt on Android 14+.
+  5. Health Connect permission grant and real planned write attempt on Android 14+ with permissions-ready planned-write evidence.
 
 Generated artifact policy:
   Rust/android/, GooseAndroid/**/build/, GooseAndroid/**/.cxx/, local.properties,

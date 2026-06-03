@@ -178,11 +178,12 @@ final class HealthConnectSupport {
                     + "skipped: " + skipped);
             return;
         }
-        insertRecords(records, attempted, skipped, callback);
+        insertRecords(dryRunReport, records, attempted, skipped, callback);
     }
 
     @SuppressLint("NewApi")
     private void insertRecords(
+            JSONObject dryRunReport,
             List<Record> records,
             List<String> attempted,
             List<String> skipped,
@@ -190,25 +191,18 @@ final class HealthConnectSupport {
     ) {
         HealthConnectManager manager = context.getSystemService(HealthConnectManager.class);
         if (manager == null) {
-            appendSyncAudit("blocked", auditDetails(
-                    "reason", "manager_unavailable",
-                    "records_attempted", records.size(),
-                    "attempted", jsonArray(attempted),
-                    "skipped", jsonArray(skipped)));
+            appendSyncAudit("blocked", putAudit(writeAuditDetails(dryRunReport, records, attempted, skipped),
+                    "reason", "manager_unavailable"));
             callback.onReport("Health Connect sync\nHealthConnectManager unavailable.");
             return;
         }
-        appendSyncAudit("write_started", auditDetails(
-                "records_attempted", records.size(),
-                "attempted", jsonArray(attempted),
-                "skipped", jsonArray(skipped)));
+        appendSyncAudit("write_started", writeAuditDetails(dryRunReport, records, attempted, skipped));
         manager.insertRecords(records, healthExecutor, new OutcomeReceiver<InsertRecordsResponse, HealthConnectException>() {
             @Override
             public void onResult(InsertRecordsResponse result) {
-                appendSyncAudit("write_succeeded", auditDetails(
-                        "records_inserted", records.size(),
-                        "attempted", jsonArray(attempted),
-                        "skipped", jsonArray(skipped)));
+                appendSyncAudit("write_succeeded", putAudit(
+                        writeAuditDetails(dryRunReport, records, attempted, skipped),
+                        "records_inserted", records.size()));
                 callback.onReport("Health Connect sync\n"
                         + "inserted records: " + records.size() + "\n"
                         + "attempted detail: " + attempted + "\n"
@@ -218,10 +212,8 @@ final class HealthConnectSupport {
 
             @Override
             public void onError(HealthConnectException error) {
-                appendSyncAudit("write_failed", auditDetails(
-                        "records_attempted", records.size(),
-                        "attempted", jsonArray(attempted),
-                        "skipped", jsonArray(skipped),
+                appendSyncAudit("write_failed", putAudit(
+                        writeAuditDetails(dryRunReport, records, attempted, skipped),
                         "error", String.valueOf(error)));
                 callback.onReport("Health Connect sync failed\n"
                         + "records attempted: " + records.size() + "\n"
@@ -355,6 +347,19 @@ final class HealthConnectSupport {
             putAudit(object, String.valueOf(pairs[index]), pairs[index + 1]);
         }
         return object;
+    }
+
+    private JSONObject writeAuditDetails(
+            JSONObject dryRunReport,
+            List<Record> records,
+            List<String> attempted,
+            List<String> skipped
+    ) {
+        JSONObject details = dryRunAuditDetails(dryRunReport);
+        putAudit(details, "records_attempted", records.size());
+        putAudit(details, "attempted", jsonArray(attempted));
+        putAudit(details, "skipped", jsonArray(skipped));
+        return details;
     }
 
     private JSONObject putAudit(JSONObject object, String key, Object value) {

@@ -107,6 +107,9 @@ Scripts/android_phone_final_gate.sh
 
 Add `--require-health-success` after granting Health Connect permissions when
 the session should prove a successful platform write, not just a write attempt.
+The standard write-attempt gate also requires the audit row to include
+permissions-ready dry-run context, planned writes, candidate count, and attempted
+records.
 Add `--require-step-validation` after running counted-step validation in the app
 when the final phone session should prove a passing, capture-session-bound
 step-validation audit row with decoded session frames and a selected counter
@@ -127,7 +130,9 @@ stricter post-capture gate, set
 `GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1`, or
 `GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1`. For Health Connect phone validation, add
 `GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1` to require a platform write
-attempt and `GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1` to require a
+attempt, `GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN=1` to require
+permissions-ready planned-write context on that attempt, and
+`GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1` to require a
 successful write. `Scripts/android_phone_final_gate.sh` enables the physical
 device, BLE hello, raw, session, session-tagged raw, finished-session,
 installed-package, Health Connect audit, and write-attempt gates by default.
@@ -222,7 +227,9 @@ These files are build artifacts and are ignored by git.
   feature rows plus step and active-calorie candidates from existing daily
   activity metrics before syncing.
 - Records Health Connect sync attempts, blocked writes, successes, and failures
-  to `files/goose/health-connect-sync-log.jsonl` for real-device debugging.
+  to `files/goose/health-connect-sync-log.jsonl` for real-device debugging,
+  including dry-run readiness, candidate count, planned write count, and
+  attempted record counts on write attempts.
 - Disables Android backup and device-transfer extraction for app-local health
   data through manifest flags plus explicit backup/data-extraction rules.
 - Provides the Health Connect permissions rationale activity and Android 14+

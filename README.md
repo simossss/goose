@@ -300,7 +300,9 @@ Scripts/android_phone_final_gate.sh
 ```
 
 Add `--require-health-success` when the final session should require a
-successful Health Connect platform write in addition to a write attempt.
+successful Health Connect platform write in addition to a write attempt. The
+standard write-attempt gate also requires permissions-ready dry-run context,
+planned writes, candidates, and attempted records in the audit row.
 The final gate also requires session-tagged raw evidence and a finished capture
 session with `frame_count > 0`, plus installed `com.goose.android` package
 metadata from the device and a BLE session audit proving command readiness and
@@ -325,7 +327,7 @@ adb shell am instrument -w com.goose.android.test/com.goose.android.GooseRustBri
 The remaining phone-dependent work is physical WHOOP strap validation with the
 BLE session audit, final capture-session-bound step-counter decoder
 confirmation, and Health Connect permission/write testing with real planned
-writes on a real Android device.
+writes plus permissions-ready write-attempt evidence on a real Android device.
 
 ## Data And Privacy
 
