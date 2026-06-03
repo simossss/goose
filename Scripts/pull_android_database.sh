@@ -18,11 +18,25 @@ fi
 
 device_serial="${ANDROID_SERIAL:-}"
 if [[ -z "$device_serial" ]]; then
-  device_serial="$("$ADB" devices | awk 'NR > 1 && $2 == "device" { print $1; exit }')"
+  devices=()
+  while IFS= read -r serial; do
+    devices+=("$serial")
+  done < <("$ADB" devices | awk 'NR > 1 && $2 == "device" { print $1 }')
+  if [[ "${#devices[@]}" -eq 1 ]]; then
+    device_serial="${devices[0]}"
+  elif [[ "${#devices[@]}" -eq 0 ]]; then
+    echo "No adb device/emulator online. Enable USB debugging and accept the phone trust prompt." >&2
+    exit 1
+  else
+    echo "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" >&2
+    printf '  %s\n' "${devices[@]}" >&2
+    exit 1
+  fi
 fi
 
-if [[ -z "$device_serial" ]]; then
-  echo "No adb device/emulator online. Set ANDROID_SERIAL when multiple devices are connected." >&2
+device_state="$("$ADB" -s "$device_serial" get-state 2>/dev/null || true)"
+if [[ "$device_state" != "device" ]]; then
+  echo "adb target is not online: $device_serial ($device_state)" >&2
   exit 1
 fi
 

@@ -288,6 +288,10 @@ Use `Scripts/install_android_debug.sh --no-build` after Android Studio has
 already built the debug APK. Set `ANDROID_SERIAL` when multiple adb devices are
 online.
 
+The final evidence and database-pull helpers also require `ANDROID_SERIAL` when
+more than one adb target is online, so phone evidence is never collected from an
+arbitrary emulator or secondary device.
+
 After a phone capture, pull and inspect the debug store:
 
 ```bash

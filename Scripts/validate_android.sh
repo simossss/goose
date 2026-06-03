@@ -150,6 +150,8 @@ assert_file_contains "$readiness_output" "Scripts/android_pr_readiness.sh --stri
 assert_file_contains "$readiness_strict_output" "Strict PR readiness: FAIL" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Strict PR readiness: PASS" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "- None from the supplied evidence bundle." "PR readiness strict"
+assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" "phone evidence collector"
+assert_file_contains "$SCRIPT_DIR/pull_android_database.sh" "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" "database pull"
 
 find_build_tool() {
   local tool="$1"
