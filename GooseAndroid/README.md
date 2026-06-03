@@ -108,7 +108,8 @@ These files are build artifacts and are ignored by git.
 ## Physical Device Workflow
 
 1. Install and open the debug app on an Android phone.
-2. Grant Bluetooth and location permissions.
+2. Grant Bluetooth permissions. Android 11 and older also require location for
+   BLE scanning.
 3. Press `Scan`, then tap the WHOOP candidate when it appears.
 4. Wait for `Ready; subscribed ...; hello sent`.
 5. Optional but recommended for owned captures: press `Start` in the capture
