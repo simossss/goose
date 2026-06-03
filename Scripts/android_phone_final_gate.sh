@@ -8,12 +8,14 @@ OUTPUT_DIR="$APP_DIR/tmp/android-phone-final-gate-$STAMP"
 REQUIRE_HEALTH_SUCCESS=0
 REQUIRE_HEALTH=1
 REQUIRE_STEP_VALIDATION=0
+ALLOW_EMULATOR=0
 
 usage() {
   cat <<'USAGE'
-Usage: Scripts/android_phone_final_gate.sh [output-dir] [--require-step-validation] [--require-health-success] [--skip-health]
+Usage: Scripts/android_phone_final_gate.sh [output-dir] [--require-step-validation] [--require-health-success] [--skip-health] [--allow-emulator]
 
 Collects the final Android phone evidence bundle with strict pass/fail gates:
+- physical Android device, unless --allow-emulator is set
 - at least one raw_evidence row
 - at least one capture_sessions row
 - at least one session-tagged raw_evidence row
@@ -25,6 +27,8 @@ Use --require-health-success only after granting Health Connect permissions and
 creating at least one writeable planned record in the app.
 Use --require-step-validation after running the counted-step validation action
 in the app for the controlled capture session.
+Use --allow-emulator only for development smoke tests. PR acceptance still needs
+evidence from a physical Android phone.
 
 Set ANDROID_SERIAL when more than one adb device is online.
 USAGE
@@ -42,6 +46,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-health)
       REQUIRE_HEALTH=0
+      shift
+      ;;
+    --allow-emulator)
+      ALLOW_EMULATOR=1
       shift
       ;;
     -h|--help)
@@ -63,6 +71,11 @@ done
 echo "Running Goose Android final phone gate"
 echo "output: $OUTPUT_DIR"
 echo "strict capture evidence: required"
+if [[ "$ALLOW_EMULATOR" == "1" ]]; then
+  echo "Physical Android device: skipped for emulator smoke"
+else
+  echo "Physical Android device: required"
+fi
 if [[ "$REQUIRE_STEP_VALIDATION" == "1" ]]; then
   echo "Step validation audit/pass: required"
 fi
@@ -81,6 +94,9 @@ export GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1
 export GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=1
 export GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1
 export GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=1
+if [[ "$ALLOW_EMULATOR" != "1" ]]; then
+  export GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE=1
+fi
 
 if [[ "$REQUIRE_STEP_VALIDATION" == "1" ]]; then
   export GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1

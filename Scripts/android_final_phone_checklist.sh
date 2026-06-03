@@ -42,7 +42,8 @@ Commit: $commit
 
 ## Pull Final Evidence
 
-Use the strict final gate after the app-side run:
+Use the strict final gate after the app-side run. This requires a physical adb
+device by default; \`--allow-emulator\` is only for development smoke tests.
 
 \`\`\`sh
 Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation

@@ -99,7 +99,7 @@ GOOSE_ANDROID_STRICT_EVIDENCE=1 Scripts/collect_android_phone_evidence.sh
 ```
 
 For the final phone handoff gate after a controlled capture and Health Connect
-sync attempt:
+sync attempt. It requires a physical adb device by default:
 
 ```sh
 Scripts/android_phone_final_gate.sh
@@ -124,9 +124,11 @@ and recent Health Connect audit rows. For a stricter post-capture gate, set
 `GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1`. For Health Connect phone validation, add
 `GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1` to require a platform write
 attempt and `GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1` to require a
-successful write. `Scripts/android_phone_final_gate.sh` enables the raw,
-session, session-tagged raw, finished-session, installed-package, audit, and
-write-attempt gates.
+successful write. `Scripts/android_phone_final_gate.sh` enables the physical
+device, raw, session, session-tagged raw, finished-session, installed-package,
+Health Connect audit, and write-attempt gates by default. Add `--skip-health`
+only for development smoke tests and `--allow-emulator` only for emulator smoke
+tests.
 For counted-step validation, set `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1`
 or `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1`.
 
@@ -249,6 +251,8 @@ These files are build artifacts and are ignored by git.
 11. After final evidence collection, run
     `Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-...` for the
     PR checklist summary.
+    Final evidence must come from a physical adb device; emulator evidence is
+    accepted only for development smoke tests with `--allow-emulator`.
 
 The current build has captured live heart-rate packets and imported WHOOP
 historical data from a physical WHOOP 5.0. Explicit step-counter extraction is

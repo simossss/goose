@@ -293,7 +293,7 @@ after a controlled capture to require at least one raw packet row and one
 capture session in the pulled debug store.
 
 Run the final phone handoff gate after a controlled capture and Health Connect
-sync attempt:
+sync attempt. It requires a physical adb device by default:
 
 ```bash
 Scripts/android_phone_final_gate.sh
@@ -303,7 +303,8 @@ Add `--require-health-success` when the final session should require a
 successful Health Connect platform write in addition to a write attempt.
 The final gate also requires session-tagged raw evidence and a finished capture
 session with `frame_count > 0`, plus installed `com.goose.android` package
-metadata from the device.
+metadata from the device. Add `--allow-emulator` only for development smoke
+tests; PR acceptance still needs physical-phone evidence.
 Add `--require-step-validation` after running the in-app counted-step validation
 when the final session should require a passing step-validation audit row.
 For that validation, start a capture session before the counted walk, finish it

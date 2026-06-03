@@ -6,6 +6,7 @@ APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUTPUT_DIR="${1:-$APP_DIR/tmp/android-phone-evidence-$STAMP}"
 REQUIRE_INSTALLED_PACKAGE="${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}"
+REQUIRE_PHYSICAL_DEVICE="${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}"
 
 if [[ -z "${ADB:-}" && -x "$HOME/Library/Android/sdk/platform-tools/adb" ]]; then
   ADB="$HOME/Library/Android/sdk/platform-tools/adb"
@@ -48,6 +49,17 @@ echo "$device_serial" > "$OUTPUT_DIR/android-serial.txt"
 "$ADB" -s "$device_serial" logcat -d -v threadtime > "$OUTPUT_DIR/logcat-threadtime.txt" 2>&1 || true
 "$ADB" -s "$device_serial" logcat -d -v brief AndroidRuntime:E GooseBridgeSmoke:I '*:S' > "$OUTPUT_DIR/logcat-goose-brief.txt" 2>&1 || true
 
+device_kind="physical"
+device_manufacturer="$(sed -n '1p' "$OUTPUT_DIR/device-manufacturer.txt" | tr -d '\r')"
+device_model="$(sed -n '1p' "$OUTPUT_DIR/device-model.txt" | tr -d '\r')"
+if [[ "$device_serial" == emulator-* ]] \
+  || [[ "$device_manufacturer" == "Google" && "$device_model" == sdk_* ]] \
+  || [[ "$device_model" == *"Android SDK built for"* ]] \
+  || [[ "$device_model" == *"sdk_gphone"* ]]; then
+  device_kind="emulator"
+fi
+echo "$device_kind" > "$OUTPUT_DIR/android-device-kind.txt"
+
 ANDROID_SERIAL="$device_serial" "$SCRIPT_DIR/pull_android_database.sh" "$OUTPUT_DIR/goose-phone.sqlite" \
   > "$OUTPUT_DIR/pull-android-database.txt" 2>&1
 
@@ -63,6 +75,7 @@ GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=${GOOSE_ANDROID_MIN_CAPTURE_SESSIONS:-0}
 GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=${GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE:-0}
 GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=${GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS:-0}
 GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}
+GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE=${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}
 GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT:-0}
 GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}
 GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=${GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT:-0}
@@ -111,12 +124,21 @@ if [[ "$REQUIRE_INSTALLED_PACKAGE" == "1" && "$package_result" != "PASS" ]]; the
   echo "FAIL: installed com.goose.android package metadata missing or unexpected" >> "$OUTPUT_DIR/collect-error.txt"
   echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
 fi
+device_result="PASS"
+if [[ "$REQUIRE_PHYSICAL_DEVICE" == "1" && "$device_kind" != "physical" ]]; then
+  device_result="FAIL"
+  inspection_status=1
+  inspection_result="FAIL"
+  echo "FAIL: final evidence requires a physical Android device, got $device_kind ($device_serial)" >> "$OUTPUT_DIR/collect-error.txt"
+  echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
+fi
 
 cat > "$OUTPUT_DIR/phone-handoff-summary.md" <<SUMMARY
 # Goose Android Phone Evidence
 
 Generated at: $STAMP
 Device serial: $device_serial
+Device kind: $device_kind
 Device: $(first_line "$OUTPUT_DIR/device-manufacturer.txt") $(first_line "$OUTPUT_DIR/device-model.txt")
 Android: $(first_line "$OUTPUT_DIR/android-version.txt") (SDK $(first_line "$OUTPUT_DIR/android-sdk.txt"))
 Commit: ${port_commit:-unknown}
@@ -127,9 +149,15 @@ Result: ${inspection_result:-unknown}
 - Gate snapshot: evidence-gates.txt
 - Strict evidence: ${GOOSE_ANDROID_STRICT_EVIDENCE:-0}
 - Require installed package: ${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}
+- Require physical device: ${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}
 - Require step validation pass: ${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}
 - Require Health Connect write attempt: ${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT:-0}
 - Require Health Connect write success: ${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS:-0}
+
+## Device
+
+- Device result: $device_result
+- Kind: $device_kind
 
 ## Installed App
 
@@ -170,6 +198,7 @@ Result: ${inspection_result:-unknown}
 
 - android-port-status.txt
 - evidence-gates.txt
+- android-device-kind.txt
 - goose-package-path.txt
 - goose-package-summary.txt
 - goose-package-dumpsys.txt
@@ -185,11 +214,13 @@ Goose Android phone evidence bundle
 
 Generated at: $STAMP
 Device serial: $device_serial
+Device kind: $device_kind
 
 Key files:
 - android-port-status.txt: branch, commit, APK metadata, generated artifact status.
 - evidence-gates.txt: strict gate environment used for this bundle.
 - adb-devices.txt: adb device list at collection time.
+- android-device-kind.txt: physical or emulator classification used by final gates.
 - goose-package-path.txt: installed com.goose.android package path from the device.
 - goose-package-summary.txt: focused package version, install time, flags, and user state.
 - goose-package-dumpsys.txt: full installed package metadata for com.goose.android.
@@ -210,6 +241,7 @@ Strict mode requires at least one raw_evidence row and one capture_sessions row.
 The final phone gate additionally requires session-tagged raw_evidence and a
 finished nonempty capture session. Set GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=1
 to require installed com.goose.android package metadata.
+Set GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE=1 to reject emulator evidence.
 Set GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1 after a counted-step
 validation attempt, or GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1 when the
 step validation should pass.

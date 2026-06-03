@@ -65,6 +65,7 @@ echo
 phone_evidence_supplied=0
 phone_summary_valid=0
 phone_result=""
+device_kind=""
 capture_verified=0
 physical_capture_verified=0
 installed_package_verified=0
@@ -79,6 +80,14 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     phone_summary_valid=1
     phone_result="$(status_value "Result" "$summary")"
     device_serial="$(status_value "Device serial" "$summary")"
+    device_kind="$(status_value "Device kind" "$summary")"
+    if [[ -z "$device_kind" ]]; then
+      if [[ "$device_serial" == emulator-* ]]; then
+        device_kind="emulator"
+      else
+        device_kind="physical"
+      fi
+    fi
     installed_result="$(summary_bullet_value "Result" "$summary")"
     raw_rows="$(summary_bullet_value "Raw evidence rows" "$summary")"
     capture_sessions="$(summary_bullet_value "Capture sessions" "$summary")"
@@ -103,7 +112,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && is_positive_int "$finished_sessions"; then
       capture_verified=1
     fi
-    if [[ "$capture_verified" == "1" && "$device_serial" != emulator-* ]]; then
+    if [[ "$capture_verified" == "1" && "$device_kind" == "physical" ]]; then
       physical_capture_verified=1
     fi
     if [[ "$phone_result" == "PASS" && "$installed_result" == "PASS" ]]; then
@@ -125,6 +134,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Evidence directory: $PHONE_EVIDENCE_DIR"
     echo "Result: $phone_result"
     echo "Device serial: $device_serial"
+    echo "Device kind: $device_kind"
     echo "Device: $(status_value "Device" "$summary")"
     echo "Android: $(status_value "Android" "$summary")"
     echo
