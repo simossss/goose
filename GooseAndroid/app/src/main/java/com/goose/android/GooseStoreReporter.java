@@ -271,6 +271,8 @@ final class GooseStoreReporter {
                 .append("database bytes: ").append(new File(databasePath).length()).append('\n')
                 .append("health sync audit: ").append(healthSyncAuditFile.getAbsolutePath()).append('\n')
                 .append("health sync audit bytes: ").append(healthSyncAuditFile.length()).append('\n')
+                .append("step validation audit: ").append(stepValidationAuditFile.getAbsolutePath()).append('\n')
+                .append("step validation audit bytes: ").append(stepValidationAuditFile.length()).append('\n')
                 .append("export directory: ").append(exportDirectory.getAbsolutePath()).append('\n')
                 .append("export files: ").append(exportFileCount()).append('\n');
         SQLiteDatabase database = null;
@@ -312,7 +314,8 @@ final class GooseStoreReporter {
                     + "decoded frames: " + decodedFrames + "\n"
                     + "step samples: " + stepSamples + "\n"
                     + "latest capture: " + latestCapture + "\n"
-                    + "health sync audit bytes: " + healthSyncAuditFile.length();
+                    + "health sync audit bytes: " + healthSyncAuditFile.length() + "\n"
+                    + "step validation audit bytes: " + stepValidationAuditFile.length();
         } catch (Exception error) {
             return "Android evidence readiness\nstatus: FAIL\n" + error;
         } finally {

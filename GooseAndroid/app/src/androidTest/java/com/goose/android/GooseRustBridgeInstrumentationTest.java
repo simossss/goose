@@ -436,7 +436,9 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         String report = reports.isEmpty() ? "" : reports.get(0);
         if (!report.contains("status: PASS")
                 || !report.contains("raw evidence: 1")
-                || !report.contains("capture sessions: 1")) {
+                || !report.contains("capture sessions: 1")
+                || !report.contains("health sync audit bytes:")
+                || !report.contains("step validation audit bytes:")) {
             throw new AssertionError("evidence readiness report did not pass after capture smoke: " + report);
         }
     }
