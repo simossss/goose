@@ -86,6 +86,12 @@ verify_evidence_manifest() {
   local verified_count=0
   local saw_summary=0
   local saw_gates=0
+  local saw_inspection=0
+  local saw_database=0
+  local saw_logcat=0
+  local saw_package_summary=0
+  local saw_device_kind=0
+  local saw_result=0
 
   [[ -f "$manifest" ]] || return 1
   while IFS=$'\t' read -r rel_path expected_bytes expected_sha extra || [[ -n "$rel_path" ]]; do
@@ -108,11 +114,31 @@ verify_evidence_manifest() {
       saw_summary=1
     elif [[ "$rel_path" == "evidence-gates.txt" ]]; then
       saw_gates=1
+    elif [[ "$rel_path" == "inspect-android-capture.txt" ]]; then
+      saw_inspection=1
+    elif [[ "$rel_path" == "goose-phone.sqlite" ]]; then
+      saw_database=1
+    elif [[ "$rel_path" == "logcat-goose-brief.txt" ]]; then
+      saw_logcat=1
+    elif [[ "$rel_path" == "goose-package-summary.txt" ]]; then
+      saw_package_summary=1
+    elif [[ "$rel_path" == "android-device-kind.txt" ]]; then
+      saw_device_kind=1
+    elif [[ "$rel_path" == "evidence-result.txt" ]]; then
+      saw_result=1
     fi
     verified_count=$((verified_count + 1))
   done < "$manifest"
 
-  [[ "$verified_count" -gt 0 && "$saw_summary" == "1" && "$saw_gates" == "1" ]]
+  [[ "$verified_count" -gt 0 \
+    && "$saw_summary" == "1" \
+    && "$saw_gates" == "1" \
+    && "$saw_inspection" == "1" \
+    && "$saw_database" == "1" \
+    && "$saw_logcat" == "1" \
+    && "$saw_package_summary" == "1" \
+    && "$saw_device_kind" == "1" \
+    && "$saw_result" == "1" ]]
 }
 
 latest_commit="$(git -C "$APP_DIR" rev-parse --short HEAD) $(git -C "$APP_DIR" log -1 --pretty=%s)"
