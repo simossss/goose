@@ -32,6 +32,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private static final int PERMISSION_REQUEST_BLE = 1001;
     private static final int MAX_NOTIFICATION_LOG_ROWS = 40;
     private static final int MAX_COMMAND_LOG_ROWS = 12;
+    private static final int MAX_RENDERED_DEVICE_ROWS = 8;
     private static final int MAX_NOTIFICATION_HEX_CHARS = 160;
     private static final int MAX_REPORT_CHARS = 12000;
     private static final long COMMAND_CONFIRM_WINDOW_MS = 15000L;
@@ -143,11 +144,16 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 deviceList.addView(empty);
                 return;
             }
-            for (GooseBleClient.DeviceRow device : devices) {
+            int rendered = Math.min(devices.size(), MAX_RENDERED_DEVICE_ROWS);
+            for (int index = 0; index < rendered; index += 1) {
+                GooseBleClient.DeviceRow device = devices.get(index);
                 Button button = secondaryButton(device.displayText());
                 button.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
                 button.setOnClickListener(view -> connectToDevice(device));
                 deviceList.addView(button, matchWrap());
+            }
+            if (devices.size() > rendered) {
+                deviceList.addView(bodyText("Showing " + rendered + " of " + devices.size() + " devices"), matchWrap());
             }
         });
     }
