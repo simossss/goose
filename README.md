@@ -315,8 +315,9 @@ Scripts/inspect_android_capture.sh tmp/goose-phone.sqlite
 ```
 
 For a timestamped phone evidence bundle, including status, adb device details,
-strict gate configuration, installed `com.goose.android` package metadata,
-logcat, pulled SQLite files, inspection output, and a byte/hash file manifest:
+strict gate configuration, installed `com.goose.android` package metadata and
+APK hash comparison, logcat, pulled SQLite files, inspection output, and a
+byte/hash file manifest:
 
 ```bash
 Scripts/collect_android_phone_evidence.sh
@@ -343,9 +344,10 @@ standard write-attempt gate also requires permissions-ready dry-run context,
 planned writes, candidates, and attempted records in the audit row.
 The final gate also requires session-tagged raw evidence and a finished capture
 session with `frame_count > 0`, plus installed `com.goose.android` package
-metadata from the device, session-tagged Android BLE live-notification raw
-evidence, no focused AndroidRuntime crash lines for Goose, and a BLE session
-audit proving command readiness and client hello sent. Add `--allow-emulator`
+metadata and an installed APK hash match from the device, session-tagged Android
+BLE live-notification raw evidence, no focused AndroidRuntime crash lines for
+Goose, and a BLE session audit proving command readiness and client hello sent.
+Add `--allow-emulator`
 only for development smoke tests; PR acceptance still needs physical-phone
 evidence.
 Add `--require-step-validation` after running the in-app counted-step validation

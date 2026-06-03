@@ -112,6 +112,8 @@ write_required_evidence_artifacts() {
   printf 'RESULT: PASS\n' > "$dir/evidence-result.txt"
   printf 'synthetic sqlite placeholder\n' > "$dir/goose-phone.sqlite"
   printf 'versionName=0.1.0\n' > "$dir/goose-package-summary.txt"
+  printf '1111111111111111111111111111111111111111111111111111111111111111\n' > "$dir/goose-local-debug-apk-sha256.txt"
+  printf '1111111111111111111111111111111111111111111111111111111111111111\n' > "$dir/goose-installed-apk-sha256.txt"
   printf 'capture inspection placeholder\nRESULT: PASS\n' > "$dir/inspect-android-capture.txt"
   printf 'focused AndroidRuntime logcat placeholder\n' > "$dir/logcat-goose-brief.txt"
 }
@@ -123,6 +125,8 @@ copy_required_evidence_artifacts() {
   cp "$source_dir/evidence-result.txt" "$target_dir/evidence-result.txt"
   cp "$source_dir/goose-phone.sqlite" "$target_dir/goose-phone.sqlite"
   cp "$source_dir/goose-package-summary.txt" "$target_dir/goose-package-summary.txt"
+  cp "$source_dir/goose-local-debug-apk-sha256.txt" "$target_dir/goose-local-debug-apk-sha256.txt"
+  cp "$source_dir/goose-installed-apk-sha256.txt" "$target_dir/goose-installed-apk-sha256.txt"
   cp "$source_dir/inspect-android-capture.txt" "$target_dir/inspect-android-capture.txt"
   cp "$source_dir/logcat-goose-brief.txt" "$target_dir/logcat-goose-brief.txt"
 }
@@ -259,6 +263,9 @@ Result: PASS
 
 - Result: PASS
 - Package path: package:/data/app/com.goose.android/base.apk
+- Local debug APK SHA-256: 1111111111111111111111111111111111111111111111111111111111111111
+- Installed APK SHA-256: 1111111111111111111111111111111111111111111111111111111111111111
+- Installed APK hash result: PASS
 
 ## Capture
 
@@ -422,6 +429,9 @@ Result: PASS
 
 - Result: PASS
 - Package path: package:/data/app/com.goose.android/base.apk
+- Local debug APK SHA-256: 1111111111111111111111111111111111111111111111111111111111111111
+- Installed APK SHA-256: 1111111111111111111111111111111111111111111111111111111111111111
+- Installed APK hash result: PASS
 
 ## Capture
 
@@ -527,10 +537,14 @@ assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "evidence-f
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "path	bytes	sha256" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Evidence output directory is not empty:" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "GOOSE_ANDROID_ALLOW_EXISTING_EVIDENCE_DIR=1" "phone evidence collector"
+assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Installed APK hash result:" "phone evidence collector"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "goose-installed-apk-sha256.txt" "PR readiness"
 assert_file_contains "$APP_DIR/README.md" "no focused AndroidRuntime crash lines" "root README"
 assert_file_contains "$APP_DIR/README.md" "byte/hash file manifest" "root README"
+assert_file_contains "$APP_DIR/README.md" "APK hash comparison" "root README"
 assert_file_contains "$APP_DIR/README.md" "Scripts/android_partial_phone_checklist.sh" "root README"
 assert_file_contains "$ANDROID_DIR/README.md" "no-focused-AndroidRuntime-crash" "Android README"
+assert_file_contains "$ANDROID_DIR/README.md" "compares the installed APK hash" "Android README"
 assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "Focused AndroidRuntime logcat has no com.goose.android crash lines." "Android port status"
 assert_file_contains "$inspect_session_detail_output" "Capture session evidence detail" "capture inspector session detail"
 assert_file_contains "$inspect_session_detail_output" "android-session-a" "capture inspector session detail"

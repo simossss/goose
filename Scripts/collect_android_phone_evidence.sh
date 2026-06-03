@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+DEBUG_APK="$APP_DIR/GooseAndroid/app/build/outputs/apk/debug/app-debug.apk"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUTPUT_DIR="${1:-$APP_DIR/tmp/android-phone-evidence-$STAMP}"
 REQUIRE_INSTALLED_PACKAGE="${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}"
@@ -157,6 +158,11 @@ file_sha256() {
   fi
 }
 
+remote_file_sha256() {
+  local remote_path="$1"
+  "$ADB" -s "$device_serial" exec-out cat "$remote_path" | shasum -a 256 | awk '{ print $1 }'
+}
+
 write_file_manifest() {
   local manifest="$OUTPUT_DIR/evidence-files-manifest.txt"
   local tmp_manifest="$manifest.tmp"
@@ -183,16 +189,36 @@ if [[ -z "$inspection_result" ]]; then
   inspection_result="$(awk -F': ' '$1 == "RESULT" { print $2; exit }' "$OUTPUT_DIR/evidence-result.txt")"
 fi
 package_path="$(first_line "$OUTPUT_DIR/goose-package-path.txt")"
+package_apk_path="${package_path#package:}"
+local_debug_apk_sha256="missing"
+installed_apk_sha256="unavailable"
+installed_apk_hash_result="FAIL"
+if [[ -f "$DEBUG_APK" ]]; then
+  local_debug_apk_sha256="$(file_sha256 "$DEBUG_APK")"
+fi
+if [[ "$package_path" == package:* ]] && [[ -n "$package_apk_path" ]]; then
+  if ! installed_apk_sha256="$(remote_file_sha256 "$package_apk_path" 2>/dev/null)"; then
+    installed_apk_sha256="unavailable"
+  fi
+fi
+if [[ "$local_debug_apk_sha256" != "missing" ]] \
+  && [[ "$installed_apk_sha256" != "unavailable" ]] \
+  && [[ "$local_debug_apk_sha256" == "$installed_apk_sha256" ]]; then
+  installed_apk_hash_result="PASS"
+fi
+printf '%s\n' "$local_debug_apk_sha256" > "$OUTPUT_DIR/goose-local-debug-apk-sha256.txt"
+printf '%s\n' "$installed_apk_sha256" > "$OUTPUT_DIR/goose-installed-apk-sha256.txt"
 android_runtime_crash_count="$(grep -c 'com.goose.android' "$OUTPUT_DIR/logcat-goose-brief.txt" 2>/dev/null || true)"
 package_result="PASS"
 if [[ "$package_path" != package:* ]] \
-  || ! grep -q 'versionName=0.1.0' "$OUTPUT_DIR/goose-package-summary.txt" 2>/dev/null; then
+  || ! grep -q 'versionName=0.1.0' "$OUTPUT_DIR/goose-package-summary.txt" 2>/dev/null \
+  || [[ "$installed_apk_hash_result" != "PASS" ]]; then
   package_result="FAIL"
 fi
 if [[ "$REQUIRE_INSTALLED_PACKAGE" == "1" && "$package_result" != "PASS" ]]; then
   inspection_status=1
   inspection_result="FAIL"
-  echo "FAIL: installed com.goose.android package metadata missing or unexpected" >> "$OUTPUT_DIR/collect-error.txt"
+  echo "FAIL: installed com.goose.android package metadata/hash missing, stale, or unexpected" >> "$OUTPUT_DIR/collect-error.txt"
   echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
 fi
 device_result="PASS"
@@ -245,6 +271,9 @@ Result: ${inspection_result:-unknown}
 
 - Result: $package_result
 - Package path: $package_path
+- Local debug APK SHA-256: $local_debug_apk_sha256
+- Installed APK SHA-256: $installed_apk_sha256
+- Installed APK hash result: $installed_apk_hash_result
 - Package summary: goose-package-summary.txt
 - Package dump: goose-package-dumpsys.txt
 
@@ -306,6 +335,8 @@ $(summary_section "Capture session evidence detail")
 - goose-package-path.txt
 - goose-package-summary.txt
 - goose-package-dumpsys.txt
+- goose-local-debug-apk-sha256.txt
+- goose-installed-apk-sha256.txt
 - inspect-android-capture.txt
 - goose-phone.sqlite
 - goose-phone-ble-session-log.jsonl, when present
@@ -330,6 +361,8 @@ Key files:
 - goose-package-path.txt: installed com.goose.android package path from the device.
 - goose-package-summary.txt: focused package version, install time, flags, and user state.
 - goose-package-dumpsys.txt: full installed package metadata for com.goose.android.
+- goose-local-debug-apk-sha256.txt: SHA-256 of the local debug APK used for comparison.
+- goose-installed-apk-sha256.txt: SHA-256 of the installed APK read over adb.
 - logcat-threadtime.txt: full device logcat snapshot.
 - logcat-goose-brief.txt: focused AndroidRuntime/Goose instrumentation logcat.
 - goose-phone.sqlite plus -wal/-shm: pulled debug app database files when present.

@@ -90,6 +90,8 @@ verify_evidence_manifest() {
   local saw_database=0
   local saw_logcat=0
   local saw_package_summary=0
+  local saw_local_apk_sha=0
+  local saw_installed_apk_sha=0
   local saw_device_kind=0
   local saw_result=0
 
@@ -122,6 +124,10 @@ verify_evidence_manifest() {
       saw_logcat=1
     elif [[ "$rel_path" == "goose-package-summary.txt" ]]; then
       saw_package_summary=1
+    elif [[ "$rel_path" == "goose-local-debug-apk-sha256.txt" ]]; then
+      saw_local_apk_sha=1
+    elif [[ "$rel_path" == "goose-installed-apk-sha256.txt" ]]; then
+      saw_installed_apk_sha=1
     elif [[ "$rel_path" == "android-device-kind.txt" ]]; then
       saw_device_kind=1
     elif [[ "$rel_path" == "evidence-result.txt" ]]; then
@@ -137,6 +143,8 @@ verify_evidence_manifest() {
     && "$saw_database" == "1" \
     && "$saw_logcat" == "1" \
     && "$saw_package_summary" == "1" \
+    && "$saw_local_apk_sha" == "1" \
+    && "$saw_installed_apk_sha" == "1" \
     && "$saw_device_kind" == "1" \
     && "$saw_result" == "1" ]]
 }
@@ -312,6 +320,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Installed app:"
     echo "- Result: $installed_result"
     echo "- Package path: $(summary_bullet_value "Package path" "$summary")"
+    echo "- Local debug APK SHA-256: $(summary_bullet_value "Local debug APK SHA-256" "$summary")"
+    echo "- Installed APK SHA-256: $(summary_bullet_value "Installed APK SHA-256" "$summary")"
+    echo "- Installed APK hash result: $(summary_bullet_value "Installed APK hash result" "$summary")"
     echo
     echo "Capture evidence:"
     echo "- Raw evidence rows: $raw_rows"
