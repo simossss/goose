@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -47,6 +48,7 @@ final class HealthConnectSupport {
     private final Context context;
     private final ExecutorService healthExecutor = Executors.newSingleThreadExecutor();
     private final File syncAuditFile;
+    private volatile boolean closed;
 
     HealthConnectSupport(Context context) {
         this.context = context.getApplicationContext();
@@ -112,6 +114,7 @@ final class HealthConnectSupport {
     }
 
     void close() {
+        closed = true;
         healthExecutor.shutdownNow();
     }
 
@@ -197,7 +200,7 @@ final class HealthConnectSupport {
             return;
         }
         appendSyncAudit("write_started", writeAuditDetails(dryRunReport, records, attempted, skipped));
-        manager.insertRecords(records, healthExecutor, new OutcomeReceiver<InsertRecordsResponse, HealthConnectException>() {
+        manager.insertRecords(records, this::executeHealthCallback, new OutcomeReceiver<InsertRecordsResponse, HealthConnectException>() {
             @Override
             public void onResult(InsertRecordsResponse result) {
                 appendSyncAudit("write_succeeded", putAudit(
@@ -222,6 +225,20 @@ final class HealthConnectSupport {
                         + error);
             }
         });
+    }
+
+    private void executeHealthCallback(Runnable callback) {
+        if (closed) {
+            return;
+        }
+        try {
+            healthExecutor.execute(() -> {
+                if (!closed) {
+                    callback.run();
+                }
+            });
+        } catch (RejectedExecutionException ignored) {
+        }
     }
 
     @SuppressLint("NewApi")
