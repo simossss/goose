@@ -1,13 +1,33 @@
 package com.goose.android;
 
 import android.app.Activity;
+import android.annotation.SuppressLint;
+import android.health.connect.HealthConnectException;
+import android.health.connect.HealthConnectManager;
+import android.health.connect.InsertRecordsResponse;
+import android.health.connect.datatypes.ActiveCaloriesBurnedRecord;
+import android.health.connect.datatypes.HeartRateRecord;
+import android.health.connect.datatypes.Metadata;
+import android.health.connect.datatypes.Record;
+import android.health.connect.datatypes.StepsRecord;
+import android.health.connect.datatypes.units.Energy;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.OutcomeReceiver;
 
 import java.util.ArrayList;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 final class HealthConnectSupport {
     static final int REQUEST_HEALTH_CONNECT = 2001;
@@ -37,9 +57,14 @@ final class HealthConnectSupport {
     };
 
     private final Context context;
+    private final ExecutorService healthExecutor = Executors.newSingleThreadExecutor();
 
     HealthConnectSupport(Context context) {
         this.context = context.getApplicationContext();
+    }
+
+    interface WriteCallback {
+        void onReport(String report);
     }
 
     List<String> grantedPermissions() {
@@ -80,6 +105,143 @@ final class HealthConnectSupport {
         if (intent.resolveActivity(activity.getPackageManager()) != null) {
             activity.startActivity(intent);
         }
+    }
+
+    void close() {
+        healthExecutor.shutdownNow();
+    }
+
+    void writePlannedRecords(JSONObject dryRunReport, WriteCallback callback) {
+        if (!platformAvailable()) {
+            callback.onReport("Health Connect sync\nAndroid 14+ is required for the platform writer.");
+            return;
+        }
+        if (dryRunReport == null) {
+            callback.onReport("Health Connect sync\nNo dry-run report available.");
+            return;
+        }
+        if (!dryRunReport.optBoolean("pass", false)
+                || !dryRunReport.optBoolean("all_records_ready", false)
+                || dryRunReport.optInt("blocked_count", 0) > 0) {
+            callback.onReport("Health Connect sync blocked\n"
+                    + "pass: " + dryRunReport.optBoolean("pass", false) + "\n"
+                    + "all records ready: " + dryRunReport.optBoolean("all_records_ready", false) + "\n"
+                    + "blocked: " + dryRunReport.optInt("blocked_count", 0) + "\n"
+                    + "issues: " + dryRunReport.optJSONArray("issues"));
+            return;
+        }
+        JSONArray plannedWrites = dryRunReport.optJSONArray("planned_writes");
+        if (plannedWrites == null || plannedWrites.length() == 0) {
+            callback.onReport("Health Connect sync\nNo planned writes. Capture and decode Goose-owned metrics first.");
+            return;
+        }
+        List<Record> records = new ArrayList<>();
+        List<String> skipped = new ArrayList<>();
+        for (int index = 0; index < plannedWrites.length(); index += 1) {
+            JSONObject write = plannedWrites.optJSONObject(index);
+            if (write == null) {
+                skipped.add("write " + index + ": not an object");
+                continue;
+            }
+            try {
+                Record record = recordFromPlannedWrite(write);
+                if (record != null) {
+                    records.add(record);
+                } else {
+                    skipped.add(write.optString("source_record_id", "write " + index)
+                            + ": unsupported " + write.optString("destination_type"));
+                }
+            } catch (Exception error) {
+                skipped.add(write.optString("source_record_id", "write " + index) + ": " + error.getMessage());
+            }
+        }
+        if (records.isEmpty()) {
+            callback.onReport("Health Connect sync blocked\n"
+                    + "planned writes: " + plannedWrites.length() + "\n"
+                    + "writeable records: 0\n"
+                    + "skipped: " + skipped);
+            return;
+        }
+        insertRecords(records, skipped, callback);
+    }
+
+    @SuppressLint("NewApi")
+    private void insertRecords(List<Record> records, List<String> skipped, WriteCallback callback) {
+        HealthConnectManager manager = context.getSystemService(HealthConnectManager.class);
+        if (manager == null) {
+            callback.onReport("Health Connect sync\nHealthConnectManager unavailable.");
+            return;
+        }
+        manager.insertRecords(records, healthExecutor, new OutcomeReceiver<InsertRecordsResponse, HealthConnectException>() {
+            @Override
+            public void onResult(InsertRecordsResponse result) {
+                callback.onReport("Health Connect sync\n"
+                        + "inserted records: " + records.size() + "\n"
+                        + "skipped: " + skipped.size() + "\n"
+                        + "skipped detail: " + skipped);
+            }
+
+            @Override
+            public void onError(HealthConnectException error) {
+                callback.onReport("Health Connect sync failed\n"
+                        + "records attempted: " + records.size() + "\n"
+                        + "skipped before write: " + skipped.size() + "\n"
+                        + error);
+            }
+        });
+    }
+
+    @SuppressLint("NewApi")
+    private Record recordFromPlannedWrite(JSONObject write) {
+        String destinationType = write.optString("destination_type");
+        Instant start = Instant.parse(write.optString("start_time"));
+        Instant end = Instant.parse(write.optString("end_time"));
+        if (!end.isAfter(start)) {
+            throw new IllegalArgumentException("end_time must be after start_time");
+        }
+        Metadata metadata = metadataFor(write);
+        switch (destinationType) {
+            case "StepsRecord":
+                long steps = Math.round(write.optDouble("value"));
+                if (steps < 0) {
+                    throw new IllegalArgumentException("steps must be non-negative");
+                }
+                return new StepsRecord.Builder(metadata, start, end, steps)
+                        .setStartZoneOffset(ZoneOffset.UTC)
+                        .setEndZoneOffset(ZoneOffset.UTC)
+                        .build();
+            case "HeartRateRecord":
+                long bpm = Math.round(write.optDouble("value"));
+                if (bpm <= 0) {
+                    throw new IllegalArgumentException("heart rate must be positive");
+                }
+                HeartRateRecord.HeartRateSample sample =
+                        new HeartRateRecord.HeartRateSample(bpm, start);
+                return new HeartRateRecord.Builder(metadata, start, end, Collections.singletonList(sample))
+                        .setStartZoneOffset(ZoneOffset.UTC)
+                        .setEndZoneOffset(ZoneOffset.UTC)
+                        .build();
+            case "ActiveCaloriesBurnedRecord":
+                double kcal = write.optDouble("value");
+                if (kcal < 0.0) {
+                    throw new IllegalArgumentException("active energy must be non-negative");
+                }
+                return new ActiveCaloriesBurnedRecord.Builder(metadata, start, end, Energy.fromCalories(kcal))
+                        .setStartZoneOffset(ZoneOffset.UTC)
+                        .setEndZoneOffset(ZoneOffset.UTC)
+                        .build();
+            default:
+                return null;
+        }
+    }
+
+    @SuppressLint("NewApi")
+    private Metadata metadataFor(JSONObject write) {
+        return new Metadata.Builder()
+                .setClientRecordId(write.optString("idempotency_key"))
+                .setClientRecordVersion(0L)
+                .setRecordingMethod(Metadata.RECORDING_METHOD_AUTOMATICALLY_RECORDED)
+                .build();
     }
 
     private boolean platformAvailable() {

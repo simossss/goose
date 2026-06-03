@@ -65,7 +65,7 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
 
         Log.i(TAG, "calling health_sync.dry_run");
         JSONObject healthSyncArgs = new JSONObject()
-                .put("schema", "goose.health-sync-dry-run-input.v1")
+                .put("schema", "goose.health-sync-dry-run.v1")
                 .put("platform", "health_connect")
                 .put("permission_grants", new JSONArray())
                 .put("backfill", new JSONObject()
@@ -78,6 +78,12 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         JSONObject healthSync = bridge.request("health_sync.dry_run", healthSyncArgs);
         if (!"goose.health-sync-dry-run-report.v1".equals(healthSync.optString("schema"))) {
             throw new AssertionError("health_sync.dry_run returned unexpected schema: " + healthSync);
+        }
+        JSONArray healthSyncIssues = healthSync.optJSONArray("issues");
+        if (!healthSync.optBoolean("pass", false)
+                || healthSyncIssues == null
+                || healthSyncIssues.length() != 0) {
+            throw new AssertionError("health_sync.dry_run did not pass cleanly: " + healthSync);
         }
 
         Log.i(TAG, "calling privacy.lint");

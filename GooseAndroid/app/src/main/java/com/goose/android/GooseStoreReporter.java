@@ -17,6 +17,10 @@ final class GooseStoreReporter {
         void onReport(String report);
     }
 
+    interface HealthConnectPlanCallback {
+        void onReport(JSONObject report, String summary);
+    }
+
     private final GooseRustBridge bridge = new GooseRustBridge();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final File exportDirectory;
@@ -64,6 +68,17 @@ final class GooseStoreReporter {
 
     void healthConnectDryRun(List<String> permissionGrants, Callback callback) {
         executor.execute(() -> callback.onReport(runHealthConnectDryRun(permissionGrants)));
+    }
+
+    void healthConnectDryRunPlan(List<String> permissionGrants, HealthConnectPlanCallback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject report = healthConnectDryRunReport(permissionGrants);
+                callback.onReport(report, healthConnectDryRunSummary(report, permissionGrants, false));
+            } catch (Exception error) {
+                callback.onReport(null, "Health Connect dry run failed\n" + error);
+            }
+        });
     }
 
     void exportPrivacyLint(Callback callback) {
@@ -251,35 +266,51 @@ final class GooseStoreReporter {
 
     private String runHealthConnectDryRun(List<String> permissionGrants) {
         try {
-            long now = System.currentTimeMillis();
-            JSONArray grants = new JSONArray();
-            for (String grant : permissionGrants) {
-                grants.put(grant);
-            }
-            JSONObject args = new JSONObject()
-                    .put("schema", "goose.health-sync-dry-run-input.v1")
-                    .put("platform", "health_connect")
-                    .put("permission_grants", grants)
-                    .put("backfill", new JSONObject()
-                            .put("start", iso8601(now - 86400000L))
-                            .put("end", iso8601(now)))
-                    .put("candidates", new JSONArray())
-                    .put("existing_records", new JSONArray())
-                    .put("partial_plan_policy", "require_all_records_ready")
-                    .put("delete_policy", "none");
-            JSONObject report = bridge.request("health_sync.dry_run", args);
-            return "Health Connect dry run\n"
-                    + "pass: " + report.optBoolean("pass", false) + "\n"
-                    + "permissions ready: " + report.optBoolean("permissions_ready", false) + "\n"
-                    + "permission grants: " + grants.length() + "\n"
-                    + "candidate writes: " + report.optInt("candidate_count", 0) + "\n"
-                    + "planned writes: " + report.optInt("planned_write_count", 0) + "\n"
-                    + "blocked: " + report.optInt("blocked_count", 0) + "\n"
-                    + "issues: " + report.optJSONArray("issues") + "\n"
-                    + "status: Android platform adapter not implemented; this is bridge readiness only";
+            JSONObject report = healthConnectDryRunReport(permissionGrants);
+            return healthConnectDryRunSummary(report, permissionGrants, true);
         } catch (Exception error) {
             return "Health Connect dry run failed\n" + error;
         }
+    }
+
+    private JSONObject healthConnectDryRunReport(List<String> permissionGrants) throws Exception {
+        long now = System.currentTimeMillis();
+        JSONArray grants = new JSONArray();
+        for (String grant : permissionGrants) {
+            grants.put(grant);
+        }
+        JSONObject args = new JSONObject()
+                .put("schema", "goose.health-sync-dry-run.v1")
+                .put("platform", "health_connect")
+                .put("permission_grants", grants)
+                .put("backfill", new JSONObject()
+                        .put("start", iso8601(now - 86400000L))
+                        .put("end", iso8601(now)))
+                .put("candidates", new JSONArray())
+                .put("existing_records", new JSONArray())
+                .put("partial_plan_policy", "require_all_records_ready")
+                .put("delete_policy", "none");
+        return bridge.request("health_sync.dry_run", args);
+    }
+
+    private String healthConnectDryRunSummary(
+            JSONObject report,
+            List<String> permissionGrants,
+            boolean includeAdapterStatus
+    ) {
+        StringBuilder builder = new StringBuilder("Health Connect dry run\n")
+                .append("pass: ").append(report.optBoolean("pass", false)).append('\n')
+                .append("all records ready: ").append(report.optBoolean("all_records_ready", false)).append('\n')
+                .append("permissions ready: ").append(report.optBoolean("permissions_ready", false)).append('\n')
+                .append("permission grants: ").append(permissionGrants.size()).append('\n')
+                .append("candidate writes: ").append(report.optInt("candidate_count", 0)).append('\n')
+                .append("planned writes: ").append(report.optInt("planned_write_count", 0)).append('\n')
+                .append("blocked: ").append(report.optInt("blocked_count", 0)).append('\n')
+                .append("issues: ").append(report.optJSONArray("issues"));
+        if (includeAdapterStatus) {
+            builder.append("\nstatus: Android Health Connect adapter is available through Sync when planned writes are ready");
+        }
+        return builder.toString();
     }
 
     private String runExportPrivacyLint() {

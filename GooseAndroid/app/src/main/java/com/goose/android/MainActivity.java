@@ -98,6 +98,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         commandBuilder.close();
         packetIngestor.close();
         storeReporter.close();
+        healthConnectSupport.close();
         sessionExecutor.shutdownNow();
         super.onDestroy();
     }
@@ -402,6 +403,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         Button healthConnectButton = secondaryButton("Health Gate");
         healthConnectButton.setOnClickListener(view -> runHealthConnectDryRun());
         opsActions.addView(healthConnectButton, weightWrap());
+        Button healthConnectSyncButton = primaryButton("Sync");
+        healthConnectSyncButton.setOnClickListener(view -> runHealthConnectSync());
+        opsActions.addView(healthConnectSyncButton, weightWrap());
         opsSection.addView(opsActions);
 
         LinearLayout storageActions = new LinearLayout(this);
@@ -494,6 +498,31 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         storeReporter.healthConnectDryRun(
                 healthConnectSupport.grantedPermissions(),
                 report -> runOnUiThread(() -> reportStatus.setText(truncateForDisplay(report)))
+        );
+    }
+
+    private void runHealthConnectSync() {
+        reportStatus.setText("Planning Health Connect sync...");
+        refreshHealthConnectStatus();
+        storeReporter.healthConnectDryRunPlan(
+                healthConnectSupport.grantedPermissions(),
+                (report, summary) -> runOnUiThread(() -> {
+                    if (report == null) {
+                        reportStatus.setText(truncateForDisplay(summary));
+                        return;
+                    }
+                    if (report.optInt("planned_write_count", 0) == 0) {
+                        reportStatus.setText(truncateForDisplay(summary
+                                + "\n\nHealth Connect sync\nNo planned writes. Capture and decode Goose-owned metrics first."));
+                        return;
+                    }
+                    reportStatus.setText(truncateForDisplay(summary + "\n\nWriting Health Connect records..."));
+                    healthConnectSupport.writePlannedRecords(report,
+                            writeReport -> runOnUiThread(() -> {
+                                reportStatus.setText(truncateForDisplay(summary + "\n\n" + writeReport));
+                                refreshHealthConnectStatus();
+                            }));
+                })
         );
     }
 
