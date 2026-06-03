@@ -91,13 +91,20 @@ Validation gate:
 Final phone evidence gate:
   Scripts/android_phone_final_gate.sh
 
+Partial phone evidence gate while counted-step validation is parked:
+  Scripts/android_partial_phone_gate.sh tmp/android-phone-partial-gate-real
+
+Strict PR readiness after final phone evidence:
+  Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
+
 Phone-bound completion checks:
   1. Physical WHOOP scan/connect validation on a real Android phone.
   2. BLE session audit proving command readiness and client hello sent.
   3. Controlled capture pull with session-tagged Android BLE live-notification raw evidence inspected with Scripts/inspect_android_capture.sh.
-  4. Step-counter decoder confirmation from real counted-step evidence bound to a decoded capture session.
-  5. Health Connect permission grant and real planned write attempt on Android 14+ with permissions-ready planned-write evidence.
-  6. Focused AndroidRuntime logcat has no com.goose.android crash lines.
+  4. Evidence bundle manifest with path, byte count, and SHA-256 for pulled files.
+  5. Step-counter decoder confirmation from real counted-step evidence bound to a decoded capture session.
+  6. Health Connect permission grant and real planned write attempt on Android 14+ with permissions-ready planned-write evidence.
+  7. Focused AndroidRuntime logcat has no com.goose.android crash lines.
 
 Generated artifact policy:
   Rust/android/, GooseAndroid/**/build/, GooseAndroid/**/.cxx/, local.properties,
