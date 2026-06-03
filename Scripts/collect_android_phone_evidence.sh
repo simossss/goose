@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUTPUT_DIR="${1:-$APP_DIR/tmp/android-phone-evidence-$STAMP}"
+REQUIRE_INSTALLED_PACKAGE="${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}"
 
 if [[ -z "${ADB:-}" && -x "$HOME/Library/Android/sdk/platform-tools/adb" ]]; then
   ADB="$HOME/Library/Android/sdk/platform-tools/adb"
@@ -84,6 +85,18 @@ inspection_result="$(summary_value "RESULT")"
 if [[ -z "$inspection_result" ]]; then
   inspection_result="$(awk -F': ' '$1 == "RESULT" { print $2; exit }' "$OUTPUT_DIR/evidence-result.txt")"
 fi
+package_path="$(first_line "$OUTPUT_DIR/goose-package-path.txt")"
+package_result="PASS"
+if [[ "$package_path" != package:* ]] \
+  || ! grep -q 'versionName=0.1.0' "$OUTPUT_DIR/goose-package-summary.txt" 2>/dev/null; then
+  package_result="FAIL"
+fi
+if [[ "$REQUIRE_INSTALLED_PACKAGE" == "1" && "$package_result" != "PASS" ]]; then
+  inspection_status=1
+  inspection_result="FAIL"
+  echo "FAIL: installed com.goose.android package metadata missing or unexpected" >> "$OUTPUT_DIR/collect-error.txt"
+  echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
+fi
 
 cat > "$OUTPUT_DIR/phone-handoff-summary.md" <<SUMMARY
 # Goose Android Phone Evidence
@@ -97,7 +110,8 @@ Result: ${inspection_result:-unknown}
 
 ## Installed App
 
-- Package path: $(first_line "$OUTPUT_DIR/goose-package-path.txt")
+- Result: $package_result
+- Package path: $package_path
 - Package summary: goose-package-summary.txt
 - Package dump: goose-package-dumpsys.txt
 
@@ -169,7 +183,8 @@ GOOSE_ANDROID_STRICT_EVIDENCE=1 Scripts/collect_android_phone_evidence.sh
 
 Strict mode requires at least one raw_evidence row and one capture_sessions row.
 The final phone gate additionally requires session-tagged raw_evidence and a
-finished nonempty capture session.
+finished nonempty capture session. Set GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=1
+to require installed com.goose.android package metadata.
 Set GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1 after a counted-step
 validation attempt, or GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1 when the
 step validation should pass.

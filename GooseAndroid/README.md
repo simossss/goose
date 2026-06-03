@@ -111,7 +111,8 @@ gate, set `GOOSE_ANDROID_MIN_RAW_EVIDENCE=1`,
 `GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1` to require a platform write
 attempt and `GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1` to require a
 successful write. `Scripts/android_phone_final_gate.sh` enables the raw,
-session, session-tagged raw, finished-session, audit, and write-attempt gates.
+session, session-tagged raw, finished-session, installed-package, audit, and
+write-attempt gates.
 For counted-step validation, set `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1`
 or `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1`.
 
