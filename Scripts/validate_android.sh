@@ -70,7 +70,9 @@ readiness_partial_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-part
 readiness_partial_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-partial-strict.XXXXXX")"
 final_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-final-gate-dry-run.XXXXXX")"
 partial_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-partial-gate-dry-run.XXXXXX")"
-TMP_FILES+=("$checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output")
+inspect_session_detail_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-inspect-session-detail.XXXXXX")"
+synthetic_session_db="$(mktemp "${TMPDIR:-/tmp}/goose-android-session-detail.XXXXXX.sqlite")"
+TMP_FILES+=("$checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output" "$inspect_session_detail_output" "$synthetic_session_db")
 synthetic_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-final-evidence.XXXXXX")"
 synthetic_partial_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-partial-evidence.XXXXXX")"
 TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir")
@@ -78,6 +80,67 @@ TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir")
 "$SCRIPT_DIR/android_final_pr_gate.sh" tmp/android-phone-final-gate-real --skip-validate --require-health-success --dry-run > "$final_gate_dry_run_output"
 "$SCRIPT_DIR/android_partial_phone_gate.sh" tmp/android-phone-partial-gate-real --skip-validate --require-health-success --dry-run > "$partial_gate_dry_run_output"
 "$SCRIPT_DIR/android_pr_readiness.sh" > "$readiness_output"
+if ! command -v sqlite3 >/dev/null 2>&1; then
+  echo "sqlite3 is required to validate Android capture inspection output" >&2
+  exit 1
+fi
+sqlite3 "$synthetic_session_db" <<'SQL'
+CREATE TABLE capture_sessions (
+  session_id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  started_at_unix_ms INTEGER NOT NULL,
+  ended_at_unix_ms INTEGER,
+  device_model TEXT NOT NULL,
+  active_device_id TEXT,
+  status TEXT NOT NULL,
+  frame_count INTEGER NOT NULL DEFAULT 0,
+  provenance_json TEXT NOT NULL
+);
+CREATE TABLE raw_evidence (
+  evidence_id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  captured_at TEXT NOT NULL,
+  device_model TEXT NOT NULL,
+  payload_hex TEXT NOT NULL,
+  sha256 TEXT NOT NULL,
+  sensitivity TEXT NOT NULL,
+  capture_session_id TEXT
+);
+CREATE TABLE decoded_frames (
+  frame_id TEXT PRIMARY KEY,
+  evidence_id TEXT NOT NULL,
+  device_type TEXT NOT NULL,
+  raw_len INTEGER NOT NULL,
+  header_len INTEGER NOT NULL,
+  declared_len INTEGER NOT NULL,
+  payload_hex TEXT NOT NULL,
+  payload_crc_hex TEXT NOT NULL,
+  header_crc_valid INTEGER NOT NULL,
+  payload_crc_valid INTEGER NOT NULL,
+  parser_version TEXT NOT NULL,
+  warnings_json TEXT NOT NULL
+);
+CREATE TABLE step_counter_samples (
+  sample_id TEXT PRIMARY KEY,
+  sample_time_unix_ms INTEGER NOT NULL,
+  counter_value INTEGER NOT NULL,
+  cadence_spm REAL,
+  source_kind TEXT NOT NULL,
+  packet_family TEXT NOT NULL,
+  json_path TEXT NOT NULL,
+  frame_id TEXT,
+  evidence_id TEXT,
+  capture_session_id TEXT,
+  quality_flags_json TEXT NOT NULL,
+  provenance_json TEXT NOT NULL
+);
+INSERT INTO capture_sessions VALUES ('android-session-a', 'goose-android/manual-capture', 1000, 2000, 'WHOOP 5.0 Goose Android', 'E4:B9:C9:42:F9:A8', 'finished', 2, '{}');
+INSERT INTO raw_evidence VALUES ('raw-a', 'goose-android/live-notification/fd4b', '2026-06-03T00:00:01Z', 'WHOOP', 'aa', 'sha-a', 'raw_ble_packet', 'android-session-a');
+INSERT INTO raw_evidence VALUES ('raw-b', 'goose-android/live-notification/fd4b', '2026-06-03T00:00:02Z', 'WHOOP', 'bb', 'sha-b', 'raw_ble_packet', 'android-session-a');
+INSERT INTO decoded_frames VALUES ('frame-a', 'raw-a', 'whoop-5', 1, 0, 1, 'aa', '', 1, 1, 'goose.android-test', '[]');
+INSERT INTO step_counter_samples VALUES ('step-a', 1001, 42, 80.0, 'candidate', 'fd4b', '$.counter', 'frame-a', 'raw-a', 'android-session-a', '[]', '{}');
+SQL
+"$SCRIPT_DIR/inspect_android_capture.sh" "$synthetic_session_db" > "$inspect_session_detail_output"
 if "$SCRIPT_DIR/android_pr_readiness.sh" --strict > "$readiness_strict_output" 2>&1; then
   echo "PR readiness strict mode unexpectedly passed without phone evidence" >&2
   exit 1
@@ -235,6 +298,11 @@ assert_file_contains "$final_gate_dry_run_output" "android_pr_readiness.sh --str
 assert_file_contains "$partial_gate_dry_run_output" "skip validate" "partial phone gate dry run"
 assert_file_contains "$partial_gate_dry_run_output" "android_phone_final_gate.sh tmp/android-phone-partial-gate-real --require-health-success" "partial phone gate dry run"
 assert_file_contains "$partial_gate_dry_run_output" "android_pr_readiness.sh tmp/android-phone-partial-gate-real" "partial phone gate dry run"
+assert_file_contains "$inspect_session_detail_output" "Capture session evidence detail" "capture inspector session detail"
+assert_file_contains "$inspect_session_detail_output" "android-session-a" "capture inspector session detail"
+assert_file_contains "$inspect_session_detail_output" "live_notification_rows" "capture inspector session detail"
+assert_file_contains "$inspect_session_detail_output" "decoded_frames" "capture inspector session detail"
+assert_file_contains "$inspect_session_detail_output" "step_samples" "capture inspector session detail"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/pull_android_database.sh" "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" "database pull"
 

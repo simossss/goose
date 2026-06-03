@@ -237,6 +237,60 @@ if table_exists capture_sessions; then
       LIMIT 8;
     "
   fi
+
+  if table_exists raw_evidence && column_exists raw_evidence capture_session_id; then
+    echo
+    echo "Capture session evidence detail"
+    step_join=""
+    step_columns="0 AS step_samples"
+    if table_exists step_counter_samples && column_exists step_counter_samples capture_session_id; then
+      step_join="
+      LEFT JOIN (
+        SELECT capture_session_id, COUNT(*) AS step_samples
+        FROM step_counter_samples
+        WHERE COALESCE(capture_session_id, '') != ''
+        GROUP BY capture_session_id
+      ) AS steps ON steps.capture_session_id = sessions.session_id"
+      step_columns="COALESCE(steps.step_samples, 0) AS step_samples"
+    fi
+    decoded_join=""
+    decoded_columns="0 AS decoded_frames"
+    if table_exists decoded_frames && column_exists decoded_frames evidence_id; then
+      decoded_join="
+      LEFT JOIN (
+        SELECT raw_evidence.capture_session_id, COUNT(decoded_frames.frame_id) AS decoded_frames
+        FROM decoded_frames
+        INNER JOIN raw_evidence ON raw_evidence.evidence_id = decoded_frames.evidence_id
+        WHERE COALESCE(raw_evidence.capture_session_id, '') != ''
+        GROUP BY raw_evidence.capture_session_id
+      ) AS decoded ON decoded.capture_session_id = sessions.session_id"
+      decoded_columns="COALESCE(decoded.decoded_frames, 0) AS decoded_frames"
+    fi
+    sqlite3 -header -column -batch "$DATABASE" "
+      SELECT
+        sessions.session_id,
+        sessions.status,
+        sessions.frame_count,
+        COALESCE(raw.raw_rows, 0) AS raw_rows,
+        COALESCE(raw.live_notification_rows, 0) AS live_notification_rows,
+        $decoded_columns,
+        $step_columns
+      FROM capture_sessions AS sessions
+      LEFT JOIN (
+        SELECT
+          capture_session_id,
+          COUNT(*) AS raw_rows,
+          SUM(CASE WHEN source LIKE 'goose-android/live-notification/%' THEN 1 ELSE 0 END) AS live_notification_rows
+        FROM raw_evidence
+        WHERE COALESCE(capture_session_id, '') != ''
+        GROUP BY capture_session_id
+      ) AS raw ON raw.capture_session_id = sessions.session_id
+      $decoded_join
+      $step_join
+      ORDER BY sessions.started_at_unix_ms DESC
+      LIMIT 8;
+    "
+  fi
 fi
 
 if table_exists step_counter_samples; then
