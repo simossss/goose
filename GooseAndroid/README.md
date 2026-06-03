@@ -124,6 +124,8 @@ These files are build artifacts and are ignored by git.
   Health Connect heart-rate candidates from trusted Goose-decoded heart-rate
   feature rows plus step and active-calorie candidates from existing daily
   activity metrics before syncing.
+- Provides the Health Connect permissions rationale activity and Android 14+
+  permission-usage alias required by the platform permissions screen.
 - Includes an instrumentation smoke harness for native loading, `core.version`,
   isolated `storage.check`, `protocol.parse_frame_hex`,
   `health_sync.dry_run`, and `privacy.lint`.

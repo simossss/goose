@@ -2,11 +2,13 @@ package com.goose.android;
 
 import android.app.Instrumentation;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.FeatureInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.health.connect.datatypes.ActiveCaloriesBurnedRecord;
 import android.health.connect.datatypes.HeartRateRecord;
 import android.health.connect.datatypes.Record;
@@ -173,6 +175,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
 
         Log.i(TAG, "checking declared Health Connect permissions");
         assertHealthConnectManifestScope(context);
+        Log.i(TAG, "checking Health Connect rationale manifest entries");
+        assertHealthConnectRationaleManifestScope(context);
         Log.i(TAG, "checking declared Bluetooth permissions");
         assertBluetoothManifestScope(context);
         Log.i(TAG, "checking runtime Bluetooth permission request set");
@@ -425,6 +429,56 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             throw new AssertionError("unexpected Health Connect manifest permissions: "
                     + declaredHealthPermissions);
         }
+    }
+
+    private void assertHealthConnectRationaleManifestScope(Context context) throws Exception {
+        PackageManager packageManager = context.getPackageManager();
+        Intent rationaleIntent = new Intent("androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE")
+                .setPackage(context.getPackageName());
+        ActivityInfo rationaleActivity = resolveRequiredActivity(packageManager, rationaleIntent,
+                "Health Connect permissions rationale");
+        if (!"com.goose.android.PermissionsRationaleActivity".equals(rationaleActivity.name)) {
+            throw new AssertionError("unexpected Health Connect rationale activity: "
+                    + rationaleActivity.name);
+        }
+        if (!rationaleActivity.exported) {
+            throw new AssertionError("Health Connect rationale activity must be exported");
+        }
+
+        Intent permissionUsageIntent = new Intent("android.intent.action.VIEW_PERMISSION_USAGE")
+                .addCategory("android.intent.category.HEALTH_PERMISSIONS")
+                .setPackage(context.getPackageName());
+        ActivityInfo permissionUsageActivity = resolveRequiredActivity(packageManager, permissionUsageIntent,
+                "Health Connect permission usage alias");
+        if (!"com.goose.android.ViewPermissionUsageActivity".equals(permissionUsageActivity.name)) {
+            throw new AssertionError("unexpected Health Connect permission usage alias: "
+                    + permissionUsageActivity.name);
+        }
+        if (!"com.goose.android.PermissionsRationaleActivity".equals(permissionUsageActivity.targetActivity)) {
+            throw new AssertionError("Health Connect permission usage alias must target rationale activity");
+        }
+        if (!permissionUsageActivity.exported) {
+            throw new AssertionError("Health Connect permission usage alias must be exported");
+        }
+        if (!"android.permission.START_VIEW_PERMISSION_USAGE".equals(permissionUsageActivity.permission)) {
+            throw new AssertionError("Health Connect permission usage alias missing START_VIEW_PERMISSION_USAGE");
+        }
+    }
+
+    private ActivityInfo resolveRequiredActivity(
+            PackageManager packageManager,
+            Intent intent,
+            String label
+    ) {
+        List<ResolveInfo> matches = packageManager.queryIntentActivities(intent, 0);
+        if (matches.size() != 1) {
+            throw new AssertionError(label + " should resolve exactly one activity, got " + matches.size());
+        }
+        ActivityInfo activityInfo = matches.get(0).activityInfo;
+        if (activityInfo == null) {
+            throw new AssertionError(label + " resolved without activity info");
+        }
+        return activityInfo;
     }
 
     private Set<String> requestedPermissionSet(PackageInfo info) {
