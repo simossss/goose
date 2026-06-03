@@ -39,6 +39,11 @@ echo "$device_serial" > "$OUTPUT_DIR/android-serial.txt"
 "$ADB" -s "$device_serial" shell getprop ro.product.model > "$OUTPUT_DIR/device-model.txt" 2>&1 || true
 "$ADB" -s "$device_serial" shell getprop ro.build.version.release > "$OUTPUT_DIR/android-version.txt" 2>&1 || true
 "$ADB" -s "$device_serial" shell getprop ro.build.version.sdk > "$OUTPUT_DIR/android-sdk.txt" 2>&1 || true
+"$ADB" -s "$device_serial" shell pm path com.goose.android > "$OUTPUT_DIR/goose-package-path.txt" 2>&1 || true
+"$ADB" -s "$device_serial" shell dumpsys package com.goose.android > "$OUTPUT_DIR/goose-package-dumpsys.txt" 2>&1 || true
+"$ADB" -s "$device_serial" shell dumpsys package com.goose.android \
+  | awk '/versionCode=|versionName=|firstInstallTime=|lastUpdateTime=|installerPackageName=|signatures=|pkgFlags=|privateFlags=|User [0-9]+:/' \
+  > "$OUTPUT_DIR/goose-package-summary.txt" 2>&1 || true
 "$ADB" -s "$device_serial" logcat -d -v threadtime > "$OUTPUT_DIR/logcat-threadtime.txt" 2>&1 || true
 "$ADB" -s "$device_serial" logcat -d -v brief AndroidRuntime:E GooseBridgeSmoke:I '*:S' > "$OUTPUT_DIR/logcat-goose-brief.txt" 2>&1 || true
 
@@ -90,6 +95,12 @@ Android: $(first_line "$OUTPUT_DIR/android-version.txt") (SDK $(first_line "$OUT
 Commit: ${port_commit:-unknown}
 Result: ${inspection_result:-unknown}
 
+## Installed App
+
+- Package path: $(first_line "$OUTPUT_DIR/goose-package-path.txt")
+- Package summary: goose-package-summary.txt
+- Package dump: goose-package-dumpsys.txt
+
 ## Capture
 
 - Raw evidence rows: $(summary_value "raw evidence")
@@ -121,6 +132,9 @@ Result: ${inspection_result:-unknown}
 ## Evidence Files
 
 - android-port-status.txt
+- goose-package-path.txt
+- goose-package-summary.txt
+- goose-package-dumpsys.txt
 - inspect-android-capture.txt
 - goose-phone.sqlite
 - goose-phone-health-connect-sync-log.jsonl, when present
@@ -137,6 +151,9 @@ Device serial: $device_serial
 Key files:
 - android-port-status.txt: branch, commit, APK metadata, generated artifact status.
 - adb-devices.txt: adb device list at collection time.
+- goose-package-path.txt: installed com.goose.android package path from the device.
+- goose-package-summary.txt: focused package version, install time, flags, and user state.
+- goose-package-dumpsys.txt: full installed package metadata for com.goose.android.
 - logcat-threadtime.txt: full device logcat snapshot.
 - logcat-goose-brief.txt: focused AndroidRuntime/Goose instrumentation logcat.
 - goose-phone.sqlite plus -wal/-shm: pulled debug app database files when present.
