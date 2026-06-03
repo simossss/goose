@@ -10,14 +10,19 @@ tagging, historical command sends, and Rust-backed Health/Debug report controls.
 From the repository root:
 
 ```sh
+Scripts/validate_android.sh
+```
+
+That builds the Rust Android libraries, assembles the debug app and
+instrumentation APK, and runs the smoke harness when an adb device or emulator
+is online.
+
+Manual build:
+
+```sh
 Scripts/build_android_rust.sh
 cd GooseAndroid
 ./gradlew :app:assembleDebug
-```
-
-Build the instrumentation smoke APK:
-
-```sh
 ./gradlew :app:assembleDebugAndroidTest
 ```
 
@@ -76,7 +81,8 @@ These files are build artifacts and are ignored by git.
   metric families, exposes permission/status actions, and feeds granted
   permissions into the Rust `health_sync.dry_run` gate.
 - Includes an instrumentation smoke harness for native loading, `core.version`,
-  isolated `storage.check`, and `protocol.parse_frame_hex`.
+  isolated `storage.check`, `protocol.parse_frame_hex`,
+  `health_sync.dry_run`, and `privacy.lint`.
 
 ## Physical Device Workflow
 
@@ -98,7 +104,7 @@ decoder work separately.
 
 ## Remaining Port Slices
 
-- Replace the debug-only Java view with a production Android UI once BLE and
+- Replace the Java debug surface with a production Android UI once BLE and
   report behavior are stable.
 - Add richer connection/history progress state and structured command results.
 - Continue packet decoder work for step counters and other packet-derived

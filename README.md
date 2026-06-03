@@ -172,8 +172,8 @@ script before compiling Swift.
 ### Android Rust Build
 
 The Rust core can also be built as Android `.so` libraries through
-`Scripts/build_android_rust.sh`. This is shared-core build support only; the
-Android app/JNI module is separate work.
+`Scripts/build_android_rust.sh`. `GooseAndroid/` links those generated shared
+libraries through a JNI bridge.
 
 Prerequisites:
 
@@ -218,11 +218,23 @@ artifacts.
 
 `GooseAndroid/` contains the Android port work in progress: a Java app that
 loads the Goose Rust core through a JNI shim, scans/connects over Android BLE,
-subscribes to WHOOP notification characteristics, parses live frames through
-the Rust bridge, imports captured frames into app-local SQLite, and exposes
-early Rust-backed Health/Debug report controls.
+subscribes to WHOOP notification characteristics, sends validated WHOOP command
+frames, parses/imports live frames into app-local SQLite, tracks capture
+sessions, exposes Rust-backed Health/Debug/Ops reports, and includes Health
+Connect permission/dry-run scaffolding.
 
-Build the Rust Android libraries first, then assemble the app:
+Run the Android validation gate from the repository root:
+
+```bash
+Scripts/validate_android.sh
+```
+
+The script builds the Rust Android libraries, assembles the debug APK and
+instrumentation APK, and runs the bridge/storage/protocol/Health Connect/privacy
+smoke harness when an emulator or device is online. Set
+`GOOSE_ANDROID_SKIP_INSTRUMENTATION=1` to skip the adb install/smoke step.
+
+Manual app build:
 
 ```bash
 Scripts/build_android_rust.sh
@@ -239,8 +251,9 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w com.goose.android.test/com.goose.android.GooseRustBridgeInstrumentationTest
 ```
 
-The Android port still needs physical WHOOP strap validation, historical sync,
-Health Connect integration, full health surfaces, and production UI polish.
+The remaining phone-dependent work is physical WHOOP strap validation, final
+step-counter decoder confirmation, and Health Connect permission/write testing
+on a real Android device.
 
 ## Data And Privacy
 
