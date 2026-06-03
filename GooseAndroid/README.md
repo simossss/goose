@@ -15,8 +15,8 @@ Scripts/validate_android.sh
 
 That assembles debug, instrumentation, and release APKs. Gradle builds the
 matching Rust Android libraries before each APK variant, then the script checks
-APK native-library contents, runs Android lint, and runs the smoke harness when
-an adb device or emulator is online.
+APK native-library contents, verifies packaged manifest metadata, runs Android
+lint, and runs the smoke harness when an adb device or emulator is online.
 
 Manual build from Android Studio or the command line:
 

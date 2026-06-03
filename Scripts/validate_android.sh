@@ -24,6 +24,17 @@ fi
 
 IFS=' ' read -r -a GOOSE_ANDROID_ABIS <<< "${ANDROID_ABIS:-arm64-v8a armeabi-v7a x86_64}"
 
+find_build_tool() {
+  local tool="$1"
+  if [[ -n "${ANDROID_HOME:-}" && -d "$ANDROID_HOME/build-tools" ]]; then
+    find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -type f -name "$tool" | sort | tail -n 1
+    return
+  fi
+  if command -v "$tool" >/dev/null 2>&1; then
+    command -v "$tool"
+  fi
+}
+
 assert_apk_native_libs() {
   local apk_path="$1"
   local label="$2"
@@ -49,11 +60,81 @@ assert_apk_native_libs() {
   done
 }
 
+assert_contains() {
+  local haystack="$1"
+  local needle="$2"
+  local label="$3"
+
+  if ! grep -Fq "$needle" <<<"$haystack"; then
+    echo "$label missing expected APK metadata: $needle" >&2
+    exit 1
+  fi
+}
+
+assert_not_contains() {
+  local haystack="$1"
+  local needle="$2"
+  local label="$3"
+
+  if grep -Fq "$needle" <<<"$haystack"; then
+    echo "$label contains unexpected APK metadata: $needle" >&2
+    exit 1
+  fi
+}
+
+assert_apk_manifest_contract() {
+  local apk_path="$1"
+  local label="$2"
+  local expect_debuggable="$3"
+
+  local aapt
+  aapt="$(find_build_tool aapt)"
+  if [[ -z "$aapt" || ! -x "$aapt" ]]; then
+    echo "aapt is required to validate $label APK manifest metadata" >&2
+    exit 1
+  fi
+
+  local badging
+  badging="$("$aapt" dump badging "$apk_path")"
+  assert_contains "$badging" "package: name='com.goose.android' versionCode='1' versionName='0.1.0'" "$label"
+  assert_contains "$badging" "sdkVersion:'23'" "$label"
+  assert_contains "$badging" "targetSdkVersion:'36'" "$label"
+  assert_contains "$badging" "uses-permission: name='android.permission.BLUETOOTH_CONNECT'" "$label"
+  assert_contains "$badging" "uses-permission: name='android.permission.BLUETOOTH_SCAN'" "$label"
+  assert_contains "$badging" "uses-permission: name='android.permission.health.WRITE_ACTIVE_CALORIES_BURNED'" "$label"
+  assert_contains "$badging" "uses-permission: name='android.permission.health.WRITE_HEART_RATE'" "$label"
+  assert_contains "$badging" "uses-permission: name='android.permission.health.WRITE_STEPS'" "$label"
+  assert_contains "$badging" "application-label:'Goose'" "$label"
+  assert_contains "$badging" "application:" "$label"
+  assert_contains "$badging" "launchable-activity: name='com.goose.android.MainActivity'" "$label"
+  assert_contains "$badging" "uses-feature: name='android.hardware.bluetooth_le'" "$label"
+  assert_contains "$badging" "native-code: 'arm64-v8a' 'armeabi-v7a' 'x86_64'" "$label"
+  if [[ "$expect_debuggable" == "1" ]]; then
+    assert_contains "$badging" "application-debuggable" "$label"
+  else
+    assert_not_contains "$badging" "application-debuggable" "$label"
+  fi
+
+  local xmltree
+  xmltree="$("$aapt" dump xmltree "$apk_path" AndroidManifest.xml)"
+  assert_contains "$xmltree" 'A: android:allowBackup(0x01010280)=(type 0x12)0x0' "$label"
+  assert_contains "$xmltree" 'A: android:usesCleartextTraffic(0x010104ec)=(type 0x12)0x0' "$label"
+  assert_contains "$xmltree" 'A: android:fullBackupContent' "$label"
+  assert_contains "$xmltree" 'A: android:dataExtractionRules' "$label"
+  assert_contains "$xmltree" 'A: android:usesPermissionFlags(0x01010644)=(type 0x11)0x10000' "$label"
+  assert_contains "$xmltree" 'android.health.connect.action.MANAGE_HEALTH_PERMISSIONS' "$label"
+  assert_contains "$xmltree" 'androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE' "$label"
+  assert_contains "$xmltree" 'android.intent.action.VIEW_PERMISSION_USAGE' "$label"
+  assert_contains "$xmltree" 'android.permission.START_VIEW_PERMISSION_USAGE' "$label"
+}
+
 echo "==> Building Android debug and instrumentation APKs"
 (cd "$ANDROID_DIR" && "$GRADLEW" :app:assembleDebug :app:assembleDebugAndroidTest)
 
 echo "==> Validating Android debug APK native libraries"
 assert_apk_native_libs "$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk" "debug"
+echo "==> Validating Android debug APK manifest metadata"
+assert_apk_manifest_contract "$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk" "debug" 1
 
 echo "==> Running Android lint"
 (cd "$ANDROID_DIR" && "$GRADLEW" :app:lintDebug)
@@ -63,6 +144,8 @@ echo "==> Building Android release APK"
 
 echo "==> Validating Android release APK native libraries"
 assert_apk_native_libs "$ANDROID_DIR/app/build/outputs/apk/release/app-release-unsigned.apk" "release"
+echo "==> Validating Android release APK manifest metadata"
+assert_apk_manifest_contract "$ANDROID_DIR/app/build/outputs/apk/release/app-release-unsigned.apk" "release" 0
 
 if [[ "${GOOSE_ANDROID_SKIP_INSTRUMENTATION:-0}" == "1" ]]; then
   echo "==> Skipping Android instrumentation because GOOSE_ANDROID_SKIP_INSTRUMENTATION=1"
