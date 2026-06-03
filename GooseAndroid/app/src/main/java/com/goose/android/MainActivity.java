@@ -181,15 +181,19 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     }
 
     private void refreshStoreStatus() {
-        try {
-            JSONObject args = new JSONObject()
-                    .put("database_path", packetIngestor.databasePath())
-                    .put("self_test", true);
-            JSONObject report = bridge.request("storage.check", args);
-            storeStatus.setText(compactStoreSummary(report));
-        } catch (Exception error) {
-            storeStatus.setText("Store check failed\n" + packetIngestor.databasePath() + "\n" + error);
-        }
+        storeStatus.setText("Checking local store...");
+        sessionExecutor.execute(() -> {
+            try {
+                JSONObject args = new JSONObject()
+                        .put("database_path", packetIngestor.databasePath())
+                        .put("self_test", true);
+                JSONObject report = bridge.request("storage.check", args);
+                runOnUiThread(() -> storeStatus.setText(compactStoreSummary(report)));
+            } catch (Exception error) {
+                runOnUiThread(() -> storeStatus.setText(
+                        "Store check failed\n" + packetIngestor.databasePath() + "\n" + error));
+            }
+        });
     }
 
     private void refreshAllStatus() {
@@ -463,12 +467,16 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     }
 
     private void refreshBridgeStatus() {
-        try {
-            JSONObject version = bridge.request("core.version");
-            bridgeStatus.setText("Rust bridge ready\n" + version.toString(2));
-        } catch (Exception error) {
-            bridgeStatus.setText("Rust bridge failed\n" + error);
-        }
+        bridgeStatus.setText("Checking Rust bridge...");
+        sessionExecutor.execute(() -> {
+            try {
+                JSONObject version = bridge.request("core.version");
+                String summary = "Rust bridge ready\n" + version.toString(2);
+                runOnUiThread(() -> bridgeStatus.setText(summary));
+            } catch (Exception error) {
+                runOnUiThread(() -> bridgeStatus.setText("Rust bridge failed\n" + error));
+            }
+        });
     }
 
     private void refreshPermissionState() {
