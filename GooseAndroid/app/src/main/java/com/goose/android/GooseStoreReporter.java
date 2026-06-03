@@ -70,6 +70,18 @@ final class GooseStoreReporter {
         executor.execute(() -> callback.onReport(runExportPrivacyLint()));
     }
 
+    void exportInventory(Callback callback) {
+        executor.execute(() -> callback.onReport(runExportInventory()));
+    }
+
+    void clearExports(Callback callback) {
+        executor.execute(() -> callback.onReport(runClearExports()));
+    }
+
+    void clearLocalData(Callback callback) {
+        executor.execute(() -> callback.onReport(runClearLocalData()));
+    }
+
     void decodeBackfill(Callback callback) {
         executor.execute(() -> callback.onReport(runDecodeBackfill()));
     }
@@ -226,7 +238,7 @@ final class GooseStoreReporter {
                     .append("activity sessions: ").append(countRows(database, "activity_sessions")).append('\n')
                     .append("latest capture: ").append(latestValue(database, "raw_evidence", "captured_at")).append('\n')
                     .append("raw byte policy: local app storage; raw exports include bytes only after tapping Export\n")
-                    .append("delete controls: not exposed in Android debug UI");
+                    .append("delete controls: Clear Exports removes generated bundles; Clear Data requires a second tap");
         } catch (Exception error) {
             builder.append("storage summary failed: ").append(error);
         } finally {
@@ -275,6 +287,51 @@ final class GooseStoreReporter {
                 + lintPath(exportDirectory)
                 + "\n\nRecent exports\n"
                 + recentExportsSummary();
+    }
+
+    private String runExportInventory() {
+        StringBuilder builder = new StringBuilder("Export inventory\n")
+                .append("directory: ").append(exportDirectory.getAbsolutePath()).append('\n')
+                .append("files: ").append(exportFileCount()).append('\n')
+                .append("bytes: ").append(directoryBytes(exportDirectory)).append('\n')
+                .append("recent exports\n")
+                .append(recentExportsSummary());
+        return builder.toString();
+    }
+
+    private String runClearExports() {
+        DeleteStats stats = deleteChildren(exportDirectory);
+        if (!exportDirectory.exists()) {
+            exportDirectory.mkdirs();
+        }
+        return "Clear exports\n"
+                + "directory: " + exportDirectory.getAbsolutePath() + "\n"
+                + "deleted files: " + stats.deletedFiles + "\n"
+                + "deleted directories: " + stats.deletedDirectories + "\n"
+                + "freed bytes: " + stats.deletedBytes + "\n"
+                + "failed deletes: " + stats.failedDeletes;
+    }
+
+    private String runClearLocalData() {
+        File databaseFile = new File(databasePath);
+        File parent = databaseFile.getParentFile();
+        long beforeBytes = databaseFile.exists() ? databaseFile.length() : 0;
+        DeleteStats stats = new DeleteStats();
+        deleteFile(databaseFile, stats);
+        deleteFile(new File(databasePath + "-wal"), stats);
+        deleteFile(new File(databasePath + "-shm"), stats);
+        deleteFile(new File(databasePath + "-journal"), stats);
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs();
+        }
+        String storageCheck = runStorageCheckAfterClear();
+        return "Clear local data\n"
+                + "database: " + databasePath + "\n"
+                + "database bytes before: " + beforeBytes + "\n"
+                + "deleted files: " + stats.deletedFiles + "\n"
+                + "freed bytes: " + stats.deletedBytes + "\n"
+                + "failed deletes: " + stats.failedDeletes + "\n\n"
+                + storageCheck;
     }
 
     private String runDecodeBackfill() {
@@ -389,6 +446,24 @@ final class GooseStoreReporter {
         return files == null ? 0 : files.length;
     }
 
+    private long directoryBytes(File path) {
+        if (!path.exists()) {
+            return 0L;
+        }
+        if (path.isFile()) {
+            return path.length();
+        }
+        long total = 0L;
+        File[] files = path.listFiles();
+        if (files == null) {
+            return total;
+        }
+        for (File file : files) {
+            total += directoryBytes(file);
+        }
+        return total;
+    }
+
     private String recentExportsSummary() {
         File[] files = exportDirectory.listFiles();
         if (files == null || files.length == 0) {
@@ -407,6 +482,72 @@ final class GooseStoreReporter {
                     .append(file.isDirectory() ? "dir" : file.length() + " bytes");
         }
         return builder.toString();
+    }
+
+    private String runStorageCheckAfterClear() {
+        try {
+            JSONObject args = new JSONObject()
+                    .put("database_path", databasePath)
+                    .put("self_test", true);
+            JSONObject report = bridge.request("storage.check", args);
+            return "Storage recheck\n"
+                    + "pass: " + report.optBoolean("pass", false) + "\n"
+                    + "schema: " + report.optInt("actual_schema_version", -1)
+                    + " / expected " + report.optInt("expected_schema_version", -1)
+                    + "\nissues: " + report.optJSONArray("issues");
+        } catch (Exception error) {
+            return "Storage recheck failed\n" + error;
+        }
+    }
+
+    private DeleteStats deleteChildren(File directory) {
+        DeleteStats stats = new DeleteStats();
+        File[] files = directory.listFiles();
+        if (files == null) {
+            return stats;
+        }
+        for (File file : files) {
+            deletePath(file, stats);
+        }
+        return stats;
+    }
+
+    private void deletePath(File path, DeleteStats stats) {
+        if (path.isDirectory()) {
+            File[] children = path.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    deletePath(child, stats);
+                }
+            }
+            if (path.delete()) {
+                stats.deletedDirectories += 1;
+            } else if (path.exists()) {
+                stats.failedDeletes += 1;
+            }
+            return;
+        }
+        deleteFile(path, stats);
+    }
+
+    private void deleteFile(File file, DeleteStats stats) {
+        if (!file.exists()) {
+            return;
+        }
+        long bytes = file.length();
+        if (file.delete()) {
+            stats.deletedFiles += 1;
+            stats.deletedBytes += bytes;
+        } else {
+            stats.failedDeletes += 1;
+        }
+    }
+
+    private static final class DeleteStats {
+        int deletedFiles;
+        int deletedDirectories;
+        int failedDeletes;
+        long deletedBytes;
     }
 
     private String iso8601(long millis) {

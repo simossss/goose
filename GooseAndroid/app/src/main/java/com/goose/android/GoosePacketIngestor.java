@@ -120,6 +120,11 @@ final class GoosePacketIngestor {
         return activeCaptureSessionId;
     }
 
+    synchronized void clearCaptureSession() {
+        activeCaptureSessionId = null;
+        activeCaptureSessionFrameCount = 0;
+    }
+
     void close() {
         executor.shutdownNow();
     }

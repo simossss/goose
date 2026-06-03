@@ -64,6 +64,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private String validationEnd = "9999";
     private String activeCaptureSessionId;
     private PendingCommand pendingCommand;
+    private long clearLocalDataConfirmUntilMillis;
     private int notificationCount;
 
     @Override
@@ -410,6 +411,22 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         opsActions.addView(healthConnectButton, weightWrap());
         opsSection.addView(opsActions);
 
+        LinearLayout storageActions = new LinearLayout(this);
+        storageActions.setOrientation(LinearLayout.HORIZONTAL);
+        Button exportsButton = new Button(this);
+        exportsButton.setText("Exports");
+        exportsButton.setOnClickListener(view -> runReport(storeReporter::exportInventory));
+        storageActions.addView(exportsButton, weightWrap());
+        Button clearExportsButton = new Button(this);
+        clearExportsButton.setText("Clear Exp");
+        clearExportsButton.setOnClickListener(view -> runStorageMutation(storeReporter::clearExports));
+        storageActions.addView(clearExportsButton, weightWrap());
+        Button clearDataButton = new Button(this);
+        clearDataButton.setText("Clear Data");
+        clearDataButton.setOnClickListener(view -> confirmOrClearLocalData());
+        storageActions.addView(clearDataButton, weightWrap());
+        opsSection.addView(storageActions);
+
         LinearLayout healthConnectActions = new LinearLayout(this);
         healthConnectActions.setOrientation(LinearLayout.HORIZONTAL);
         Button healthConnectPermsButton = new Button(this);
@@ -493,6 +510,28 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 healthConnectSupport.grantedPermissions(),
                 report -> runOnUiThread(() -> reportStatus.setText(truncateForDisplay(report)))
         );
+    }
+
+    private void runStorageMutation(ReportRunner runner) {
+        reportStatus.setText("Running storage operation...");
+        runner.run(report -> runOnUiThread(() -> {
+            reportStatus.setText(truncateForDisplay(report));
+            refreshStoreStatus();
+        }));
+    }
+
+    private void confirmOrClearLocalData() {
+        long now = System.currentTimeMillis();
+        if (now > clearLocalDataConfirmUntilMillis) {
+            clearLocalDataConfirmUntilMillis = now + 15000L;
+            reportStatus.setText("Clear local data armed\nTap Clear Data again within 15s to delete local SQLite data.");
+            return;
+        }
+        clearLocalDataConfirmUntilMillis = 0L;
+        packetIngestor.clearCaptureSession();
+        activeCaptureSessionId = null;
+        sessionStatus.setText("Capture session: none");
+        runStorageMutation(storeReporter::clearLocalData);
     }
 
     private void sendBuiltCommand(String command, String payloadHex) {

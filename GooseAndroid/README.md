@@ -75,6 +75,8 @@ These files are build artifacts and are ignored by git.
   operations, subscription count, command readiness, and client-hello state.
 - Keeps the default Capture tab status compact; full JSON-heavy storage,
   privacy, export, and bridge reports live behind report buttons.
+- Exposes Android storage/privacy controls for export inventory, export cache
+  clearing, and two-tap local SQLite data deletion.
 - Runs Rust-backed operational reports:
   - `metrics.input_readiness`
   - `capture.timeline`
@@ -122,5 +124,6 @@ decoder work separately.
   metrics.
 - Health Connect write adapter implementation after phone/platform permission
   testing.
-- Export/debug/privacy screens equivalent to the iOS More tab.
+- Replace remaining Java debug-only surfaces with production More-tab UI once
+  BLE, storage, export, and report behavior are stable.
 - Kotlin/Compose UI migration once the bridge and BLE behavior are stable.
