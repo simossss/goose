@@ -72,6 +72,9 @@ These files are build artifacts and are ignored by git.
   - `metrics.step_packet_discovery`
   - `metrics.step_capture_validation`
   - `metrics.recovery_sensor_discovery`
+- Declares the Android Health Connect read/write permissions for Goose-owned
+  metric families, exposes permission/status actions, and feeds granted
+  permissions into the Rust `health_sync.dry_run` gate.
 - Includes an instrumentation smoke harness for native loading, `core.version`,
   isolated `storage.check`, and `protocol.parse_frame_hex`.
 
@@ -100,6 +103,7 @@ decoder work separately.
 - Add richer connection/history progress state and structured command results.
 - Continue packet decoder work for step counters and other packet-derived
   metrics.
-- Health Connect dry-run and eventual sync adapter.
+- Health Connect write adapter implementation after phone/platform permission
+  testing.
 - Export/debug/privacy screens equivalent to the iOS More tab.
 - Kotlin/Compose UI migration once the bridge and BLE behavior are stable.

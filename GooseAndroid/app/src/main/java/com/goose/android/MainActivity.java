@@ -36,6 +36,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private GooseCommandBuilder commandBuilder;
     private GoosePacketIngestor packetIngestor;
     private GooseStoreReporter storeReporter;
+    private HealthConnectSupport healthConnectSupport;
     private LinearLayout deviceList;
     private TextView bridgeStatus;
     private TextView bleStatus;
@@ -43,6 +44,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private TextView metadataStatus;
     private TextView packetStatus;
     private TextView sessionStatus;
+    private TextView healthConnectStatus;
     private TextView reportStatus;
     private TextView notificationLog;
     private LinearLayout captureSection;
@@ -62,6 +64,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         commandBuilder = new GooseCommandBuilder();
         packetIngestor = new GoosePacketIngestor(this);
         storeReporter = new GooseStoreReporter(this, packetIngestor.databasePath());
+        healthConnectSupport = new HealthConnectSupport(this);
         setContentView(buildContentView());
         refreshBridgeStatus();
         refreshPermissionState();
@@ -82,6 +85,8 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSION_REQUEST_BLE) {
             refreshPermissionState();
+        } else if (requestCode == HealthConnectSupport.REQUEST_HEALTH_CONNECT) {
+            refreshHealthConnectStatus();
         }
     }
 
@@ -243,6 +248,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         sessionStatus.setPadding(0, 8, 0, 0);
         captureSection.addView(sessionStatus);
 
+        healthConnectStatus = bodyText("Health Connect: not checked");
+        healthConnectStatus.setPadding(0, 8, 0, 0);
+        opsSection.addView(healthConnectStatus);
+
         TextView reportsTitle = sectionText("Health and debug reports");
         reportsSection.addView(reportsTitle);
 
@@ -350,9 +359,24 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         opsActions.addView(lintButton, weightWrap());
         Button healthConnectButton = new Button(this);
         healthConnectButton.setText("HC Dry");
-        healthConnectButton.setOnClickListener(view -> runReport(storeReporter::healthConnectDryRun));
+        healthConnectButton.setOnClickListener(view -> runHealthConnectDryRun());
         opsActions.addView(healthConnectButton, weightWrap());
         opsSection.addView(opsActions);
+
+        LinearLayout healthConnectActions = new LinearLayout(this);
+        healthConnectActions.setOrientation(LinearLayout.HORIZONTAL);
+        Button healthConnectPermsButton = new Button(this);
+        healthConnectPermsButton.setText("HC Perms");
+        healthConnectPermsButton.setOnClickListener(view -> {
+            healthConnectSupport.requestPermissions(this);
+            refreshHealthConnectStatus();
+        });
+        healthConnectActions.addView(healthConnectPermsButton, weightWrap());
+        Button healthConnectSettingsButton = new Button(this);
+        healthConnectSettingsButton.setText("HC Settings");
+        healthConnectSettingsButton.setOnClickListener(view -> healthConnectSupport.openSettings(this));
+        healthConnectActions.addView(healthConnectSettingsButton, weightWrap());
+        opsSection.addView(healthConnectActions);
 
         LinearLayout validationActions = new LinearLayout(this);
         validationActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -380,6 +404,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         logSection.addView(notificationLog);
 
         showMode(captureSection);
+        refreshHealthConnectStatus();
 
         return scroll;
     }
@@ -403,9 +428,24 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         requestPermissions(permissions.toArray(new String[0]), PERMISSION_REQUEST_BLE);
     }
 
+    private void refreshHealthConnectStatus() {
+        if (healthConnectStatus != null) {
+            healthConnectStatus.setText(healthConnectSupport.status());
+        }
+    }
+
     private void runReport(ReportRunner runner) {
         reportStatus.setText("Running report...");
         runner.run(report -> runOnUiThread(() -> reportStatus.setText(truncateForDisplay(report))));
+    }
+
+    private void runHealthConnectDryRun() {
+        reportStatus.setText("Running Health Connect dry run...");
+        refreshHealthConnectStatus();
+        storeReporter.healthConnectDryRun(
+                healthConnectSupport.grantedPermissions(),
+                report -> runOnUiThread(() -> reportStatus.setText(truncateForDisplay(report)))
+        );
     }
 
     private void sendBuiltCommand(String command, String payloadHex) {

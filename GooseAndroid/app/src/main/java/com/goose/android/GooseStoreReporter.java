@@ -8,6 +8,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -61,8 +62,8 @@ final class GooseStoreReporter {
         executor.execute(() -> callback.onReport(runStoragePrivacy()));
     }
 
-    void healthConnectDryRun(Callback callback) {
-        executor.execute(() -> callback.onReport(runHealthConnectDryRun()));
+    void healthConnectDryRun(List<String> permissionGrants, Callback callback) {
+        executor.execute(() -> callback.onReport(runHealthConnectDryRun(permissionGrants)));
     }
 
     void exportPrivacyLint(Callback callback) {
@@ -236,13 +237,17 @@ final class GooseStoreReporter {
         return builder.toString();
     }
 
-    private String runHealthConnectDryRun() {
+    private String runHealthConnectDryRun(List<String> permissionGrants) {
         try {
             long now = System.currentTimeMillis();
+            JSONArray grants = new JSONArray();
+            for (String grant : permissionGrants) {
+                grants.put(grant);
+            }
             JSONObject args = new JSONObject()
                     .put("schema", "goose.health-sync-dry-run-input.v1")
                     .put("platform", "health_connect")
-                    .put("permission_grants", new JSONArray())
+                    .put("permission_grants", grants)
                     .put("backfill", new JSONObject()
                             .put("start", iso8601(now - 86400000L))
                             .put("end", iso8601(now)))
@@ -254,6 +259,7 @@ final class GooseStoreReporter {
             return "Health Connect dry run\n"
                     + "pass: " + report.optBoolean("pass", false) + "\n"
                     + "permissions ready: " + report.optBoolean("permissions_ready", false) + "\n"
+                    + "permission grants: " + grants.length() + "\n"
                     + "candidate writes: " + report.optInt("candidate_count", 0) + "\n"
                     + "planned writes: " + report.optInt("planned_write_count", 0) + "\n"
                     + "blocked: " + report.optInt("blocked_count", 0) + "\n"
