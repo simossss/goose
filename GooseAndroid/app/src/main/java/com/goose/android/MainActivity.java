@@ -469,15 +469,16 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
         LinearLayout validationActions = new LinearLayout(this);
         validationActions.setOrientation(LinearLayout.HORIZONTAL);
+        captureSection.addView(sectionText("Step validation"));
         manualStepsInput = new EditText(this);
         manualStepsInput.setSingleLine(true);
         manualStepsInput.setText("100");
         manualStepsInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED);
         validationActions.addView(manualStepsInput, weightWrap());
-        Button validationStartButton = secondaryButton("Mark Start");
+        Button validationStartButton = secondaryButton("Start");
         validationStartButton.setOnClickListener(view -> markValidationStart());
         validationActions.addView(validationStartButton, weightWrap());
-        Button validationEndButton = secondaryButton("Mark End");
+        Button validationEndButton = secondaryButton("End");
         validationEndButton.setOnClickListener(view -> markValidationEnd());
         validationActions.addView(validationEndButton, weightWrap());
         Button validationRunButton = primaryButton("Validate");

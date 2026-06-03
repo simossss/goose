@@ -190,10 +190,11 @@ These files are build artifacts and are ignored by git.
   visually separated.
 - Exposes Android storage/privacy controls for export inventory, export cache
   clearing, and two-tap local SQLite data deletion.
-- Exposes a compact Android evidence readiness report for phone handoff checks:
-  raw evidence rows, capture-session rows, decoded/step counts, latest capture,
-  Health Connect audit bytes, step-validation audit bytes, and strict PASS/WAIT
-  status.
+- Exposes an Android evidence readiness report for phone handoff checks:
+  raw/session/live-notification evidence rows, finished capture sessions,
+  decoded/step counts, BLE ready/hello/command-ready audit counts,
+  Health Connect ready write-plan/write-attempt counts, step-validation
+  session/decoded/selected-delta counts, and PASS/WAIT status.
 - Records BLE scan/connect/session progress to
   `files/goose/ble-session-log.jsonl`, including ready state, command
   characteristic readiness, and client-hello state for final phone evidence.
@@ -254,10 +255,10 @@ These files are build artifacts and are ignored by git.
 6. Press `Range` to prepare a command write, review the frame/preflight text,
    then press `Range` again within 15 seconds to send. Use the same two-tap
    flow for `History` and `Abort`.
-7. For counted-step validation, press `Start` in the validation row before the
-   counted walk, press `End` afterwards, enter the manual count, then press
-   `Validate`. The report should name the active or most recently finished
-   capture session.
+7. For counted-step validation, use the `Step validation` row: press `Start`
+   before the counted walk, press `End` afterwards, enter the manual count,
+   then press `Validate`. The report should name the active or most recently
+   finished capture session.
 8. Use `Heart`, `Sensors`, `Steps`, `Blocked`, and `Sessions` for compact
    summaries instead of dumping large raw JSON in the UI.
 9. Pull and inspect the debug store:
