@@ -15,6 +15,7 @@ import org.json.JSONObject;
 import java.io.File;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
@@ -150,6 +151,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertHealthConnectManifestScope(context);
         Log.i(TAG, "checking declared Bluetooth permissions");
         assertBluetoothManifestScope(context);
+        Log.i(TAG, "checking runtime Bluetooth permission request set");
+        assertBluetoothRuntimePermissionScope(context);
 
         Log.i(TAG, "calling privacy.lint");
         File lintDir = new File(context.getCacheDir(), "goose-smoke-privacy");
@@ -169,19 +172,7 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 PackageManager.GET_PERMISSIONS
         );
         Set<String> declaredPermissions = requestedPermissionSet(info);
-        Set<String> expectedPermissions;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            expectedPermissions = new HashSet<>(Arrays.asList(
-                    "android.permission.BLUETOOTH_CONNECT",
-                    "android.permission.BLUETOOTH_SCAN"
-            ));
-        } else {
-            expectedPermissions = new HashSet<>(Arrays.asList(
-                    "android.permission.BLUETOOTH",
-                    "android.permission.BLUETOOTH_ADMIN",
-                    "android.permission.ACCESS_FINE_LOCATION"
-            ));
-        }
+        Set<String> expectedPermissions = expectedBluetoothPermissionsForSdk();
         Set<String> declaredBluetoothPermissions = new HashSet<>();
         for (String permission : declaredPermissions) {
             if (permission.startsWith("android.permission.BLUETOOTH")
@@ -198,6 +189,45 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                     "android.permission.BLUETOOTH_SCAN",
                     PackageInfo.REQUESTED_PERMISSION_NEVER_FOR_LOCATION);
         }
+    }
+
+    private void assertBluetoothRuntimePermissionScope(Context context) {
+        GooseBleClient client = new GooseBleClient(context, new NoOpBleListener());
+        try {
+            Set<String> runtimePermissions = new HashSet<>(client.requiredPermissions());
+            if (!runtimePermissions.equals(expectedBluetoothRuntimePermissionsForSdk())) {
+                throw new AssertionError("unexpected runtime Bluetooth permissions: "
+                        + runtimePermissions);
+            }
+        } finally {
+            client.close();
+        }
+    }
+
+    private Set<String> expectedBluetoothPermissionsForSdk() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return new HashSet<>(Arrays.asList(
+                    "android.permission.BLUETOOTH_CONNECT",
+                    "android.permission.BLUETOOTH_SCAN"
+            ));
+        }
+        return new HashSet<>(Arrays.asList(
+                "android.permission.BLUETOOTH",
+                "android.permission.BLUETOOTH_ADMIN",
+                "android.permission.ACCESS_FINE_LOCATION"
+        ));
+    }
+
+    private Set<String> expectedBluetoothRuntimePermissionsForSdk() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return new HashSet<>(Arrays.asList(
+                    "android.permission.BLUETOOTH_CONNECT",
+                    "android.permission.BLUETOOTH_SCAN"
+            ));
+        }
+        return new HashSet<>(Arrays.asList(
+                "android.permission.ACCESS_FINE_LOCATION"
+        ));
     }
 
     private void assertHealthConnectManifestScope(Context context) throws Exception {
@@ -246,6 +276,32 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             }
         }
         throw new AssertionError(permission + " not declared");
+    }
+
+    private static final class NoOpBleListener implements GooseBleClient.Listener {
+        @Override
+        public void onStateChanged(String status) {
+        }
+
+        @Override
+        public void onDevicesChanged(List<GooseBleClient.DeviceRow> devices) {
+        }
+
+        @Override
+        public void onNotification(GooseBleClient.GooseNotification notification) {
+        }
+
+        @Override
+        public void onMetadataChanged(String metadata) {
+        }
+
+        @Override
+        public void onCommandEvent(GooseBleClient.CommandEvent event) {
+        }
+
+        @Override
+        public void onConnectionProgress(GooseBleClient.ConnectionProgress progress) {
+        }
     }
 
     private void startTimeoutWatchdog() {
