@@ -80,6 +80,7 @@ GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT=${GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDI
 GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=${GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT:-0}
 GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT:-0}
 GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}
+GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION=${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION:-0}
 GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=${GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT:-0}
 GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT:-0}
 GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS:-0}
@@ -154,6 +155,7 @@ Result: ${inspection_result:-unknown}
 - Require physical device: ${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}
 - Require BLE hello sent: ${GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT:-0}
 - Require step validation pass: ${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}
+- Require step validation session: ${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION:-0}
 - Require Health Connect write attempt: ${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT:-0}
 - Require Health Connect write success: ${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS:-0}
 
@@ -204,6 +206,9 @@ Result: ${inspection_result:-unknown}
 - Completed events: $(summary_value "step validation completed events")
 - Passed events: $(summary_value "step validation passed events")
 - Failed events: $(summary_value "step validation failed events")
+- Session-bound events: $(summary_value "step validation session-bound events")
+- Session decoded events: $(summary_value "step validation session decoded events")
+- Selected delta events: $(summary_value "step validation selected delta events")
 
 ## Evidence Files
 
@@ -260,7 +265,9 @@ audit log and GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1 to require proof that the
 client hello was sent after connecting.
 Set GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1 after a counted-step
 validation attempt, or GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1 when the
-step validation should pass.
+step validation should pass. Set GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION=1
+to require a capture-session-bound validation with decoded session frames and a
+selected counter delta.
 Set GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1 as well when validating a Health
 Connect sync attempt. Set GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1 to
 require a platform write attempt and GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1

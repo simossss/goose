@@ -307,7 +307,8 @@ metadata from the device and a BLE session audit proving command readiness and
 client hello sent. Add `--allow-emulator` only for development smoke tests; PR
 acceptance still needs physical-phone evidence.
 Add `--require-step-validation` after running the in-app counted-step validation
-when the final session should require a passing step-validation audit row.
+when the final session should require a passing step-validation audit row bound
+to a decoded capture session with a selected counter delta.
 For that validation, start a capture session before the counted walk, finish it
 afterwards, then press `Validate`; the app reports the active or most recently
 finished capture session used for the check.
@@ -322,8 +323,9 @@ adb shell am instrument -w com.goose.android.test/com.goose.android.GooseRustBri
 ```
 
 The remaining phone-dependent work is physical WHOOP strap validation with the
-BLE session audit, final step-counter decoder confirmation, and Health Connect
-permission/write testing with real planned writes on a real Android device.
+BLE session audit, final capture-session-bound step-counter decoder
+confirmation, and Health Connect permission/write testing with real planned
+writes on a real Android device.
 
 ## Data And Privacy
 

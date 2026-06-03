@@ -101,13 +101,18 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     health_write_succeeded="$(summary_bullet_value "Write succeeded events" "$summary")"
     step_completed="$(summary_bullet_value "Completed events" "$summary")"
     step_passed="$(summary_bullet_value "Passed events" "$summary")"
+    step_session_bound="$(summary_bullet_value "Session-bound events" "$summary")"
+    step_session_decoded="$(summary_bullet_value "Session decoded events" "$summary")"
+    step_selected_delta="$(summary_bullet_value "Selected delta events" "$summary")"
     require_step_pass=0
+    require_step_session=0
     require_ble_hello=0
     require_health_attempt=0
     require_health_success=0
     if [[ -f "$gates" ]]; then
       require_ble_hello="$(gate_value "GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT" "$gates")"
       require_step_pass="$(gate_value "GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS" "$gates")"
+      require_step_session="$(gate_value "GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION" "$gates")"
       require_health_attempt="$(gate_value "GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT" "$gates")"
       require_health_success="$(gate_value "GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS" "$gates")"
     fi
@@ -132,7 +137,11 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     fi
     if [[ "$phone_result" == "PASS" && "$require_step_pass" == "1" ]] \
       && is_positive_int "$step_completed" \
-      && is_positive_int "$step_passed"; then
+      && is_positive_int "$step_passed" \
+      && { [[ "$require_step_session" != "1" ]] \
+        || { is_positive_int "$step_session_bound" \
+          && is_positive_int "$step_session_decoded" \
+          && is_positive_int "$step_selected_delta"; }; }; then
       step_validation_verified=1
     fi
     if [[ "$phone_result" == "PASS" && "$require_health_attempt" == "1" ]] \
@@ -176,6 +185,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Completed events: $step_completed"
     echo "- Passed events: $step_passed"
     echo "- Failed events: $(summary_bullet_value "Failed events" "$summary")"
+    echo "- Session-bound events: $step_session_bound"
+    echo "- Session decoded events: $step_session_decoded"
+    echo "- Selected delta events: $step_selected_delta"
     echo
     echo "Gate configuration:"
     if [[ -f "$gates" ]]; then
@@ -210,7 +222,7 @@ if [[ "$ble_hello_verified" == "1" ]]; then
   verified_any=1
 fi
 if [[ "$step_validation_verified" == "1" ]]; then
-  echo "- Counted-step validation passed under the required final gate."
+  echo "- Counted-step validation passed under the required final gate with capture-session-bound decoded frames."
   verified_any=1
 fi
 if [[ "$health_attempt_verified" == "1" ]]; then
@@ -241,7 +253,7 @@ if [[ "$ble_hello_verified" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$step_validation_verified" != "1" ]]; then
-  echo "- Step-counter decoder confirmation from real counted-step evidence with \`--require-step-validation\`."
+  echo "- Step-counter decoder confirmation from real counted-step evidence with \`--require-step-validation\`, capture-session binding, decoded session frames, and selected counter delta."
   remaining_any=1
 fi
 if [[ "$health_attempt_verified" != "1" ]]; then

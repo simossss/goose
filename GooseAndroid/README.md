@@ -108,7 +108,9 @@ Scripts/android_phone_final_gate.sh
 Add `--require-health-success` after granting Health Connect permissions when
 the session should prove a successful platform write, not just a write attempt.
 Add `--require-step-validation` after running counted-step validation in the app
-when the final phone session should prove a passing step-validation audit row.
+when the final phone session should prove a passing, capture-session-bound
+step-validation audit row with decoded session frames and a selected counter
+delta.
 
 Set `ANDROID_SERIAL` when more than one adb device is online. The helper uses
 `run-as com.goose.android`, so it expects the debug APK. It also pulls the
@@ -131,8 +133,9 @@ device, BLE hello, raw, session, session-tagged raw, finished-session,
 installed-package, Health Connect audit, and write-attempt gates by default.
 Add `--skip-health` only for development smoke tests and `--allow-emulator`
 only for emulator smoke tests.
-For counted-step validation, set `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1`
-or `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1`.
+For counted-step validation, set `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1`,
+`GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1`, or
+`GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION=1`.
 
 The Android build expects generated Rust libraries under `Rust/android/`:
 
@@ -261,8 +264,8 @@ These files are build artifacts and are ignored by git.
 
 The current build has captured live heart-rate packets and imported WHOOP
 historical data from a physical WHOOP 5.0. Explicit step-counter extraction is
-not confirmed yet; keep step tests as capture-session-bound evidence and resume
-decoder work separately.
+not confirmed yet; final step acceptance now requires a passing validation that
+is bound to a capture session with decoded frames and a selected counter delta.
 
 ## Remaining Port Slices
 

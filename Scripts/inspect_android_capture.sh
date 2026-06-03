@@ -14,6 +14,7 @@ REQUIRE_BLE_SESSION_AUDIT="${GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT:-0}"
 REQUIRE_BLE_HELLO_SENT="${GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT:-0}"
 REQUIRE_STEP_VALIDATION_AUDIT="${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT:-0}"
 REQUIRE_STEP_VALIDATION_PASS="${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}"
+REQUIRE_STEP_VALIDATION_SESSION="${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION:-0}"
 REQUIRE_HEALTH_AUDIT="${GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT:-0}"
 REQUIRE_HEALTH_WRITE_ATTEMPT="${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT:-0}"
 REQUIRE_HEALTH_WRITE_SUCCESS="${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS:-0}"
@@ -37,6 +38,7 @@ Optional assertions:
   GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1
   GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1
   GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1
+  GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION=1
   GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1
   GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1
   GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1
@@ -122,6 +124,9 @@ step_validation_bytes=0
 step_validation_completed=0
 step_validation_passed=0
 step_validation_failed=0
+step_validation_session_bound=0
+step_validation_session_decoded=0
+step_validation_selected_delta=0
 if [[ -f "$HEALTH_AUDIT_LOG" ]]; then
   health_audit_bytes="$(wc -c < "$HEALTH_AUDIT_LOG" | tr -d ' ')"
   health_audit_blocked="$(grep -c '"event":"blocked"' "$HEALTH_AUDIT_LOG" || true)"
@@ -140,6 +145,9 @@ if [[ -f "$STEP_VALIDATION_LOG" ]]; then
   step_validation_completed="$(grep -c '"event":"completed"' "$STEP_VALIDATION_LOG" || true)"
   step_validation_passed="$(grep -c '"pass":true' "$STEP_VALIDATION_LOG" || true)"
   step_validation_failed="$(grep -c '"event":"failed"' "$STEP_VALIDATION_LOG" || true)"
+  step_validation_session_bound="$(grep -Ec '"capture_session_id":"[^"]+"' "$STEP_VALIDATION_LOG" || true)"
+  step_validation_session_decoded="$(grep -Ec '"capture_session_decoded_frame_count":[1-9][0-9]*' "$STEP_VALIDATION_LOG" || true)"
+  step_validation_selected_delta="$(grep -Ec '"selected_delta":-?[0-9]+' "$STEP_VALIDATION_LOG" || true)"
 fi
 
 echo "Android capture inspection"
@@ -169,6 +177,9 @@ echo "step validation audit bytes: $step_validation_bytes"
 echo "step validation completed events: $step_validation_completed"
 echo "step validation passed events: $step_validation_passed"
 echo "step validation failed events: $step_validation_failed"
+echo "step validation session-bound events: $step_validation_session_bound"
+echo "step validation session decoded events: $step_validation_session_decoded"
+echo "step validation selected delta events: $step_validation_selected_delta"
 
 if table_exists raw_evidence; then
   echo
@@ -308,6 +319,21 @@ fi
 
 if [[ "$REQUIRE_STEP_VALIDATION_PASS" == "1" && "$step_validation_passed" -le 0 ]]; then
   echo "FAIL: step validation audit has no passing event" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_STEP_VALIDATION_SESSION" == "1" && "$step_validation_session_bound" -le 0 ]]; then
+  echo "FAIL: step validation audit has no capture_session_id" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_STEP_VALIDATION_SESSION" == "1" && "$step_validation_session_decoded" -le 0 ]]; then
+  echo "FAIL: step validation audit has no session decoded frames" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_STEP_VALIDATION_SESSION" == "1" && "$step_validation_selected_delta" -le 0 ]]; then
+  echo "FAIL: step validation audit has no selected counter delta" >&2
   failures=$((failures + 1))
 fi
 

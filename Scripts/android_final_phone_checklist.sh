@@ -73,6 +73,9 @@ Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-real
 - Finished nonempty capture sessions: at least 1.
 - Step validation completed events: at least 1.
 - Step validation passed events: at least 1.
+- Step validation session-bound events: at least 1.
+- Step validation session decoded events: at least 1.
+- Step validation selected delta events: at least 1.
 - Health Connect write started events: at least 1.
 - Health Connect write succeeded events: at least 1 only when \`--require-health-success\` is used.
 
