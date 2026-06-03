@@ -112,6 +112,7 @@ installed_package_verified=0
 step_validation_verified=0
 health_attempt_verified=0
 health_success_verified=0
+bundle_profile="not supplied"
 if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
   summary="$PHONE_EVIDENCE_DIR/phone-handoff-summary.md"
   gates="$PHONE_EVIDENCE_DIR/evidence-gates.txt"
@@ -204,8 +205,18 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && is_positive_int "$health_write_succeeded"; then
       health_success_verified=1
     fi
+    if [[ "$device_kind" == "emulator" ]]; then
+      bundle_profile="development emulator evidence"
+    elif [[ "$require_step_pass" == "1" && "$require_step_session" == "1" ]]; then
+      bundle_profile="final PR evidence"
+    elif [[ "$require_ble_hello" == "1" || "$require_health_attempt" == "1" ]]; then
+      bundle_profile="partial phone evidence"
+    else
+      bundle_profile="informational phone evidence"
+    fi
     echo "Evidence directory: $PHONE_EVIDENCE_DIR"
     echo "Result: $phone_result"
+    echo "Bundle profile: $bundle_profile"
     echo "Device serial: $device_serial"
     echo "Device kind: $device_kind"
     echo "Device: $(status_value "Device" "$summary")"
@@ -258,6 +269,26 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
 else
   echo "No phone evidence directory supplied."
 fi
+echo
+echo "## Evidence Bundle Classification"
+echo
+case "$bundle_profile" in
+  "final PR evidence")
+    echo "- The supplied bundle was collected with required counted-step validation gates enabled."
+    ;;
+  "partial phone evidence")
+    echo "- The supplied bundle was collected without required counted-step validation gates. It can prove BLE/capture/Health Connect items, but it is not enough for final PR readiness."
+    ;;
+  "development emulator evidence")
+    echo "- The supplied bundle is emulator/development evidence. It is useful for smoke tests, but final PR readiness requires a physical Android phone."
+    ;;
+  "informational phone evidence")
+    echo "- The supplied bundle did not enable the final or partial acceptance gates. Treat it as diagnostic evidence only."
+    ;;
+  *)
+    echo "- No phone evidence bundle was supplied."
+    ;;
+esac
 echo
 echo "## Verified Phone Acceptance"
 echo

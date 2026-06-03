@@ -66,11 +66,14 @@ checklist_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-checklist.XXXXXX")"
 readiness_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness.XXXXXX")"
 readiness_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-strict.XXXXXX")"
 readiness_strict_pass_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-strict-pass.XXXXXX")"
+readiness_partial_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-partial.XXXXXX")"
+readiness_partial_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-partial-strict.XXXXXX")"
 final_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-final-gate-dry-run.XXXXXX")"
 partial_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-partial-gate-dry-run.XXXXXX")"
-TMP_FILES+=("$checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output")
+TMP_FILES+=("$checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output")
 synthetic_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-final-evidence.XXXXXX")"
-TMP_DIRS+=("$synthetic_evidence_dir")
+synthetic_partial_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-partial-evidence.XXXXXX")"
+TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir")
 "$SCRIPT_DIR/android_final_phone_checklist.sh" > "$checklist_output"
 "$SCRIPT_DIR/android_final_pr_gate.sh" tmp/android-phone-final-gate-real --skip-validate --require-health-success --dry-run > "$final_gate_dry_run_output"
 "$SCRIPT_DIR/android_partial_phone_gate.sh" tmp/android-phone-partial-gate-real --skip-validate --require-health-success --dry-run > "$partial_gate_dry_run_output"
@@ -140,6 +143,71 @@ GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN=1
 GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=0
 GATES
 "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_evidence_dir" > "$readiness_strict_pass_output"
+cat > "$synthetic_partial_evidence_dir/phone-handoff-summary.md" <<'SUMMARY'
+# Goose Android Phone Evidence
+
+Generated at: 20260603T000000Z
+Device serial: physical-android-smoke
+Device kind: physical
+Device: Synthetic Android
+Android: 16 (SDK 36)
+Commit: synthetic
+Result: PASS
+
+## Installed App
+
+- Result: PASS
+- Package path: package:/data/app/com.goose.android/base.apk
+
+## Capture
+
+- Raw evidence rows: 2
+- Decoded frame rows: 1
+- Capture sessions: 1
+- Session raw evidence rows: 1
+- Session live notification raw evidence rows: 1
+- Finished nonempty capture sessions: 1
+- Step samples: 1
+- Daily activity metrics: 1
+
+## BLE Session
+
+- Ready events: 1
+- Hello sent events: 1
+- Command ready events: 1
+
+## Health Connect
+
+- Write started events: 1
+- Ready write started events: 1
+- Planned write started events: 1
+- Candidate write started events: 1
+- Records attempted events: 1
+- Write succeeded events: 0
+- Write failed events: 0
+
+## Step Validation
+
+- Completed events: 0
+- Passed events: 0
+- Failed events: 0
+- Session-bound events: 0
+- Session decoded events: 0
+- Selected delta events: 0
+SUMMARY
+cat > "$synthetic_partial_evidence_dir/evidence-gates.txt" <<'GATES'
+GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1
+GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=0
+GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION=0
+GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1
+GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN=1
+GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=0
+GATES
+"$SCRIPT_DIR/android_pr_readiness.sh" "$synthetic_partial_evidence_dir" > "$readiness_partial_output"
+if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_partial_evidence_dir" > "$readiness_partial_strict_output" 2>&1; then
+  echo "PR readiness strict mode unexpectedly passed with partial phone evidence" >&2
+  exit 1
+fi
 assert_file_contains "$checklist_output" "Goose Android Final Phone Checklist" "final phone checklist"
 assert_file_contains "$checklist_output" "Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real" "final phone checklist"
 assert_file_contains "$checklist_output" "Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation" "final phone checklist"
@@ -153,8 +221,14 @@ assert_file_contains "$readiness_output" "No phone evidence directory supplied."
 assert_file_contains "$readiness_output" "Remaining Phone-Bound Acceptance" "PR readiness"
 assert_file_contains "$readiness_output" "Scripts/android_pr_readiness.sh --strict [output-dir]" "PR readiness"
 assert_file_contains "$readiness_strict_output" "Strict PR readiness: FAIL" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Bundle profile: final PR evidence" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "required counted-step validation gates enabled" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Strict PR readiness: PASS" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "- None from the supplied evidence bundle." "PR readiness strict"
+assert_file_contains "$readiness_partial_output" "Bundle profile: partial phone evidence" "PR readiness partial"
+assert_file_contains "$readiness_partial_output" "not enough for final PR readiness" "PR readiness partial"
+assert_file_contains "$readiness_partial_strict_output" "Strict PR readiness: FAIL" "PR readiness partial strict"
+assert_file_contains "$readiness_partial_strict_output" "Step-counter decoder confirmation" "PR readiness partial strict"
 assert_file_contains "$final_gate_dry_run_output" "skip validate" "final PR gate dry run"
 assert_file_contains "$final_gate_dry_run_output" "android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation --require-health-success" "final PR gate dry run"
 assert_file_contains "$final_gate_dry_run_output" "android_pr_readiness.sh --strict tmp/android-phone-final-gate-real" "final PR gate dry run"
