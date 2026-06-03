@@ -11,6 +11,12 @@ status_value() {
   awk -F': ' -v key="$key" '$1 == key { print $2; exit }' "$file"
 }
 
+summary_bullet_value() {
+  local key="$1"
+  local file="$2"
+  awk -F': ' -v key="- $key" '$1 == key { print $2; exit }' "$file"
+}
+
 latest_commit="$(git -C "$APP_DIR" rev-parse --short HEAD) $(git -C "$APP_DIR" log -1 --pretty=%s)"
 branch="$(git -C "$APP_DIR" rev-parse --abbrev-ref HEAD)"
 dirty_tracked="$(git -C "$APP_DIR" status --short --untracked-files=no | wc -l | tr -d ' ')"
@@ -55,6 +61,28 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Device serial: $(status_value "Device serial" "$summary")"
     echo "Device: $(status_value "Device" "$summary")"
     echo "Android: $(status_value "Android" "$summary")"
+    echo
+    echo "Installed app:"
+    echo "- Result: $(summary_bullet_value "Result" "$summary")"
+    echo "- Package path: $(summary_bullet_value "Package path" "$summary")"
+    echo
+    echo "Capture evidence:"
+    echo "- Raw evidence rows: $(summary_bullet_value "Raw evidence rows" "$summary")"
+    echo "- Capture sessions: $(summary_bullet_value "Capture sessions" "$summary")"
+    echo "- Session raw evidence rows: $(summary_bullet_value "Session raw evidence rows" "$summary")"
+    echo "- Finished nonempty capture sessions: $(summary_bullet_value "Finished nonempty capture sessions" "$summary")"
+    echo "- Step samples: $(summary_bullet_value "Step samples" "$summary")"
+    echo "- Daily activity metrics: $(summary_bullet_value "Daily activity metrics" "$summary")"
+    echo
+    echo "Health Connect evidence:"
+    echo "- Write started events: $(summary_bullet_value "Write started events" "$summary")"
+    echo "- Write succeeded events: $(summary_bullet_value "Write succeeded events" "$summary")"
+    echo "- Write failed events: $(summary_bullet_value "Write failed events" "$summary")"
+    echo
+    echo "Step validation evidence:"
+    echo "- Completed events: $(summary_bullet_value "Completed events" "$summary")"
+    echo "- Passed events: $(summary_bullet_value "Passed events" "$summary")"
+    echo "- Failed events: $(summary_bullet_value "Failed events" "$summary")"
     echo
     echo "Gate configuration:"
     if [[ -f "$gates" ]]; then
