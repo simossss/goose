@@ -92,7 +92,10 @@ presence, row counts, recent raw evidence, recent capture sessions, step sample
 rows when available, and recent Health Connect audit rows. For a stricter
 post-capture gate, set `GOOSE_ANDROID_MIN_RAW_EVIDENCE=1`,
 `GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1`, or
-`GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1`.
+`GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1`. For Health Connect phone validation,
+add `GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1` to require a platform write
+attempt and `GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1` to require a
+successful write.
 
 The Android build expects generated Rust libraries under `Rust/android/`:
 

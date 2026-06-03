@@ -103,6 +103,10 @@ Result: ${inspection_result:-unknown}
 
 - Audit log: $(summary_value "health sync audit")
 - Audit bytes: $(summary_value "health sync audit bytes")
+- Blocked events: $(summary_value "health sync blocked events")
+- Write started events: $(summary_value "health sync write started events")
+- Write succeeded events: $(summary_value "health sync write succeeded events")
+- Write failed events: $(summary_value "health sync write failed events")
 
 ## Evidence Files
 
@@ -136,7 +140,9 @@ GOOSE_ANDROID_STRICT_EVIDENCE=1 Scripts/collect_android_phone_evidence.sh
 
 Strict mode requires at least one raw_evidence row and one capture_sessions row.
 Set GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1 as well when validating a Health
-Connect sync attempt.
+Connect sync attempt. Set GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1 to
+require a platform write attempt and GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1
+to require a successful write.
 README
 
 echo "Android phone evidence collection complete: $OUTPUT_DIR"

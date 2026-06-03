@@ -7,6 +7,8 @@ HEALTH_AUDIT_LOG="${HEALTH_AUDIT_LOG:-$DATABASE_BASENAME-health-connect-sync-log
 MIN_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_RAW_EVIDENCE:-0}"
 MIN_CAPTURE_SESSIONS="${GOOSE_ANDROID_MIN_CAPTURE_SESSIONS:-0}"
 REQUIRE_HEALTH_AUDIT="${GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT:-0}"
+REQUIRE_HEALTH_WRITE_ATTEMPT="${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT:-0}"
+REQUIRE_HEALTH_WRITE_SUCCESS="${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS:-0}"
 
 usage() {
   cat <<'USAGE'
@@ -22,6 +24,8 @@ Optional assertions:
   GOOSE_ANDROID_MIN_RAW_EVIDENCE=1
   GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1
   GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1
+  GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1
+  GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1
 USAGE
 }
 
@@ -80,8 +84,16 @@ session_count="$(table_count capture_sessions)"
 step_count="$(table_count step_counter_samples)"
 activity_metric_count="$(table_count daily_activity_metrics)"
 health_audit_bytes=0
+health_audit_blocked=0
+health_audit_write_started=0
+health_audit_write_succeeded=0
+health_audit_write_failed=0
 if [[ -f "$HEALTH_AUDIT_LOG" ]]; then
   health_audit_bytes="$(wc -c < "$HEALTH_AUDIT_LOG" | tr -d ' ')"
+  health_audit_blocked="$(grep -c '"event":"blocked"' "$HEALTH_AUDIT_LOG" || true)"
+  health_audit_write_started="$(grep -c '"event":"write_started"' "$HEALTH_AUDIT_LOG" || true)"
+  health_audit_write_succeeded="$(grep -c '"event":"write_succeeded"' "$HEALTH_AUDIT_LOG" || true)"
+  health_audit_write_failed="$(grep -c '"event":"write_failed"' "$HEALTH_AUDIT_LOG" || true)"
 fi
 
 echo "Android capture inspection"
@@ -95,6 +107,10 @@ echo "daily activity metrics: $activity_metric_count"
 echo "latest raw capture: $(latest_value raw_evidence captured_at)"
 echo "health sync audit: $HEALTH_AUDIT_LOG"
 echo "health sync audit bytes: $health_audit_bytes"
+echo "health sync blocked events: $health_audit_blocked"
+echo "health sync write started events: $health_audit_write_started"
+echo "health sync write succeeded events: $health_audit_write_succeeded"
+echo "health sync write failed events: $health_audit_write_failed"
 
 if table_exists raw_evidence; then
   echo
@@ -181,6 +197,16 @@ fi
 
 if [[ "$REQUIRE_HEALTH_AUDIT" == "1" && "$health_audit_bytes" -le 0 ]]; then
   echo "FAIL: Health Connect audit log missing or empty" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_HEALTH_WRITE_ATTEMPT" == "1" && "$health_audit_write_started" -le 0 ]]; then
+  echo "FAIL: Health Connect audit has no write_started event" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_HEALTH_WRITE_SUCCESS" == "1" && "$health_audit_write_succeeded" -le 0 ]]; then
+  echo "FAIL: Health Connect audit has no write_succeeded event" >&2
   failures=$((failures + 1))
 fi
 
