@@ -80,6 +80,20 @@ final class HealthConnectSupport {
         return grants;
     }
 
+    List<String> healthSyncPermissionGrants() {
+        List<String> grants = new ArrayList<>();
+        if (!platformAvailable()) {
+            return grants;
+        }
+        addDestinationGrant(grants, "android.permission.health.WRITE_ACTIVE_CALORIES_BURNED",
+                "ActiveCaloriesBurnedRecord");
+        addDestinationGrant(grants, "android.permission.health.WRITE_HEART_RATE",
+                "HeartRateRecord");
+        addDestinationGrant(grants, "android.permission.health.WRITE_STEPS",
+                "StepsRecord");
+        return grants;
+    }
+
     String status() {
         if (!platformAvailable()) {
             return "Health Connect: unavailable on Android " + Build.VERSION.SDK_INT;
@@ -246,5 +260,11 @@ final class HealthConnectSupport {
 
     private boolean platformAvailable() {
         return Build.VERSION.SDK_INT >= 34;
+    }
+
+    private void addDestinationGrant(List<String> grants, String permission, String destinationType) {
+        if (context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED) {
+            grants.add(destinationType);
+        }
     }
 }

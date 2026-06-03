@@ -279,18 +279,113 @@ final class GooseStoreReporter {
         for (String grant : permissionGrants) {
             grants.put(grant);
         }
+        JSONArray candidates = healthConnectCandidates();
+        String start = iso8601(now - 86400000L);
+        String end = iso8601(now);
+        if (candidates.length() > 0) {
+            String[] window = candidateWindow(candidates);
+            start = window[0];
+            end = window[1];
+        }
         JSONObject args = new JSONObject()
                 .put("schema", "goose.health-sync-dry-run.v1")
                 .put("platform", "health_connect")
                 .put("permission_grants", grants)
                 .put("backfill", new JSONObject()
-                        .put("start", iso8601(now - 86400000L))
-                        .put("end", iso8601(now)))
-                .put("candidates", new JSONArray())
+                        .put("start", start)
+                        .put("end", end))
+                .put("candidates", candidates)
                 .put("existing_records", new JSONArray())
                 .put("partial_plan_policy", "require_all_records_ready")
                 .put("delete_policy", "none");
         return bridge.request("health_sync.dry_run", args);
+    }
+
+    private JSONArray healthConnectCandidates() throws Exception {
+        JSONArray candidates = new JSONArray();
+        appendHeartRateHealthConnectCandidates(candidates);
+        return candidates;
+    }
+
+    private void appendHeartRateHealthConnectCandidates(JSONArray candidates) throws Exception {
+        JSONObject args = new JSONObject()
+                .put("database_path", databasePath)
+                .put("start", "0000")
+                .put("end", "9999")
+                .put("min_owned_captures", 1)
+                .put("require_trusted_evidence", true);
+        JSONObject report = bridge.request("metrics.heart_rate_features", args);
+        JSONArray features = report.optJSONArray("features");
+        if (features == null) {
+            return;
+        }
+        for (int index = 0; index < features.length(); index += 1) {
+            JSONObject feature = features.optJSONObject(index);
+            if (feature == null || !feature.optBoolean("trusted_metric_input", false)) {
+                continue;
+            }
+            String sampleTime = feature.optString("sample_time", "");
+            if (sampleTime.isEmpty()) {
+                sampleTime = feature.optString("captured_at", "");
+            }
+            if (sampleTime.isEmpty()) {
+                continue;
+            }
+            double bpm = feature.optDouble("heart_rate_bpm", Double.NaN);
+            if (!Double.isFinite(bpm) || bpm <= 0.0) {
+                continue;
+            }
+            String endTime = addSecondsToIso8601(sampleTime, 5);
+            candidates.put(new JSONObject()
+                    .put("record_id", "android-heart-rate-" + feature.optString("metric_input_id"))
+                    .put("metric_family", "heart_rate")
+                    .put("semantic", "heart_rate")
+                    .put("source_kind", "decoded_raw")
+                    .put("start_time", sampleTime)
+                    .put("end_time", endTime)
+                    .put("value", bpm)
+                    .put("unit", "count/min")
+                    .put("approved_by_user", true)
+                    .put("provenance", new JSONObject()
+                            .put("input_source", "metrics.heart_rate_features")
+                            .put("metric_input_id", feature.optString("metric_input_id"))
+                            .put("frame_id", feature.optString("frame_id"))
+                            .put("evidence_id", feature.optString("evidence_id"))
+                            .put("sample_time_source", feature.optString("sample_time_source"))
+                            .put("trusted_metric_input", true)));
+        }
+    }
+
+    private String[] candidateWindow(JSONArray candidates) {
+        String start = null;
+        String end = null;
+        for (int index = 0; index < candidates.length(); index += 1) {
+            JSONObject candidate = candidates.optJSONObject(index);
+            if (candidate == null) {
+                continue;
+            }
+            String candidateStart = candidate.optString("start_time", "");
+            String candidateEnd = candidate.optString("end_time", "");
+            if (!candidateStart.isEmpty() && (start == null || candidateStart.compareTo(start) < 0)) {
+                start = candidateStart;
+            }
+            if (!candidateEnd.isEmpty() && (end == null || candidateEnd.compareTo(end) > 0)) {
+                end = candidateEnd;
+            }
+        }
+        if (start == null || end == null) {
+            long now = System.currentTimeMillis();
+            return new String[]{iso8601(now - 86400000L), iso8601(now)};
+        }
+        return new String[]{start, end};
+    }
+
+    private String addSecondsToIso8601(String value, long seconds) {
+        try {
+            return iso8601(java.time.Instant.parse(value).toEpochMilli() + (seconds * 1000L));
+        } catch (Exception error) {
+            return value;
+        }
     }
 
     private String healthConnectDryRunSummary(

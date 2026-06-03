@@ -496,7 +496,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         reportStatus.setText("Running Health Connect dry run...");
         refreshHealthConnectStatus();
         storeReporter.healthConnectDryRun(
-                healthConnectSupport.grantedPermissions(),
+                healthConnectSupport.healthSyncPermissionGrants(),
                 report -> runOnUiThread(() -> reportStatus.setText(truncateForDisplay(report)))
         );
     }
@@ -505,7 +505,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         reportStatus.setText("Planning Health Connect sync...");
         refreshHealthConnectStatus();
         storeReporter.healthConnectDryRunPlan(
-                healthConnectSupport.grantedPermissions(),
+                healthConnectSupport.healthSyncPermissionGrants(),
                 (report, summary) -> runOnUiThread(() -> {
                     if (report == null) {
                         reportStatus.setText(truncateForDisplay(summary));

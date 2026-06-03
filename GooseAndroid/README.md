@@ -97,7 +97,9 @@ These files are build artifacts and are ignored by git.
   metric families, exposes permission/status actions, feeds granted
   permissions into the Rust `health_sync.dry_run` gate, and routes approved
   Android 14+ planned writes through the platform `HealthConnectManager`
-  adapter for steps, heart rate, and active calories.
+  adapter for steps, heart rate, and active calories. Android builds
+  Health Connect heart-rate candidates from trusted Goose-decoded heart-rate
+  feature rows before syncing.
 - Includes an instrumentation smoke harness for native loading, `core.version`,
   isolated `storage.check`, `protocol.parse_frame_hex`,
   `health_sync.dry_run`, and `privacy.lint`.
@@ -126,5 +128,7 @@ decoder work separately.
 - Continue packet decoder work for step counters and other packet-derived
   metrics.
 - Health Connect phone/platform permission testing with real planned writes.
+  Trusted heart-rate candidate planning is implemented; step and activity
+  candidate planning still depends on the parked decoder work.
 - Optional Kotlin/Compose UI migration once the bridge and BLE behavior are
   stable.
