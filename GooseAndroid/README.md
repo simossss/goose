@@ -159,6 +159,9 @@ These files are build artifacts and are ignored by git.
 - Exposes a compact Android evidence readiness report for phone handoff checks:
   raw evidence rows, capture-session rows, decoded/step counts, latest capture,
   Health Connect audit bytes, and strict PASS/WAIT status.
+- Binds Android counted-step validation to the active or most recently finished
+  capture session when one is available, so final phone checks do not mix
+  packets from unrelated sessions in the same time window.
 - Runs Rust-backed operational reports:
   - `metrics.input_readiness`
   - `capture.timeline`

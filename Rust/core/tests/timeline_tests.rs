@@ -515,6 +515,7 @@ fn timeline_reports_malformed_decoded_payload_json() {
     let rows = vec![DecodedFrameRow {
         frame_id: "bad-frame".to_string(),
         evidence_id: "evidence-1".to_string(),
+        capture_session_id: Some("capture-live-1".to_string()),
         captured_at: "2026-05-27T00:00:00Z".to_string(),
         device_type: "GOOSE".to_string(),
         raw_len: 1,

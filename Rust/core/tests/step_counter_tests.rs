@@ -574,6 +574,108 @@ fn step_delta_selection_prefers_labels_then_explicit_counters() {
 }
 
 #[test]
+fn step_validation_scopes_candidates_to_requested_capture_session() {
+    let mut session_a_start = decoded_frame_row(
+        "session-a-frame-1",
+        "2026-06-02T12:00:00.000Z",
+        "HISTORICAL_DATA",
+        json!({
+            "kind": "data_packet",
+            "packet_k": 11,
+            "domain": "raw_stream_counted",
+            "body_summary": {
+                "kind": "raw_stream_counted",
+                "step_count": 1000
+            }
+        }),
+    );
+    session_a_start.capture_session_id = Some("session-a".to_string());
+    let mut session_a_end = decoded_frame_row(
+        "session-a-frame-2",
+        "2026-06-02T12:01:00.000Z",
+        "HISTORICAL_DATA",
+        json!({
+            "kind": "data_packet",
+            "packet_k": 11,
+            "domain": "raw_stream_counted",
+            "body_summary": {
+                "kind": "raw_stream_counted",
+                "step_count": 1040
+            }
+        }),
+    );
+    session_a_end.capture_session_id = Some("session-a".to_string());
+    let mut session_b_start = decoded_frame_row(
+        "session-b-frame-1",
+        "2026-06-02T12:00:30.000Z",
+        "HISTORICAL_DATA",
+        json!({
+            "kind": "data_packet",
+            "packet_k": 11,
+            "domain": "raw_stream_counted",
+            "body_summary": {
+                "kind": "raw_stream_counted",
+                "step_count": 5000
+            }
+        }),
+    );
+    session_b_start.capture_session_id = Some("session-b".to_string());
+    let mut session_b_end = decoded_frame_row(
+        "session-b-frame-2",
+        "2026-06-02T12:01:30.000Z",
+        "HISTORICAL_DATA",
+        json!({
+            "kind": "data_packet",
+            "packet_k": 11,
+            "domain": "raw_stream_counted",
+            "body_summary": {
+                "kind": "raw_stream_counted",
+                "step_count": 5100
+            }
+        }),
+    );
+    session_b_end.capture_session_id = Some("session-b".to_string());
+
+    let report = run_step_capture_validation(
+        &[
+            session_a_start,
+            session_b_start,
+            session_a_end,
+            session_b_end,
+        ],
+        "synthetic.sqlite",
+        "2026-06-02T00:00:00Z",
+        "2026-06-03T00:00:00Z",
+        StepCaptureValidationOptions {
+            capture_session_id: Some("session-b".to_string()),
+            capture_kind: Some("100_counted_steps".to_string()),
+            manual_step_delta: Some(100),
+            tolerance_steps: 5,
+            label_provenance: Some(json!({
+                "source": "manual_count",
+                "official_labels_are_labels": true
+            })),
+            ..StepCaptureValidationOptions::default()
+        },
+    )
+    .unwrap();
+
+    assert!(report.pass, "{:?}", report.issues);
+    assert_eq!(report.capture_session_id.as_deref(), Some("session-b"));
+    assert_eq!(report.decoded_frame_count, 4);
+    assert_eq!(report.capture_session_decoded_frame_count, 2);
+    assert_eq!(report.selected_counter_delta.as_ref().unwrap().delta, 100);
+    assert_eq!(
+        report
+            .selected_counter_delta
+            .as_ref()
+            .unwrap()
+            .first_frame_id,
+        "session-b-frame-1"
+    );
+}
+
+#[test]
 fn step_counter_daily_rollup_writes_device_counter_activity_metric() {
     let store = GooseStore::open_in_memory().unwrap();
     insert_step_sample(
@@ -1011,6 +1113,7 @@ fn decoded_frame_row(
     DecodedFrameRow {
         frame_id: frame_id.to_string(),
         evidence_id: format!("{frame_id}.evidence"),
+        capture_session_id: None,
         captured_at: captured_at.to_string(),
         device_type: "GOOSE".to_string(),
         raw_len: 0,

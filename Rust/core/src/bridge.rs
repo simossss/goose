@@ -458,6 +458,8 @@ struct StepCaptureValidationArgs {
     #[serde(default)]
     max_candidate_fields: Option<usize>,
     #[serde(default)]
+    capture_session_id: Option<String>,
+    #[serde(default)]
     capture_kind: Option<String>,
     #[serde(default)]
     manual_step_delta: Option<i64>,
@@ -3615,6 +3617,7 @@ fn step_capture_validation_bridge(
         &args.end,
         StepCaptureValidationOptions {
             max_candidate_fields: args.max_candidate_fields.unwrap_or(1000),
+            capture_session_id: args.capture_session_id,
             capture_kind: args.capture_kind,
             manual_step_delta: args.manual_step_delta,
             official_whoop_step_delta: args.official_whoop_step_delta,

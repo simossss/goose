@@ -338,6 +338,7 @@ fn decoded_frame_row(
     DecodedFrameRow {
         frame_id: frame_id.to_string(),
         evidence_id: format!("{frame_id}.evidence"),
+        capture_session_id: None,
         captured_at: captured_at.to_string(),
         device_type: "GOOSE".to_string(),
         raw_len: 0,

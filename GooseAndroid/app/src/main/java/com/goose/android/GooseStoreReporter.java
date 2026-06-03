@@ -117,8 +117,18 @@ final class GooseStoreReporter {
         executor.execute(() -> callback.onReport(runStepDiscovery()));
     }
 
-    void stepValidation(String start, String end, long manualStepDelta, Callback callback) {
-        executor.execute(() -> callback.onReport(runStepValidation(start, end, manualStepDelta)));
+    void stepValidation(
+            String start,
+            String end,
+            long manualStepDelta,
+            String captureSessionId,
+            Callback callback
+    ) {
+        executor.execute(() -> callback.onReport(runStepValidation(
+                start,
+                end,
+                manualStepDelta,
+                captureSessionId)));
     }
 
     void recoverySensors(Callback callback) {
@@ -898,7 +908,7 @@ final class GooseStoreReporter {
         }
     }
 
-    private String runStepValidation(String start, String end, long manualStepDelta) {
+    private String runStepValidation(String start, String end, long manualStepDelta, String captureSessionId) {
         try {
             JSONObject args = new JSONObject()
                     .put("database_path", databasePath)
@@ -912,12 +922,18 @@ final class GooseStoreReporter {
                             .put("label_source", "android_manual_count")
                             .put("capture_app", "goose_android")
                             .put("owner", "user"));
+            if (captureSessionId != null && !captureSessionId.trim().isEmpty()) {
+                args.put("capture_session_id", captureSessionId);
+            }
             JSONObject report = bridge.request("metrics.step_capture_validation", args);
             JSONObject selected = report.optJSONObject("selected_counter_delta");
             return "Step validation\n"
                     + "window: " + start + " -> " + end + "\n"
+                    + "capture session: " + report.optString("capture_session_id", "not set") + "\n"
                     + "manual steps: " + manualStepDelta + "\n"
                     + "pass: " + report.optBoolean("pass", false) + "\n"
+                    + "decoded frames: " + report.optInt("decoded_frame_count", 0) + "\n"
+                    + "session decoded frames: " + report.optInt("capture_session_decoded_frame_count", 0) + "\n"
                     + "inspected frames: " + report.optInt("inspected_frame_count", 0) + "\n"
                     + "candidate fields: " + report.optInt("counter_candidate_count", 0) + "\n"
                     + "counter deltas: " + report.optInt("counter_delta_candidate_count", 0) + "\n"

@@ -75,7 +75,8 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private EditText manualStepsInput;
     private String validationStart = "0000";
     private String validationEnd = "9999";
-    private String activeCaptureSessionId;
+    private volatile String activeCaptureSessionId;
+    private volatile String lastFinishedCaptureSessionId;
     private PendingCommand pendingCommand;
     private long clearLocalDataConfirmUntilMillis;
     private int notificationCount;
@@ -766,6 +767,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                         .put("ended_at_unix_ms", endedAt)
                         .put("frame_count", frameCount);
                 JSONObject report = bridge.request("capture.finish_session", args);
+                lastFinishedCaptureSessionId = sessionId;
                 runOnUiThreadIfAlive(() -> sessionStatus.setText("Capture session finished\n"
                         + sessionId
                         + "\nframes: " + frameCount
@@ -811,7 +813,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             return;
         }
         reportStatus.setText("Running step validation...");
-        storeReporter.stepValidation(validationStart, validationEnd, manualSteps,
+        String captureSessionId = activeCaptureSessionId != null
+                ? activeCaptureSessionId
+                : lastFinishedCaptureSessionId;
+        storeReporter.stepValidation(validationStart, validationEnd, manualSteps, captureSessionId,
                 report -> runOnUiThreadIfAlive(() -> reportStatus.setText(truncateForDisplay(report))));
     }
 

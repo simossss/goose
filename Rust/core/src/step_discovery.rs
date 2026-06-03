@@ -84,6 +84,7 @@ pub struct StepPacketDiscoveryNextAction {
 #[derive(Debug, Clone)]
 pub struct StepCaptureValidationOptions {
     pub max_candidate_fields: usize,
+    pub capture_session_id: Option<String>,
     pub capture_kind: Option<String>,
     pub manual_step_delta: Option<i64>,
     pub official_whoop_step_delta: Option<i64>,
@@ -95,6 +96,7 @@ impl Default for StepCaptureValidationOptions {
     fn default() -> Self {
         Self {
             max_candidate_fields: 1000,
+            capture_session_id: None,
             capture_kind: None,
             manual_step_delta: None,
             official_whoop_step_delta: None,
@@ -112,6 +114,8 @@ pub struct StepCaptureValidationReport {
     pub database_path: String,
     pub start: String,
     pub end: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capture_session_id: Option<String>,
     pub capture_kind: Option<String>,
     pub manual_step_delta: Option<i64>,
     pub official_whoop_step_delta: Option<i64>,
@@ -122,6 +126,7 @@ pub struct StepCaptureValidationReport {
     pub discovery_pass: bool,
     pub explicit_step_counter_found: bool,
     pub decoded_frame_count: usize,
+    pub capture_session_decoded_frame_count: usize,
     pub inspected_frame_count: usize,
     pub counter_candidate_count: usize,
     pub monotonic_counter_candidate_count: usize,
@@ -311,8 +316,23 @@ pub fn run_step_capture_validation(
     end: &str,
     options: StepCaptureValidationOptions,
 ) -> GooseResult<StepCaptureValidationReport> {
+    let scoped_rows: Vec<DecodedFrameRow>;
+    let validation_rows = if let Some(session_id) = options
+        .capture_session_id
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+    {
+        scoped_rows = decoded_rows
+            .iter()
+            .filter(|row| row.capture_session_id.as_deref() == Some(session_id))
+            .cloned()
+            .collect();
+        scoped_rows.as_slice()
+    } else {
+        decoded_rows
+    };
     let discovery = run_step_packet_discovery(
-        decoded_rows,
+        validation_rows,
         database_path,
         start,
         end,
@@ -339,6 +359,14 @@ pub fn run_step_capture_validation(
     let mut issues = Vec::new();
     if options.manual_step_delta.is_none() && options.official_whoop_step_delta.is_none() {
         issues.push("no_step_delta_validation_label".to_string());
+    }
+    if options
+        .capture_session_id
+        .as_deref()
+        .is_some_and(|value| !value.trim().is_empty())
+        && validation_rows.is_empty()
+    {
+        issues.push("capture_session_no_decoded_frames".to_string());
     }
     issues.extend(official_label_policy_issues(
         options.official_whoop_step_delta.is_some(),
@@ -380,6 +408,7 @@ pub fn run_step_capture_validation(
         database_path: database_path.to_string(),
         start: start.to_string(),
         end: end.to_string(),
+        capture_session_id: options.capture_session_id,
         capture_kind: options.capture_kind,
         manual_step_delta: options.manual_step_delta,
         official_whoop_step_delta: options.official_whoop_step_delta,
@@ -388,7 +417,8 @@ pub fn run_step_capture_validation(
         label_provenance: options.label_provenance,
         discovery_pass: discovery.pass,
         explicit_step_counter_found: discovery.explicit_step_counter_found,
-        decoded_frame_count: discovery.decoded_frame_count,
+        decoded_frame_count: decoded_rows.len(),
+        capture_session_decoded_frame_count: validation_rows.len(),
         inspected_frame_count: discovery.inspected_frame_count,
         counter_candidate_count,
         monotonic_counter_candidate_count: discovery.monotonic_counter_candidate_count,
