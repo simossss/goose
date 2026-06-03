@@ -525,6 +525,8 @@ assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "GOOSE_ANDR
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Focused AndroidRuntime crash lines:" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "evidence-files-manifest.txt" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "path	bytes	sha256" "phone evidence collector"
+assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Evidence output directory is not empty:" "phone evidence collector"
+assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "GOOSE_ANDROID_ALLOW_EXISTING_EVIDENCE_DIR=1" "phone evidence collector"
 assert_file_contains "$APP_DIR/README.md" "no focused AndroidRuntime crash lines" "root README"
 assert_file_contains "$APP_DIR/README.md" "byte/hash file manifest" "root README"
 assert_file_contains "$APP_DIR/README.md" "Scripts/android_partial_phone_checklist.sh" "root README"

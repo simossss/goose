@@ -124,6 +124,10 @@ Collect a timestamped phone evidence bundle after a real-device test:
 Scripts/collect_android_phone_evidence.sh
 ```
 
+Use a fresh output directory for final evidence. The collector refuses a
+non-empty output directory by default so stale files cannot be included in a new
+evidence manifest.
+
 For a stricter post-capture pass/fail bundle:
 
 ```sh

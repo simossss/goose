@@ -322,6 +322,10 @@ logcat, pulled SQLite files, inspection output, and a byte/hash file manifest:
 Scripts/collect_android_phone_evidence.sh
 ```
 
+Use a fresh output directory for final evidence. The collector refuses a
+non-empty output directory by default so stale files cannot be included in a new
+evidence manifest.
+
 Use `GOOSE_ANDROID_STRICT_EVIDENCE=1 Scripts/collect_android_phone_evidence.sh`
 after a controlled capture to require at least one raw packet row and one
 capture session in the pulled debug store.

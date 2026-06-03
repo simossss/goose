@@ -8,11 +8,18 @@ OUTPUT_DIR="${1:-$APP_DIR/tmp/android-phone-evidence-$STAMP}"
 REQUIRE_INSTALLED_PACKAGE="${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}"
 REQUIRE_PHYSICAL_DEVICE="${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}"
 REQUIRE_NO_ANDROID_RUNTIME_CRASH="${GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH:-0}"
+ALLOW_EXISTING_OUTPUT="${GOOSE_ANDROID_ALLOW_EXISTING_EVIDENCE_DIR:-0}"
 
 if [[ -z "${ADB:-}" && -x "$HOME/Library/Android/sdk/platform-tools/adb" ]]; then
   ADB="$HOME/Library/Android/sdk/platform-tools/adb"
 fi
 ADB="${ADB:-adb}"
+
+if [[ -d "$OUTPUT_DIR" ]] && [[ "$ALLOW_EXISTING_OUTPUT" != "1" ]] && find "$OUTPUT_DIR" -mindepth 1 -print -quit | grep -q .; then
+  echo "Evidence output directory is not empty: $OUTPUT_DIR" >&2
+  echo "Use a fresh output directory, or set GOOSE_ANDROID_ALLOW_EXISTING_EVIDENCE_DIR=1 for local debugging." >&2
+  exit 1
+fi
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -334,6 +341,11 @@ Key files:
 - evidence-files-manifest.txt: pulled evidence files with byte counts and SHA-256 hashes.
 - pull-android-database.txt: pull helper output.
 - evidence-result.txt: PASS/FAIL for the capture inspection gate.
+
+Use a fresh output directory for final evidence. The collector refuses a
+non-empty output directory by default so stale files cannot be swept into a new
+evidence manifest. Set GOOSE_ANDROID_ALLOW_EXISTING_EVIDENCE_DIR=1 only for
+local debugging.
 
 Strict mode:
 GOOSE_ANDROID_STRICT_EVIDENCE=1 Scripts/collect_android_phone_evidence.sh
