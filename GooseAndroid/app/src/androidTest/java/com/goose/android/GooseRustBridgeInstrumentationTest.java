@@ -4,6 +4,7 @@ import android.app.Instrumentation;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Process;
 import android.util.Log;
@@ -147,6 +148,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
 
         Log.i(TAG, "checking declared Health Connect permissions");
         assertHealthConnectManifestScope(context);
+        Log.i(TAG, "checking declared Bluetooth permissions");
+        assertBluetoothManifestScope(context);
 
         Log.i(TAG, "calling privacy.lint");
         File lintDir = new File(context.getCacheDir(), "goose-smoke-privacy");
@@ -160,17 +163,53 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         }
     }
 
+    private void assertBluetoothManifestScope(Context context) throws Exception {
+        PackageInfo info = context.getPackageManager().getPackageInfo(
+                context.getPackageName(),
+                PackageManager.GET_PERMISSIONS
+        );
+        Set<String> declaredPermissions = requestedPermissionSet(info);
+        Set<String> expectedPermissions;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            expectedPermissions = new HashSet<>(Arrays.asList(
+                    "android.permission.BLUETOOTH_CONNECT",
+                    "android.permission.BLUETOOTH_SCAN"
+            ));
+        } else {
+            expectedPermissions = new HashSet<>(Arrays.asList(
+                    "android.permission.BLUETOOTH",
+                    "android.permission.BLUETOOTH_ADMIN",
+                    "android.permission.ACCESS_FINE_LOCATION"
+            ));
+        }
+        Set<String> declaredBluetoothPermissions = new HashSet<>();
+        for (String permission : declaredPermissions) {
+            if (permission.startsWith("android.permission.BLUETOOTH")
+                    || "android.permission.ACCESS_FINE_LOCATION".equals(permission)) {
+                declaredBluetoothPermissions.add(permission);
+            }
+        }
+        if (!declaredBluetoothPermissions.equals(expectedPermissions)) {
+            throw new AssertionError("unexpected Bluetooth/location manifest permissions: "
+                    + declaredBluetoothPermissions);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            assertPermissionHasFlag(info,
+                    "android.permission.BLUETOOTH_SCAN",
+                    PackageInfo.REQUESTED_PERMISSION_NEVER_FOR_LOCATION);
+        }
+    }
+
     private void assertHealthConnectManifestScope(Context context) throws Exception {
         PackageInfo info = context.getPackageManager().getPackageInfo(
                 context.getPackageName(),
                 PackageManager.GET_PERMISSIONS
         );
         Set<String> declaredHealthPermissions = new HashSet<>();
-        if (info.requestedPermissions != null) {
-            for (String permission : info.requestedPermissions) {
-                if (permission.startsWith("android.permission.health.")) {
-                    declaredHealthPermissions.add(permission);
-                }
+        Set<String> declaredPermissions = requestedPermissionSet(info);
+        for (String permission : declaredPermissions) {
+            if (permission.startsWith("android.permission.health.")) {
+                declaredHealthPermissions.add(permission);
             }
         }
         Set<String> expectedHealthPermissions = new HashSet<>(Arrays.asList(
@@ -182,6 +221,31 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             throw new AssertionError("unexpected Health Connect manifest permissions: "
                     + declaredHealthPermissions);
         }
+    }
+
+    private Set<String> requestedPermissionSet(PackageInfo info) {
+        Set<String> permissions = new HashSet<>();
+        if (info.requestedPermissions != null) {
+            for (String permission : info.requestedPermissions) {
+                permissions.add(permission);
+            }
+        }
+        return permissions;
+    }
+
+    private void assertPermissionHasFlag(PackageInfo info, String permission, int requiredFlag) {
+        if (info.requestedPermissions == null || info.requestedPermissionsFlags == null) {
+            throw new AssertionError("requested permission metadata missing");
+        }
+        for (int index = 0; index < info.requestedPermissions.length; index += 1) {
+            if (permission.equals(info.requestedPermissions[index])) {
+                if ((info.requestedPermissionsFlags[index] & requiredFlag) == 0) {
+                    throw new AssertionError(permission + " missing requested flag " + requiredFlag);
+                }
+                return;
+            }
+        }
+        throw new AssertionError(permission + " not declared");
     }
 
     private void startTimeoutWatchdog() {
