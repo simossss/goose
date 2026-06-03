@@ -2,6 +2,22 @@ plugins {
     id "com.android.application"
 }
 
+def repoRoot = rootProject.projectDir.parentFile
+def androidRustBuildScript = file("${repoRoot}/Scripts/build_android_rust.sh")
+
+def registerRustBuildTask(String taskName, String configuration, File repositoryRoot, File buildScript) {
+    tasks.register(taskName, Exec) {
+        group = "build"
+        description = "Build Goose Rust Android libraries for ${configuration} APKs"
+        workingDir repositoryRoot
+        executable buildScript.absolutePath
+        environment "CONFIGURATION", configuration
+    }
+}
+
+def buildRustDebug = registerRustBuildTask("buildRustDebug", "Debug", repoRoot, androidRustBuildScript)
+def buildRustRelease = registerRustBuildTask("buildRustRelease", "Release", repoRoot, androidRustBuildScript)
+
 android {
     namespace "com.goose.android"
     compileSdk 36
@@ -31,4 +47,12 @@ android {
             jniLibs.srcDirs = ["../../Rust/android"]
         }
     }
+}
+
+tasks.matching { it.name == "preDebugBuild" || it.name == "preDebugAndroidTestBuild" }.configureEach {
+    dependsOn buildRustDebug
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn buildRustRelease
 }

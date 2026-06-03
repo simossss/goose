@@ -49,17 +49,11 @@ assert_apk_native_libs() {
   done
 }
 
-echo "==> Building Android Rust libraries (debug)"
-CONFIGURATION=Debug "$APP_DIR/Scripts/build_android_rust.sh"
-
 echo "==> Building Android debug and instrumentation APKs"
 (cd "$ANDROID_DIR" && "$GRADLEW" :app:assembleDebug :app:assembleDebugAndroidTest)
 
 echo "==> Validating Android debug APK native libraries"
 assert_apk_native_libs "$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk" "debug"
-
-echo "==> Building Android Rust libraries (release)"
-CONFIGURATION=Release "$APP_DIR/Scripts/build_android_rust.sh"
 
 echo "==> Building Android release APK"
 (cd "$ANDROID_DIR" && "$GRADLEW" :app:assembleRelease)

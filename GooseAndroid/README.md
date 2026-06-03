@@ -13,27 +13,31 @@ From the repository root:
 Scripts/validate_android.sh
 ```
 
-That builds debug Rust Android libraries for the debug/instrumentation APKs,
-rebuilds release Rust Android libraries for the release APK, and runs the smoke
-harness when an adb device or emulator is online.
+That assembles debug, instrumentation, and release APKs. Gradle builds the
+matching Rust Android libraries before each APK variant, then the script checks
+APK native-library contents and runs the smoke harness when an adb device or
+emulator is online.
 
-Manual build:
+Manual build from Android Studio or the command line:
 
 ```sh
-Scripts/build_android_rust.sh
 cd GooseAndroid
 ./gradlew :app:assembleDebug
 ./gradlew :app:assembleDebugAndroidTest
 ```
 
-For a release-native APK, rebuild the shared Rust core in release mode before
-assembling release:
+For a release-native APK:
 
 ```sh
-CONFIGURATION=Release Scripts/build_android_rust.sh
 cd GooseAndroid
 ./gradlew :app:assembleRelease
 ```
+
+The Gradle project wires `:app:preDebugBuild`,
+`:app:preDebugAndroidTestBuild`, and `:app:preReleaseBuild` to
+`Scripts/build_android_rust.sh`, so Android Studio builds refresh
+`Rust/android/` automatically. You can still run `Scripts/build_android_rust.sh`
+directly when debugging the Rust cross-compile step.
 
 Run the on-device/emulator smoke harness:
 
