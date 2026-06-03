@@ -2,6 +2,8 @@ package com.goose.android;
 
 import android.app.Instrumentation;
 import android.content.Context;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Process;
 import android.util.Log;
@@ -10,6 +12,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
     private static final String TAG = "GooseBridgeSmoke";
@@ -140,6 +145,9 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             throw new AssertionError("daily activity candidates did not plan cleanly: " + plannedDailyActivity);
         }
 
+        Log.i(TAG, "checking declared Health Connect permissions");
+        assertHealthConnectManifestScope(context);
+
         Log.i(TAG, "calling privacy.lint");
         File lintDir = new File(context.getCacheDir(), "goose-smoke-privacy");
         if (!lintDir.exists() && !lintDir.mkdirs()) {
@@ -149,6 +157,30 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 new JSONObject().put("path", lintDir.getAbsolutePath()));
         if (privacyLint.length() == 0) {
             throw new AssertionError("privacy.lint returned an empty object");
+        }
+    }
+
+    private void assertHealthConnectManifestScope(Context context) throws Exception {
+        PackageInfo info = context.getPackageManager().getPackageInfo(
+                context.getPackageName(),
+                PackageManager.GET_PERMISSIONS
+        );
+        Set<String> declaredHealthPermissions = new HashSet<>();
+        if (info.requestedPermissions != null) {
+            for (String permission : info.requestedPermissions) {
+                if (permission.startsWith("android.permission.health.")) {
+                    declaredHealthPermissions.add(permission);
+                }
+            }
+        }
+        Set<String> expectedHealthPermissions = new HashSet<>(Arrays.asList(
+                "android.permission.health.WRITE_ACTIVE_CALORIES_BURNED",
+                "android.permission.health.WRITE_HEART_RATE",
+                "android.permission.health.WRITE_STEPS"
+        ));
+        if (!declaredHealthPermissions.equals(expectedHealthPermissions)) {
+            throw new AssertionError("unexpected Health Connect manifest permissions: "
+                    + declaredHealthPermissions);
         }
     }
 
