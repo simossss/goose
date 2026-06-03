@@ -135,7 +135,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             for (GooseBleClient.DeviceRow device : devices) {
                 Button button = secondaryButton(device.displayText());
                 button.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-                button.setOnClickListener(view -> ble.connect(device.address));
+                button.setOnClickListener(view -> connectToDevice(device));
                 deviceList.addView(button, matchWrap());
             }
         });
@@ -479,6 +479,18 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private void requestBlePermissions() {
         List<String> permissions = ble.requiredPermissions();
         requestPermissions(permissions.toArray(new String[0]), PERMISSION_REQUEST_BLE);
+    }
+
+    private void connectToDevice(GooseBleClient.DeviceRow device) {
+        bleStatus.setText("Connecting " + device.name);
+        if (connectionStatus != null) {
+            connectionStatus.setText("Connection progress\nphase: connecting\nselected: " + device.address);
+        }
+        deviceList.removeAllViews();
+        TextView selected = bodyText(device.displayText());
+        selected.setPadding(0, 8, 0, 8);
+        deviceList.addView(selected, matchWrap());
+        ble.connect(device.address);
     }
 
     private void refreshHealthConnectStatus() {

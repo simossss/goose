@@ -290,6 +290,10 @@ final class GooseBleClient {
             return;
         }
         stopScan();
+        if (gatt != null) {
+            gatt.close();
+            gatt = null;
+        }
         BluetoothDevice device = adapter.getRemoteDevice(address);
         listener.onStateChanged("Connecting " + displayName(device));
         activeDeviceId = address;
