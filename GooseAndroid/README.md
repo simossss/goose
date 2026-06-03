@@ -67,6 +67,9 @@ These files are build artifacts and are ignored by git.
   frame only after a second tap within the confirmation window.
 - Shows structured command progress for queued, writing, written, blocked, and
   failed physical command writes.
+- Shows observed transfer progress from command events and parsed notifications:
+  command responses, data packets, normal-history frames, motion/optical frames,
+  marker events, and raw/decoded import counters.
 - Keeps the default Capture tab status compact; full JSON-heavy storage,
   privacy, export, and bridge reports live behind report buttons.
 - Runs Rust-backed operational reports:
@@ -112,7 +115,8 @@ decoder work separately.
 
 - Replace the Java debug surface with a production Android UI once BLE and
   report behavior are stable.
-- Add richer connection/history transfer progress state.
+- Add richer connection progress state around service discovery and subscription
+  stages.
 - Continue packet decoder work for step counters and other packet-derived
   metrics.
 - Health Connect write adapter implementation after phone/platform permission

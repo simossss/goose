@@ -35,6 +35,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private final GooseRustBridge bridge = new GooseRustBridge();
     private final Deque<String> notificationLogRows = new ArrayDeque<>();
     private final Deque<String> commandLogRows = new ArrayDeque<>();
+    private final TransferProgress transferProgress = new TransferProgress();
     private final ExecutorService sessionExecutor = Executors.newSingleThreadExecutor();
     private GooseBleClient ble;
     private GooseCommandBuilder commandBuilder;
@@ -47,6 +48,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private TextView storeStatus;
     private TextView metadataStatus;
     private TextView packetStatus;
+    private TextView transferStatus;
     private TextView commandStatus;
     private TextView sessionStatus;
     private TextView healthConnectStatus;
@@ -135,6 +137,8 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                     ? result.error
                     : result.parseSummary + "\n" + result.importSummary;
             packetStatus.setText("Notifications: " + notificationCount + "\n" + summary);
+            transferProgress.recordPacket(result, notification.capturedAtMillis);
+            transferStatus.setText(transferProgress.summary());
             appendNotificationLog(stamp, notification.characteristicUuid, result.frameHex);
         }));
     }
@@ -147,7 +151,11 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     @Override
     public void onCommandEvent(GooseBleClient.CommandEvent event) {
         String stamp = new SimpleDateFormat("HH:mm:ss", Locale.US).format(new Date(event.occurredAtMillis));
-        runOnUiThread(() -> appendCommandRow(commandEventSummary(stamp, event)));
+        runOnUiThread(() -> {
+            transferProgress.recordCommand(event);
+            transferStatus.setText(transferProgress.summary());
+            appendCommandRow(commandEventSummary(stamp, event));
+        });
     }
 
     private void refreshStoreStatus() {
@@ -260,6 +268,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
         packetStatus = sectionText("Packets: waiting");
         captureSection.addView(packetStatus);
+
+        transferStatus = bodyText(transferProgress.summary());
+        transferStatus.setPadding(0, 8, 0, 0);
+        captureSection.addView(transferStatus);
 
         sessionStatus = bodyText("Capture session: none");
         sessionStatus.setPadding(0, 8, 0, 0);
@@ -480,6 +492,8 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 packetStatus.setText("Command blocked: no connected WHOOP command characteristic"
                         + "\n" + commandToSend.frameHex
                         + "\n" + commandToSend.preflightSummary);
+                transferProgress.recordBlockedCommand(commandToSend.command, System.currentTimeMillis());
+                transferStatus.setText(transferProgress.summary());
                 appendCommandRow(commandBlockedSummary(commandToSend));
                 return;
             }
@@ -824,6 +838,167 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     private interface ReportRunner {
         void run(GooseStoreReporter.Callback callback);
+    }
+
+    private static final class TransferProgress {
+        private String historyCommandStatus = "not requested";
+        private String transferState = "idle";
+        private String lastPacket = "none";
+        private long requestedAtMillis;
+        private long lastPacketAtMillis;
+        private int notificationCount;
+        private int gooseFrameCount;
+        private int standardHeartRateCount;
+        private int commandResponseCount;
+        private int dataPacketCount;
+        private int eventCount;
+        private int normalHistoryCount;
+        private int rawMotionCount;
+        private int opticalCount;
+        private int decodedInserted;
+        private int rawInserted;
+        private int existingDecoded;
+        private boolean historyStartSeen;
+        private boolean historyEndSeen;
+        private boolean historyCompleteSeen;
+
+        void recordCommand(GooseBleClient.CommandEvent event) {
+            String label = event.label.toLowerCase(Locale.US);
+            if (label.contains("send_historical_data")) {
+                historyCommandStatus = event.status;
+                requestedAtMillis = event.occurredAtMillis;
+                if ("queued".equals(event.status) || "writing".equals(event.status) || "written".equals(event.status)) {
+                    transferState = "history requested";
+                } else if ("failed".equals(event.status) || "blocked".equals(event.status)) {
+                    transferState = "history request " + event.status;
+                }
+            } else if (label.contains("abort_historical_transmits")) {
+                historyCommandStatus = "abort " + event.status;
+                transferState = "abort " + event.status;
+            }
+        }
+
+        void recordBlockedCommand(String command, long occurredAtMillis) {
+            if ("send_historical_data".equals(command)) {
+                historyCommandStatus = "blocked";
+                requestedAtMillis = occurredAtMillis;
+                transferState = "history request blocked";
+            } else if ("abort_historical_transmits".equals(command)) {
+                historyCommandStatus = "abort blocked";
+                requestedAtMillis = occurredAtMillis;
+                transferState = "abort blocked";
+            }
+        }
+
+        void recordPacket(GoosePacketIngestor.Result result, long capturedAtMillis) {
+            notificationCount += 1;
+            lastPacketAtMillis = capturedAtMillis;
+            rawInserted += result.rawInserted + result.directRawInserted;
+            decodedInserted += result.framesInserted;
+            existingDecoded += result.framesExisting;
+            if (result.error != null) {
+                transferState = "ingest error";
+                lastPacket = result.error;
+                return;
+            }
+
+            String payloadKind = result.payloadKind;
+            String bodyKind = result.bodyKind;
+            if ("standard_heart_rate".equals(payloadKind)) {
+                standardHeartRateCount += 1;
+            } else if (!payloadKind.isEmpty()) {
+                gooseFrameCount += 1;
+            }
+            if ("command_response".equals(payloadKind)) {
+                commandResponseCount += 1;
+            } else if ("data_packet".equals(payloadKind)) {
+                dataPacketCount += 1;
+            } else if ("event".equals(payloadKind)) {
+                eventCount += 1;
+            }
+
+            if ("normal_history".equals(bodyKind)) {
+                normalHistoryCount += 1;
+            } else if ("raw_motion_k10".equals(bodyKind) || "raw_motion_k21".equals(bodyKind)) {
+                rawMotionCount += 1;
+            } else if ("r17_optical_or_labrador_filtered".equals(bodyKind)) {
+                opticalCount += 1;
+            }
+
+            updateHistoryMarkers(result.eventName);
+            if (historyCompleteSeen) {
+                transferState = "history complete marker seen";
+            } else if (historyEndSeen) {
+                transferState = "history end marker seen";
+            } else if (historyStartSeen || normalHistoryCount > 0 || dataPacketCount > 0) {
+                transferState = "importing history packets";
+            } else if (standardHeartRateCount > 0 && gooseFrameCount == 0) {
+                transferState = "live heart-rate only";
+            }
+
+            lastPacket = compactPacketLabel(result);
+        }
+
+        String summary() {
+            return "Transfer progress"
+                    + "\nstate: " + transferState
+                    + "\nhistory command: " + historyCommandStatus
+                    + (requestedAtMillis > 0 ? " at " + time(requestedAtMillis) : "")
+                    + "\nnotifications: " + notificationCount
+                    + ", goose: " + gooseFrameCount
+                    + ", HR: " + standardHeartRateCount
+                    + "\ndata packets: " + dataPacketCount
+                    + ", normal history: " + normalHistoryCount
+                    + ", motion: " + rawMotionCount
+                    + ", optical: " + opticalCount
+                    + "\nresponses: " + commandResponseCount
+                    + ", events: " + eventCount
+                    + ", markers: start=" + historyStartSeen
+                    + " end=" + historyEndSeen
+                    + " complete=" + historyCompleteSeen
+                    + "\ninserted raw: " + rawInserted
+                    + ", decoded: " + decodedInserted
+                    + ", existing decoded: " + existingDecoded
+                    + "\nlast packet: " + lastPacket
+                    + (lastPacketAtMillis > 0 ? " at " + time(lastPacketAtMillis) : "");
+        }
+
+        private void updateHistoryMarkers(String eventName) {
+            String normalized = eventName.toLowerCase(Locale.US).replace("_", "").replace("-", "");
+            if (normalized.contains("historystart")) {
+                historyStartSeen = true;
+            } else if (normalized.contains("historyend")) {
+                historyEndSeen = true;
+            } else if (normalized.contains("historycomplete")) {
+                historyCompleteSeen = true;
+            }
+        }
+
+        private String compactPacketLabel(GoosePacketIngestor.Result result) {
+            StringBuilder builder = new StringBuilder();
+            if (!result.packetTypeName.isEmpty()) {
+                builder.append(result.packetTypeName);
+            } else {
+                builder.append(result.payloadKind.isEmpty() ? "unknown" : result.payloadKind);
+            }
+            if (result.sequence >= 0) {
+                builder.append(" seq=").append(result.sequence);
+            }
+            if (!result.payloadKind.isEmpty()) {
+                builder.append(" payload=").append(result.payloadKind);
+            }
+            if (!result.bodyKind.isEmpty()) {
+                builder.append(" body=").append(result.bodyKind);
+            }
+            if (!result.eventName.isEmpty()) {
+                builder.append(" event=").append(result.eventName);
+            }
+            return builder.toString();
+        }
+
+        private String time(long millis) {
+            return new SimpleDateFormat("HH:mm:ss", Locale.US).format(new Date(millis));
+        }
     }
 
     private static final class PendingCommand {

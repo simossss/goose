@@ -26,12 +26,44 @@ final class GoosePacketIngestor {
         final String frameHex;
         final String parseSummary;
         final String importSummary;
+        final String packetTypeName;
+        final String payloadKind;
+        final String bodyKind;
+        final String eventName;
+        final int sequence;
+        final int rawInserted;
+        final int directRawInserted;
+        final int framesInserted;
+        final int framesExisting;
         final String error;
 
-        Result(String frameHex, String parseSummary, String importSummary, String error) {
+        Result(
+                String frameHex,
+                String parseSummary,
+                String importSummary,
+                String packetTypeName,
+                String payloadKind,
+                String bodyKind,
+                String eventName,
+                int sequence,
+                int rawInserted,
+                int directRawInserted,
+                int framesInserted,
+                int framesExisting,
+                String error
+        ) {
             this.frameHex = frameHex;
             this.parseSummary = parseSummary;
             this.importSummary = importSummary;
+            this.packetTypeName = packetTypeName;
+            this.payloadKind = payloadKind;
+            this.bodyKind = bodyKind;
+            this.eventName = eventName;
+            this.sequence = sequence;
+            this.rawInserted = rawInserted;
+            this.directRawInserted = directRawInserted;
+            this.framesInserted = framesInserted;
+            this.framesExisting = framesExisting;
             this.error = error;
         }
     }
@@ -116,29 +148,49 @@ final class GoosePacketIngestor {
                     captureSessionId
             );
             JSONArray issues = importReport.optJSONArray("issues");
+            int rawInserted = importReport.optInt("raw_inserted", 0);
+            int directRawInserted = importReport.optInt("direct_raw_inserted", 0);
+            int framesInserted = importReport.optInt("frames_inserted", 0);
+            int framesExisting = importReport.optInt("frames_existing", 0);
             String importSummary = "raw inserted "
-                    + importReport.optInt("raw_inserted", 0)
+                    + rawInserted
                     + ", direct raw inserted "
-                    + importReport.optInt("direct_raw_inserted", 0)
+                    + directRawInserted
                     + ", decoded inserted "
-                    + importReport.optInt("frames_inserted", 0)
+                    + framesInserted
                     + ", existing "
-                    + importReport.optInt("frames_existing", 0)
+                    + framesExisting
                     + ", issues "
                     + (issues != null ? issues.length() : 0);
             String parseSummary;
+            JSONObject parsedFrame = null;
             if (isGooseFrame(frameHex)) {
                 try {
-                    parseSummary = parseFrame(frameHex);
+                    parsedFrame = parseFrame(frameHex);
+                    parseSummary = parsedFrameSummary(parsedFrame);
                 } catch (Exception parseError) {
                     parseSummary = "parse failed after raw import: " + parseError;
                 }
             } else {
                 parseSummary = standardNotificationSummary(characteristicUuid, value);
             }
-            return new Result(frameHex, parseSummary, importSummary, null);
+            return new Result(
+                    frameHex,
+                    parseSummary,
+                    importSummary,
+                    parsedFrame != null ? parsedFrame.optString("packet_type_name", "") : "",
+                    parsedFrame != null ? parsedPayloadKind(parsedFrame) : standardPayloadKind(characteristicUuid, value),
+                    parsedFrame != null ? bodyKind(parsedFrame) : "",
+                    parsedFrame != null ? eventName(parsedFrame) : "",
+                    parsedFrame != null ? parsedFrame.optInt("sequence", -1) : -1,
+                    rawInserted,
+                    directRawInserted,
+                    framesInserted,
+                    framesExisting,
+                    null
+            );
         } catch (Exception error) {
-            return new Result(frameHex, "", "", error.toString());
+            return new Result(frameHex, "", "", "", "", "", "", -1, 0, 0, 0, 0, error.toString());
         }
     }
 
@@ -155,16 +207,62 @@ final class GoosePacketIngestor {
         return "non-Goose notification";
     }
 
-    private String parseFrame(String frameHex) throws Exception {
+    private String standardPayloadKind(String characteristicUuid, byte[] value) {
+        if ("00002a37-0000-1000-8000-00805f9b34fb".equalsIgnoreCase(characteristicUuid)
+                && value.length >= 2
+                && (value[0] & 0x01) == 0) {
+            return "standard_heart_rate";
+        }
+        return "standard_ble";
+    }
+
+    private JSONObject parseFrame(String frameHex) throws Exception {
         JSONObject args = new JSONObject()
                 .put("device_type", "GOOSE")
                 .put("frame_hex", frameHex);
-        JSONObject parsed = bridge.request("protocol.parse_frame_hex", args);
-        String summary = parsed.optString("summary", "");
-        if (!summary.isEmpty()) {
-            return summary;
+        return bridge.request("protocol.parse_frame_hex", args);
+    }
+
+    private String parsedFrameSummary(JSONObject parsed) {
+        String packetTypeName = parsed.optString("packet_type_name", "unknown");
+        int sequence = parsed.optInt("sequence", -1);
+        String payloadKind = parsedPayloadKind(parsed);
+        String bodyKind = bodyKind(parsed);
+        String eventName = eventName(parsed);
+        StringBuilder builder = new StringBuilder("packet=")
+                .append(packetTypeName)
+                .append(" seq=")
+                .append(sequence >= 0 ? sequence : "?")
+                .append(" payload=")
+                .append(payloadKind);
+        if (!bodyKind.isEmpty()) {
+            builder.append(" body=").append(bodyKind);
         }
-        return parsed.toString(2);
+        if (!eventName.isEmpty()) {
+            builder.append(" event=").append(eventName);
+        }
+        JSONArray warnings = parsed.optJSONArray("warnings");
+        builder.append(" warnings=").append(warnings != null ? warnings.length() : 0);
+        return builder.toString();
+    }
+
+    private String parsedPayloadKind(JSONObject parsed) {
+        JSONObject payload = parsed.optJSONObject("parsed_payload");
+        return payload != null ? payload.optString("kind", "") : "";
+    }
+
+    private String bodyKind(JSONObject parsed) {
+        JSONObject payload = parsed.optJSONObject("parsed_payload");
+        if (payload == null) {
+            return "";
+        }
+        JSONObject bodySummary = payload.optJSONObject("body_summary");
+        return bodySummary != null ? bodySummary.optString("kind", "") : "";
+    }
+
+    private String eventName(JSONObject parsed) {
+        JSONObject payload = parsed.optJSONObject("parsed_payload");
+        return payload != null ? payload.optString("event_name", "") : "";
     }
 
     private JSONObject importFrame(
