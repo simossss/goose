@@ -94,6 +94,8 @@ Scripts/android_phone_final_gate.sh
 
 Add `--require-health-success` after granting Health Connect permissions when
 the session should prove a successful platform write, not just a write attempt.
+Add `--require-step-validation` after running counted-step validation in the app
+when the final phone session should prove a passing step-validation audit row.
 
 Set `ANDROID_SERIAL` when more than one adb device is online. The helper uses
 `run-as com.goose.android`, so it expects the debug APK. It also pulls the
@@ -109,6 +111,8 @@ post-capture gate, set `GOOSE_ANDROID_MIN_RAW_EVIDENCE=1`,
 attempt and `GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1` to require a
 successful write. `Scripts/android_phone_final_gate.sh` enables the raw,
 session, session-tagged raw, finished-session, audit, and write-attempt gates.
+For counted-step validation, set `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1`
+or `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1`.
 
 The Android build expects generated Rust libraries under `Rust/android/`:
 
@@ -162,6 +166,10 @@ These files are build artifacts and are ignored by git.
 - Binds Android counted-step validation to the active or most recently finished
   capture session when one is available, so final phone checks do not mix
   packets from unrelated sessions in the same time window.
+- Records counted-step validation attempts to
+  `files/goose/step-validation-log.jsonl` so phone evidence bundles preserve the
+  validation session id, pass/fail state, frame counts, selected delta, and
+  issues.
 - Runs Rust-backed operational reports:
   - `metrics.input_readiness`
   - `capture.timeline`

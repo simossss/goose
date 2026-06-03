@@ -110,12 +110,21 @@ Result: ${inspection_result:-unknown}
 - Write succeeded events: $(summary_value "health sync write succeeded events")
 - Write failed events: $(summary_value "health sync write failed events")
 
+## Step Validation
+
+- Audit log: $(summary_value "step validation audit")
+- Audit bytes: $(summary_value "step validation audit bytes")
+- Completed events: $(summary_value "step validation completed events")
+- Passed events: $(summary_value "step validation passed events")
+- Failed events: $(summary_value "step validation failed events")
+
 ## Evidence Files
 
 - android-port-status.txt
 - inspect-android-capture.txt
 - goose-phone.sqlite
 - goose-phone-health-connect-sync-log.jsonl, when present
+- goose-phone-step-validation-log.jsonl, when present
 - logcat-goose-brief.txt
 SUMMARY
 
@@ -132,6 +141,7 @@ Key files:
 - logcat-goose-brief.txt: focused AndroidRuntime/Goose instrumentation logcat.
 - goose-phone.sqlite plus -wal/-shm: pulled debug app database files when present.
 - goose-phone-health-connect-sync-log.jsonl: Health Connect sync audit log when present.
+- goose-phone-step-validation-log.jsonl: counted-step validation audit log when present.
 - inspect-android-capture.txt: read-only SQLite capture summary.
 - phone-handoff-summary.md: concise PR and phone-session summary.
 - pull-android-database.txt: pull helper output.
@@ -143,6 +153,9 @@ GOOSE_ANDROID_STRICT_EVIDENCE=1 Scripts/collect_android_phone_evidence.sh
 Strict mode requires at least one raw_evidence row and one capture_sessions row.
 The final phone gate additionally requires session-tagged raw_evidence and a
 finished nonempty capture session.
+Set GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1 after a counted-step
+validation attempt, or GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1 when the
+step validation should pass.
 Set GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1 as well when validating a Health
 Connect sync attempt. Set GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1 to
 require a platform write attempt and GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1

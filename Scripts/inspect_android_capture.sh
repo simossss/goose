@@ -4,10 +4,13 @@ set -euo pipefail
 DATABASE="${1:-tmp/goose-phone.sqlite}"
 DATABASE_BASENAME="${DATABASE%.sqlite}"
 HEALTH_AUDIT_LOG="${HEALTH_AUDIT_LOG:-$DATABASE_BASENAME-health-connect-sync-log.jsonl}"
+STEP_VALIDATION_LOG="${STEP_VALIDATION_LOG:-$DATABASE_BASENAME-step-validation-log.jsonl}"
 MIN_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_RAW_EVIDENCE:-0}"
 MIN_CAPTURE_SESSIONS="${GOOSE_ANDROID_MIN_CAPTURE_SESSIONS:-0}"
 MIN_SESSION_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE:-0}"
 MIN_FINISHED_CAPTURE_SESSIONS="${GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS:-0}"
+REQUIRE_STEP_VALIDATION_AUDIT="${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT:-0}"
+REQUIRE_STEP_VALIDATION_PASS="${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}"
 REQUIRE_HEALTH_AUDIT="${GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT:-0}"
 REQUIRE_HEALTH_WRITE_ATTEMPT="${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT:-0}"
 REQUIRE_HEALTH_WRITE_SUCCESS="${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS:-0}"
@@ -27,6 +30,8 @@ Optional assertions:
   GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1
   GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=1
   GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1
+  GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1
+  GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1
   GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1
   GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1
   GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1
@@ -104,12 +109,22 @@ health_audit_blocked=0
 health_audit_write_started=0
 health_audit_write_succeeded=0
 health_audit_write_failed=0
+step_validation_bytes=0
+step_validation_completed=0
+step_validation_passed=0
+step_validation_failed=0
 if [[ -f "$HEALTH_AUDIT_LOG" ]]; then
   health_audit_bytes="$(wc -c < "$HEALTH_AUDIT_LOG" | tr -d ' ')"
   health_audit_blocked="$(grep -c '"event":"blocked"' "$HEALTH_AUDIT_LOG" || true)"
   health_audit_write_started="$(grep -c '"event":"write_started"' "$HEALTH_AUDIT_LOG" || true)"
   health_audit_write_succeeded="$(grep -c '"event":"write_succeeded"' "$HEALTH_AUDIT_LOG" || true)"
   health_audit_write_failed="$(grep -c '"event":"write_failed"' "$HEALTH_AUDIT_LOG" || true)"
+fi
+if [[ -f "$STEP_VALIDATION_LOG" ]]; then
+  step_validation_bytes="$(wc -c < "$STEP_VALIDATION_LOG" | tr -d ' ')"
+  step_validation_completed="$(grep -c '"event":"completed"' "$STEP_VALIDATION_LOG" || true)"
+  step_validation_passed="$(grep -c '"pass":true' "$STEP_VALIDATION_LOG" || true)"
+  step_validation_failed="$(grep -c '"event":"failed"' "$STEP_VALIDATION_LOG" || true)"
 fi
 
 echo "Android capture inspection"
@@ -129,6 +144,11 @@ echo "health sync blocked events: $health_audit_blocked"
 echo "health sync write started events: $health_audit_write_started"
 echo "health sync write succeeded events: $health_audit_write_succeeded"
 echo "health sync write failed events: $health_audit_write_failed"
+echo "step validation audit: $STEP_VALIDATION_LOG"
+echo "step validation audit bytes: $step_validation_bytes"
+echo "step validation completed events: $step_validation_completed"
+echo "step validation passed events: $step_validation_passed"
+echo "step validation failed events: $step_validation_failed"
 
 if table_exists raw_evidence; then
   echo
@@ -196,6 +216,12 @@ if [[ -f "$HEALTH_AUDIT_LOG" ]]; then
   tail -n 5 "$HEALTH_AUDIT_LOG"
 fi
 
+if [[ -f "$STEP_VALIDATION_LOG" ]]; then
+  echo
+  echo "Recent step validation audit rows"
+  tail -n 5 "$STEP_VALIDATION_LOG"
+fi
+
 failures=0
 if [[ "$raw_count" != "missing" && "$raw_count" -lt "$MIN_RAW_EVIDENCE" ]]; then
   echo "FAIL: raw_evidence rows $raw_count < required $MIN_RAW_EVIDENCE" >&2
@@ -226,6 +252,16 @@ if [[ "$finished_session_count" != "missing" && "$finished_session_count" -lt "$
   failures=$((failures + 1))
 elif [[ "$finished_session_count" == "missing" && "$MIN_FINISHED_CAPTURE_SESSIONS" -gt 0 ]]; then
   echo "FAIL: capture_sessions table missing" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_STEP_VALIDATION_AUDIT" == "1" && "$step_validation_completed" -le 0 ]]; then
+  echo "FAIL: step validation audit has no completed event" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_STEP_VALIDATION_PASS" == "1" && "$step_validation_passed" -le 0 ]]; then
+  echo "FAIL: step validation audit has no passing event" >&2
   failures=$((failures + 1))
 fi
 

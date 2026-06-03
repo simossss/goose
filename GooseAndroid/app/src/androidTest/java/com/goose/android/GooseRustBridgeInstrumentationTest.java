@@ -384,6 +384,7 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         }
         assertRawEvidenceTagged(databaseFile, sessionId);
         assertEvidenceReadinessReportPasses(context, databaseFile);
+        assertStepValidationAuditCapturesSession(context, databaseFile, sessionId);
     }
 
     private void assertRawEvidenceTagged(File databaseFile, String sessionId) {
@@ -437,6 +438,42 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 || !report.contains("raw evidence: 1")
                 || !report.contains("capture sessions: 1")) {
             throw new AssertionError("evidence readiness report did not pass after capture smoke: " + report);
+        }
+    }
+
+    private void assertStepValidationAuditCapturesSession(
+            Context context,
+            File databaseFile,
+            String sessionId
+    ) throws Exception {
+        File auditFile = new File(databaseFile.getParentFile(), "step-validation-log.jsonl");
+        if (auditFile.exists() && !auditFile.delete()) {
+            throw new AssertionError("could not clear stale step validation audit log: " + auditFile);
+        }
+        GooseStoreReporter reporter = new GooseStoreReporter(context, databaseFile.getAbsolutePath());
+        CountDownLatch latch = new CountDownLatch(1);
+        try {
+            reporter.stepValidation(
+                    "2026-01-01T00:00:00.000Z",
+                    "2026-01-01T00:00:03.000Z",
+                    40L,
+                    sessionId,
+                    report -> latch.countDown());
+            if (!latch.await(5, TimeUnit.SECONDS)) {
+                throw new AssertionError("step validation report did not callback");
+            }
+        } finally {
+            reporter.close();
+        }
+        String audit = readFile(auditFile);
+        if (!audit.contains("goose.android.step-validation-audit.v1")) {
+            throw new AssertionError("step validation audit missing schema: " + audit);
+        }
+        if (!audit.contains("\"event\":\"completed\"")) {
+            throw new AssertionError("step validation audit missing completed event: " + audit);
+        }
+        if (!audit.contains("\"capture_session_id\":\"" + sessionId + "\"")) {
+            throw new AssertionError("step validation audit missing capture session: " + audit);
         }
     }
 

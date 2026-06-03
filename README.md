@@ -289,6 +289,8 @@ Add `--require-health-success` when the final session should require a
 successful Health Connect platform write in addition to a write attempt.
 The final gate also requires session-tagged raw evidence and a finished capture
 session with `frame_count > 0`.
+Add `--require-step-validation` after running the in-app counted-step validation
+when the final session should require a passing step-validation audit row.
 
 Run the Android bridge/storage/protocol smoke harness on an emulator or device:
 

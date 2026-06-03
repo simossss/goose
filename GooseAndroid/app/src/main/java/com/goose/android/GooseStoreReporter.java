@@ -8,11 +8,14 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 final class GooseStoreReporter {
+    private static final long MAX_STEP_VALIDATION_AUDIT_BYTES = 256L * 1024L;
+
     interface Callback {
         void onReport(String report);
     }
@@ -25,6 +28,7 @@ final class GooseStoreReporter {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final File exportDirectory;
     private final File healthSyncAuditFile;
+    private final File stepValidationAuditFile;
     private final String databasePath;
 
     GooseStoreReporter(Context context, String databasePath) {
@@ -32,6 +36,8 @@ final class GooseStoreReporter {
         File databaseDirectory = new File(databasePath).getParentFile();
         healthSyncAuditFile = new File(databaseDirectory != null ? databaseDirectory : context.getFilesDir(),
                 "health-connect-sync-log.jsonl");
+        stepValidationAuditFile = new File(databaseDirectory != null ? databaseDirectory : context.getFilesDir(),
+                "step-validation-log.jsonl");
         exportDirectory = new File(context.getFilesDir(), "exports");
         if (!exportDirectory.exists()) {
             exportDirectory.mkdirs();
@@ -909,6 +915,7 @@ final class GooseStoreReporter {
     }
 
     private String runStepValidation(String start, String end, long manualStepDelta, String captureSessionId) {
+        JSONObject report = null;
         try {
             JSONObject args = new JSONObject()
                     .put("database_path", databasePath)
@@ -925,7 +932,8 @@ final class GooseStoreReporter {
             if (captureSessionId != null && !captureSessionId.trim().isEmpty()) {
                 args.put("capture_session_id", captureSessionId);
             }
-            JSONObject report = bridge.request("metrics.step_capture_validation", args);
+            report = bridge.request("metrics.step_capture_validation", args);
+            appendStepValidationAudit("completed", report, null);
             JSONObject selected = report.optJSONObject("selected_counter_delta");
             return "Step validation\n"
                     + "window: " + start + " -> " + end + "\n"
@@ -940,8 +948,62 @@ final class GooseStoreReporter {
                     + "selected delta: " + (selected != null ? selected.optLong("delta", 0) : "none") + "\n"
                     + "issues: " + report.optJSONArray("issues");
         } catch (Exception error) {
+            appendStepValidationAudit("failed", report, String.valueOf(error));
             return "Step validation failed\n" + error;
         }
+    }
+
+    private void appendStepValidationAudit(String event, JSONObject report, String error) {
+        try {
+            File parent = stepValidationAuditFile.getParentFile();
+            if (parent != null && !parent.exists() && !parent.mkdirs()) {
+                return;
+            }
+            rotateStepValidationAuditIfNeeded();
+            JSONObject row = new JSONObject()
+                    .put("schema", "goose.android.step-validation-audit.v1")
+                    .put("generated_by", "goose-android")
+                    .put("created_at_unix_ms", System.currentTimeMillis())
+                    .put("event", event);
+            if (report != null) {
+                JSONObject selected = report.optJSONObject("selected_counter_delta");
+                row.put("capture_session_id", report.optString("capture_session_id", ""))
+                        .put("start", report.optString("start", ""))
+                        .put("end", report.optString("end", ""))
+                        .put("manual_step_delta", report.opt("manual_step_delta"))
+                        .put("pass", report.optBoolean("pass", false))
+                        .put("decoded_frame_count", report.optInt("decoded_frame_count", 0))
+                        .put("capture_session_decoded_frame_count",
+                                report.optInt("capture_session_decoded_frame_count", 0))
+                        .put("inspected_frame_count", report.optInt("inspected_frame_count", 0))
+                        .put("counter_candidate_count", report.optInt("counter_candidate_count", 0))
+                        .put("counter_delta_candidate_count", report.optInt("counter_delta_candidate_count", 0))
+                        .put("selected_delta", selected != null ? selected.optLong("delta", 0) : JSONObject.NULL)
+                        .put("issues", report.optJSONArray("issues"));
+            }
+            if (error != null) {
+                row.put("error", error);
+            }
+            FileWriter writer = new FileWriter(stepValidationAuditFile, true);
+            try {
+                writer.write(row.toString());
+                writer.write('\n');
+            } finally {
+                writer.close();
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void rotateStepValidationAuditIfNeeded() {
+        if (!stepValidationAuditFile.exists() || stepValidationAuditFile.length() <= MAX_STEP_VALIDATION_AUDIT_BYTES) {
+            return;
+        }
+        File rotated = new File(stepValidationAuditFile.getParentFile(), stepValidationAuditFile.getName() + ".old");
+        if (rotated.exists() && !rotated.delete()) {
+            return;
+        }
+        stepValidationAuditFile.renameTo(rotated);
     }
 
     private String runRecoverySensors() {

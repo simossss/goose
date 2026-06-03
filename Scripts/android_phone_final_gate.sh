@@ -7,10 +7,11 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUTPUT_DIR="$APP_DIR/tmp/android-phone-final-gate-$STAMP"
 REQUIRE_HEALTH_SUCCESS=0
 REQUIRE_HEALTH=1
+REQUIRE_STEP_VALIDATION=0
 
 usage() {
   cat <<'USAGE'
-Usage: Scripts/android_phone_final_gate.sh [output-dir] [--require-health-success] [--skip-health]
+Usage: Scripts/android_phone_final_gate.sh [output-dir] [--require-step-validation] [--require-health-success] [--skip-health]
 
 Collects the final Android phone evidence bundle with strict pass/fail gates:
 - at least one raw_evidence row
@@ -21,6 +22,8 @@ Collects the final Android phone evidence bundle with strict pass/fail gates:
 
 Use --require-health-success only after granting Health Connect permissions and
 creating at least one writeable planned record in the app.
+Use --require-step-validation after running the counted-step validation action
+in the app for the controlled capture session.
 
 Set ANDROID_SERIAL when more than one adb device is online.
 USAGE
@@ -30,6 +33,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --require-health-success)
       REQUIRE_HEALTH_SUCCESS=1
+      shift
+      ;;
+    --require-step-validation)
+      REQUIRE_STEP_VALIDATION=1
       shift
       ;;
     --skip-health)
@@ -55,6 +62,9 @@ done
 echo "Running Goose Android final phone gate"
 echo "output: $OUTPUT_DIR"
 echo "strict capture evidence: required"
+if [[ "$REQUIRE_STEP_VALIDATION" == "1" ]]; then
+  echo "Step validation audit/pass: required"
+fi
 if [[ "$REQUIRE_HEALTH" == "1" ]]; then
   echo "Health Connect audit/write attempt: required"
   if [[ "$REQUIRE_HEALTH_SUCCESS" == "1" ]]; then
@@ -69,6 +79,11 @@ export GOOSE_ANDROID_MIN_RAW_EVIDENCE=1
 export GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1
 export GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=1
 export GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1
+
+if [[ "$REQUIRE_STEP_VALIDATION" == "1" ]]; then
+  export GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1
+  export GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1
+fi
 
 if [[ "$REQUIRE_HEALTH" == "1" ]]; then
   export GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1
