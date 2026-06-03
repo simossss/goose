@@ -53,5 +53,16 @@ echo "==> Installing debug APKs on $device_serial"
 "$ADB" -s "$device_serial" install -r "$ANDROID_DIR/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
 
 echo "==> Running Goose Android bridge instrumentation on $device_serial"
-"$ADB" -s "$device_serial" shell am instrument -w \
-  com.goose.android.test/com.goose.android.GooseRustBridgeInstrumentationTest
+instrumentation_output="$("$ADB" -s "$device_serial" shell am instrument -w \
+  com.goose.android.test/com.goose.android.GooseRustBridgeInstrumentationTest 2>&1)"
+printf '%s\n' "$instrumentation_output"
+
+if ! grep -q "INSTRUMENTATION_RESULT: result=passed" <<<"$instrumentation_output"; then
+  echo "Android instrumentation did not report result=passed" >&2
+  exit 1
+fi
+
+if ! grep -q "INSTRUMENTATION_CODE: 0" <<<"$instrumentation_output"; then
+  echo "Android instrumentation did not report INSTRUMENTATION_CODE: 0" >&2
+  exit 1
+fi
