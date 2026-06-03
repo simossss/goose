@@ -116,6 +116,9 @@ These files are build artifacts and are ignored by git.
   - `metrics.step_packet_discovery`
   - `metrics.step_capture_validation`
   - `metrics.recovery_sensor_discovery`
+  - `metrics.activity_unavailable_daily_status`
+  - `metrics.energy_unavailable_daily_status`
+  - `metrics.recovery_unavailable_daily_status`
 - Declares the Android Health Connect write permissions for Goose-owned metric
   families, exposes permission/status actions, feeds granted
   permissions into the Rust `health_sync.dry_run` gate, and routes approved
@@ -142,8 +145,8 @@ These files are build artifacts and are ignored by git.
 6. Press `Range` to prepare a command write, review the frame/preflight text,
    then press `Range` again within 15 seconds to send. Use the same two-tap
    flow for `History` and `Abort`.
-7. Use `HR`, `Sensors`, `Steps`, and `Sessions` for compact summaries instead
-   of dumping large raw JSON in the UI.
+7. Use `Heart`, `Sensors`, `Steps`, `Blocked`, and `Sessions` for compact
+   summaries instead of dumping large raw JSON in the UI.
 
 The current build has captured live heart-rate packets and imported WHOOP
 historical data from a physical WHOOP 5.0. Explicit step-counter extraction is

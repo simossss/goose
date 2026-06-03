@@ -88,6 +88,9 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             throw new AssertionError("storage.check did not pass: " + storage);
         }
 
+        Log.i(TAG, "calling unavailable metric status reports");
+        assertUnavailableStatusReports(bridge, databaseFile);
+
         Log.i(TAG, "calling protocol.parse_frame_hex");
         JSONObject parseArgs = new JSONObject()
                 .put("device_type", "Goose")
@@ -270,6 +273,41 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             HealthConnectSupport.recordFromPlannedWrite(write);
             throw new AssertionError("planned write should have been rejected: " + label);
         } catch (IllegalArgumentException expected) {
+        }
+    }
+
+    private void assertUnavailableStatusReports(GooseRustBridge bridge, File databaseFile) throws Exception {
+        JSONObject activity = bridge.request("metrics.activity_unavailable_daily_status", new JSONObject()
+                .put("database_path", databaseFile.getAbsolutePath())
+                .put("date_key", "2026-01-01")
+                .put("timezone", "UTC")
+                .put("start_time_unix_ms", 1767225600000L)
+                .put("end_time_unix_ms", 1767312000000L)
+                .put("write_metric", false));
+        if (!"goose.activity-unavailable-daily-status-report.v1".equals(activity.optString("schema"))) {
+            throw new AssertionError("unexpected activity unavailable schema: " + activity);
+        }
+
+        JSONObject energy = bridge.request("metrics.energy_unavailable_daily_status", new JSONObject()
+                .put("database_path", databaseFile.getAbsolutePath())
+                .put("date_key", "2026-01-01")
+                .put("timezone", "UTC")
+                .put("start", "2026-01-01T00:00:00.000Z")
+                .put("end", "2026-01-02T00:00:00.000Z")
+                .put("write_metric", false));
+        if (!"goose.energy-unavailable-daily-status-report.v1".equals(energy.optString("schema"))) {
+            throw new AssertionError("unexpected energy unavailable schema: " + energy);
+        }
+
+        JSONObject recovery = bridge.request("metrics.recovery_unavailable_daily_status", new JSONObject()
+                .put("database_path", databaseFile.getAbsolutePath())
+                .put("date_key", "2026-01-01")
+                .put("timezone", "UTC")
+                .put("start", "2026-01-01T00:00:00.000Z")
+                .put("end", "2026-01-02T00:00:00.000Z")
+                .put("write_metric", false));
+        if (!"goose.recovery-unavailable-daily-status-report.v1".equals(recovery.optString("schema"))) {
+            throw new AssertionError("unexpected recovery unavailable schema: " + recovery);
         }
     }
 

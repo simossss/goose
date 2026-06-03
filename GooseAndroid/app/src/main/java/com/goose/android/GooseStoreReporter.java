@@ -117,6 +117,10 @@ final class GooseStoreReporter {
         executor.execute(() -> callback.onReport(runRecoverySensors()));
     }
 
+    void unavailableStatuses(Callback callback) {
+        executor.execute(() -> callback.onReport(runUnavailableStatuses()));
+    }
+
     void close() {
         executor.shutdownNow();
     }
@@ -878,6 +882,90 @@ final class GooseStoreReporter {
                     + "issues: " + report.optJSONArray("issues");
         } catch (Exception error) {
             return "Recovery sensors failed\n" + error;
+        }
+    }
+
+    private String runUnavailableStatuses() {
+        try {
+            DailyWindow window = utcTodayWindow();
+            JSONObject activity = bridge.request("metrics.activity_unavailable_daily_status",
+                    new JSONObject()
+                            .put("database_path", databasePath)
+                            .put("date_key", window.dateKey)
+                            .put("timezone", "UTC")
+                            .put("start_time_unix_ms", window.startMillis)
+                            .put("end_time_unix_ms", window.endMillis)
+                            .put("write_metric", false));
+            JSONObject energy = bridge.request("metrics.energy_unavailable_daily_status",
+                    new JSONObject()
+                            .put("database_path", databasePath)
+                            .put("date_key", window.dateKey)
+                            .put("timezone", "UTC")
+                            .put("start", window.startIso)
+                            .put("end", window.endIso)
+                            .put("write_metric", false));
+            JSONObject recovery = bridge.request("metrics.recovery_unavailable_daily_status",
+                    new JSONObject()
+                            .put("database_path", databasePath)
+                            .put("date_key", window.dateKey)
+                            .put("timezone", "UTC")
+                            .put("start", window.startIso)
+                            .put("end", window.endIso)
+                            .put("write_metric", false));
+            return "Blocked metric statuses\n"
+                    + "date: " + window.dateKey + " UTC\n\n"
+                    + unavailableSummary("activity", activity) + "\n\n"
+                    + unavailableSummary("energy", energy) + "\n\n"
+                    + unavailableSummary("recovery", recovery);
+        } catch (Exception error) {
+            return "Blocked metric statuses failed\n" + error;
+        }
+    }
+
+    private String unavailableSummary(String label, JSONObject report) {
+        return label + "\n"
+                + "pass: " + report.optBoolean("pass", false) + "\n"
+                + "unavailable: " + report.optInt("unavailable_metric_count", 0) + "\n"
+                + "written: " + report.optInt("written_metric_count", 0) + "\n"
+                + "issues: " + report.optJSONArray("issues") + "\n"
+                + "next actions: " + report.optJSONArray("next_actions");
+    }
+
+    private static DailyWindow utcTodayWindow() {
+        java.util.TimeZone utc = java.util.TimeZone.getTimeZone("UTC");
+        java.util.Calendar calendar = java.util.Calendar.getInstance(utc, java.util.Locale.US);
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0);
+        calendar.set(java.util.Calendar.MINUTE, 0);
+        calendar.set(java.util.Calendar.SECOND, 0);
+        calendar.set(java.util.Calendar.MILLISECOND, 0);
+        long startMillis = calendar.getTimeInMillis();
+        java.text.SimpleDateFormat dateFormatter = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+        dateFormatter.setTimeZone(utc);
+        String dateKey = dateFormatter.format(calendar.getTime());
+        calendar.add(java.util.Calendar.DAY_OF_MONTH, 1);
+        long endMillis = calendar.getTimeInMillis();
+        return new DailyWindow(
+                dateKey,
+                startMillis,
+                endMillis,
+                iso8601(startMillis),
+                iso8601(endMillis)
+        );
+    }
+
+    private static final class DailyWindow {
+        final String dateKey;
+        final long startMillis;
+        final long endMillis;
+        final String startIso;
+        final String endIso;
+
+        DailyWindow(String dateKey, long startMillis, long endMillis, String startIso, String endIso) {
+            this.dateKey = dateKey;
+            this.startMillis = startMillis;
+            this.endMillis = endMillis;
+            this.startIso = startIso;
+            this.endIso = endIso;
         }
     }
 }

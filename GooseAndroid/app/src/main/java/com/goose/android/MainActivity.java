@@ -409,6 +409,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         Button sensorsButton = secondaryButton("Sensors");
         sensorsButton.setOnClickListener(view -> runReport(storeReporter::recoverySensors));
         metricActions.addView(sensorsButton, weightWrap());
+        Button blockedButton = secondaryButton("Blocked");
+        blockedButton.setOnClickListener(view -> runReport(storeReporter::unavailableStatuses));
+        metricActions.addView(blockedButton, weightWrap());
         reportsSection.addView(metricActions);
 
         opsSection.addView(sectionText("More"));
