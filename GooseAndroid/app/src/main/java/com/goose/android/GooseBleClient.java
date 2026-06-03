@@ -201,6 +201,7 @@ final class GooseBleClient {
     private static final UUID MANUFACTURER_NAME = UUID.fromString("00002a29-0000-1000-8000-00805f9b34fb");
     private static final UUID CLIENT_CHARACTERISTIC_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
     private static final byte[] CLIENT_HELLO_FRAME = Hex.decode("aa0108000001e67123019101363e5c8d");
+    private static final int MAX_TRACKED_SCAN_DEVICES = 32;
     private static final int MAX_PUBLISHED_DEVICES = 8;
     private static final int MAX_ADVERTISEMENT_DISPLAY_LINES = 4;
     private static final int MAX_ADVERTISEMENT_DISPLAY_CHARS = 220;
@@ -440,6 +441,7 @@ final class GooseBleClient {
                     looksLikeWhoop(result)
             );
             devices.put(row.address, row);
+            trimStoredDevices();
             if (row.likelyWhoop) {
                 stopScan();
                 publishDevicesNow();
@@ -550,17 +552,43 @@ final class GooseBleClient {
             return;
         }
         lastDevicePublishAtMillis = System.currentTimeMillis();
-        List<DeviceRow> rows = new ArrayList<>(devices.values());
+        listener.onDevicesChanged(cappedPublishedRows(new ArrayList<>(devices.values())));
+    }
+
+    private void trimStoredDevices() {
+        if (devices.size() <= MAX_TRACKED_SCAN_DEVICES) {
+            return;
+        }
+        List<DeviceRow> rows = cappedScanRows(new ArrayList<>(devices.values()));
+        devices.clear();
+        for (DeviceRow row : rows) {
+            devices.put(row.address, row);
+        }
+    }
+
+    static List<DeviceRow> cappedPublishedRows(List<DeviceRow> rows) {
+        sortDeviceRows(rows);
+        if (rows.size() > MAX_PUBLISHED_DEVICES) {
+            return new ArrayList<>(rows.subList(0, MAX_PUBLISHED_DEVICES));
+        }
+        return rows;
+    }
+
+    static List<DeviceRow> cappedScanRows(List<DeviceRow> rows) {
+        sortDeviceRows(rows);
+        if (rows.size() > MAX_TRACKED_SCAN_DEVICES) {
+            return new ArrayList<>(rows.subList(0, MAX_TRACKED_SCAN_DEVICES));
+        }
+        return rows;
+    }
+
+    private static void sortDeviceRows(List<DeviceRow> rows) {
         Collections.sort(rows, (left, right) -> {
             if (left.likelyWhoop != right.likelyWhoop) {
                 return left.likelyWhoop ? -1 : 1;
             }
             return Integer.compare(right.rssi, left.rssi);
         });
-        if (rows.size() > MAX_PUBLISHED_DEVICES) {
-            rows = new ArrayList<>(rows.subList(0, MAX_PUBLISHED_DEVICES));
-        }
-        listener.onDevicesChanged(rows);
     }
 
     private String advertisementSummary(ScanResult result) {
