@@ -25,6 +25,7 @@ fi
 IFS=' ' read -r -a GOOSE_ANDROID_ABIS <<< "${ANDROID_ABIS:-arm64-v8a armeabi-v7a x86_64}"
 
 echo "==> Checking Android helper shell syntax"
+bash -n "$SCRIPT_DIR/android_final_phone_checklist.sh"
 bash -n "$SCRIPT_DIR/android_port_status.sh"
 bash -n "$SCRIPT_DIR/android_phone_final_gate.sh"
 bash -n "$SCRIPT_DIR/android_pr_readiness.sh"

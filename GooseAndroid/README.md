@@ -32,6 +32,12 @@ optional phone evidence bundle:
 Scripts/android_pr_readiness.sh [tmp/android-phone-final-gate-...]
 ```
 
+Print the final real-phone run sheet before starting the controlled capture:
+
+```sh
+Scripts/android_final_phone_checklist.sh
+```
+
 Manual build from Android Studio or the command line:
 
 ```sh
@@ -219,6 +225,7 @@ These files are build artifacts and are ignored by git.
 
 1. Install and open the debug app on an Android phone with
    `Scripts/install_android_debug.sh`, or run the app from Android Studio.
+   For the concise final-run sheet, run `Scripts/android_final_phone_checklist.sh`.
 2. Grant Bluetooth permissions. Android 11 and older also require location for
    BLE scanning.
 3. Press `Scan`, then tap the WHOOP candidate when it appears.

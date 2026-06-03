@@ -249,6 +249,12 @@ including a collected phone evidence bundle:
 Scripts/android_pr_readiness.sh [tmp/android-phone-final-gate-...]
 ```
 
+Print the final real-phone run sheet before starting the controlled capture:
+
+```bash
+Scripts/android_final_phone_checklist.sh
+```
+
 Manual app build:
 
 ```bash
