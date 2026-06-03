@@ -2,7 +2,9 @@ package com.goose.android;
 
 import android.app.Instrumentation;
 import android.content.Context;
+import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.FeatureInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -156,6 +158,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertBluetoothRuntimePermissionScope(context);
         Log.i(TAG, "checking installed app privacy flags");
         assertApplicationPrivacyFlags(context);
+        Log.i(TAG, "checking installed app launch and hardware manifest");
+        assertApplicationInstallScope(context);
 
         Log.i(TAG, "calling privacy.lint");
         File lintDir = new File(context.getCacheDir(), "goose-smoke-privacy");
@@ -167,6 +171,48 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         if (privacyLint.length() == 0) {
             throw new AssertionError("privacy.lint returned an empty object");
         }
+    }
+
+    private void assertApplicationInstallScope(Context context) throws Exception {
+        if (!"com.goose.android".equals(context.getPackageName())) {
+            throw new AssertionError("unexpected application id: " + context.getPackageName());
+        }
+        PackageInfo info = context.getPackageManager().getPackageInfo(
+                context.getPackageName(),
+                PackageManager.GET_ACTIVITIES | PackageManager.GET_CONFIGURATIONS
+        );
+        assertMainActivityExported(info);
+        assertRequiredBleFeature(info);
+    }
+
+    private void assertMainActivityExported(PackageInfo info) {
+        if (info.activities == null) {
+            throw new AssertionError("package activities metadata missing");
+        }
+        for (ActivityInfo activity : info.activities) {
+            if ("com.goose.android.MainActivity".equals(activity.name)) {
+                if (!activity.exported) {
+                    throw new AssertionError("MainActivity must remain exported for launcher access");
+                }
+                return;
+            }
+        }
+        throw new AssertionError("MainActivity not found in installed package");
+    }
+
+    private void assertRequiredBleFeature(PackageInfo info) {
+        if (info.reqFeatures == null) {
+            throw new AssertionError("required feature metadata missing");
+        }
+        for (FeatureInfo feature : info.reqFeatures) {
+            if (PackageManager.FEATURE_BLUETOOTH_LE.equals(feature.name)) {
+                if ((feature.flags & FeatureInfo.FLAG_REQUIRED) == 0) {
+                    throw new AssertionError("BLE hardware feature must remain required");
+                }
+                return;
+            }
+        }
+        throw new AssertionError("BLE hardware feature not declared");
     }
 
     private void assertApplicationPrivacyFlags(Context context) throws Exception {
