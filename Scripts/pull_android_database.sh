@@ -61,6 +61,7 @@ pull_file() {
     echo "Install a debug build first; run-as is not available for release APKs." >&2
     exit 1
   fi
+  rm -f "$output_path"
 }
 
 pull_file "$REMOTE_DIR/goose.sqlite" "$OUTPUT" 1

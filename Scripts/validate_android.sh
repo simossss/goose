@@ -539,6 +539,7 @@ assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "## Capture
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" 'summary_section "Capture session evidence detail"' "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/pull_android_database.sh" "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" "database pull"
+assert_file_contains "$SCRIPT_DIR/pull_android_database.sh" 'rm -f "$output_path"' "database pull optional stale cleanup"
 assert_file_contains "$SCRIPT_DIR/validate_android.sh" "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" "Android validation"
 
 find_build_tool() {
