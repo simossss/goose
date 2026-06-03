@@ -36,7 +36,8 @@ cd GooseAndroid
 The Gradle project wires `:app:preDebugBuild`,
 `:app:preDebugAndroidTestBuild`, and `:app:preReleaseBuild` to
 `Scripts/build_android_rust.sh`, so Android Studio builds refresh
-`Rust/android/` automatically. You can still run `Scripts/build_android_rust.sh`
+`Rust/android/` automatically and verify each ABI's generated profile/target
+markers before packaging. You can still run `Scripts/build_android_rust.sh`
 directly when debugging the Rust cross-compile step.
 
 Run the on-device/emulator smoke harness:

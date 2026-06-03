@@ -4,6 +4,11 @@ plugins {
 
 def repoRoot = rootProject.projectDir.parentFile
 def androidRustBuildScript = file("${repoRoot}/Scripts/build_android_rust.sh")
+def gooseAndroidAbis = [
+        "arm64-v8a"    : "aarch64-linux-android",
+        "armeabi-v7a" : "armv7-linux-androideabi",
+        "x86_64"      : "x86_64-linux-android"
+]
 
 def registerRustBuildTask(String taskName, String configuration, File repositoryRoot, File buildScript) {
     tasks.register(taskName, Exec) {
@@ -17,6 +22,43 @@ def registerRustBuildTask(String taskName, String configuration, File repository
 
 def buildRustDebug = registerRustBuildTask("buildRustDebug", "Debug", repoRoot, androidRustBuildScript)
 def buildRustRelease = registerRustBuildTask("buildRustRelease", "Release", repoRoot, androidRustBuildScript)
+buildRustRelease.configure {
+    mustRunAfter buildRustDebug
+}
+
+def registerRustProfileVerificationTask(
+        String taskName,
+        String profile,
+        TaskProvider<Exec> buildTask,
+        Map<String, String> abis,
+        File repositoryRoot
+) {
+    tasks.register(taskName) {
+        group = "verification"
+        description = "Verify Goose Rust Android ${profile} libraries are present for all APK ABIs"
+        dependsOn buildTask
+        doLast {
+            abis.each { abi, rustTarget ->
+                def abiDir = new File(repositoryRoot, "Rust/android/${abi}")
+                def library = new File(abiDir, "libgoose_core.so")
+                def profileMarker = new File(abiDir, ".goose_core.profile")
+                def targetMarker = new File(abiDir, ".goose_core.target")
+                if (!library.isFile()) {
+                    throw new GradleException("Missing Goose Rust library for ${abi}: ${library}")
+                }
+                if (!profileMarker.isFile() || profileMarker.text.trim() != profile) {
+                    throw new GradleException("Goose Rust ${abi} profile marker must be ${profile}: ${profileMarker}")
+                }
+                if (!targetMarker.isFile() || targetMarker.text.trim() != rustTarget) {
+                    throw new GradleException("Goose Rust ${abi} target marker must be ${rustTarget}: ${targetMarker}")
+                }
+            }
+        }
+    }
+}
+
+def verifyRustDebug = registerRustProfileVerificationTask("verifyRustDebug", "debug", buildRustDebug, gooseAndroidAbis, repoRoot)
+def verifyRustRelease = registerRustProfileVerificationTask("verifyRustRelease", "release", buildRustRelease, gooseAndroidAbis, repoRoot)
 
 android {
     namespace "com.goose.android"
@@ -50,9 +92,9 @@ android {
 }
 
 tasks.matching { it.name == "preDebugBuild" || it.name == "preDebugAndroidTestBuild" }.configureEach {
-    dependsOn buildRustDebug
+    dependsOn verifyRustDebug
 }
 
 tasks.matching { it.name == "preReleaseBuild" }.configureEach {
-    dependsOn buildRustRelease
+    dependsOn verifyRustRelease
 }
