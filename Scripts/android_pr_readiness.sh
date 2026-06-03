@@ -346,6 +346,10 @@ if [[ "$physical_capture_verified" != "1" ]]; then
   echo "- Physical WHOOP scan/connect validation and controlled capture pull inspected with \`Scripts/inspect_android_capture.sh\`."
   remaining_any=1
 fi
+if [[ "$installed_package_verified" != "1" ]]; then
+  echo "- Installed com.goose.android package metadata must pass the evidence gate."
+  remaining_any=1
+fi
 if [[ "$ble_hello_verified" != "1" ]]; then
   echo "- BLE session audit from the final gate must prove command characteristic readiness and client hello sent."
   remaining_any=1
