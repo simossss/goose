@@ -110,6 +110,7 @@ physical_capture_verified=0
 ble_hello_verified=0
 installed_package_verified=0
 no_android_runtime_crash_verified=0
+evidence_manifest_verified=0
 step_validation_verified=0
 health_attempt_verified=0
 health_success_verified=0
@@ -118,6 +119,7 @@ bundle_profile="not supplied"
 if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
   summary="$PHONE_EVIDENCE_DIR/phone-handoff-summary.md"
   gates="$PHONE_EVIDENCE_DIR/evidence-gates.txt"
+  manifest="$PHONE_EVIDENCE_DIR/evidence-files-manifest.txt"
   if [[ -f "$summary" ]]; then
     phone_evidence_supplied=1
     phone_summary_valid=1
@@ -181,6 +183,10 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     fi
     if [[ "$phone_result" == "PASS" && "$android_runtime_crash_lines" =~ ^[0-9]+$ && "$android_runtime_crash_lines" -eq 0 ]]; then
       no_android_runtime_crash_verified=1
+    fi
+    if [[ "$phone_result" == "PASS" && -f "$manifest" ]] \
+      && head -n 1 "$manifest" | grep -qx $'path\tbytes\tsha256'; then
+      evidence_manifest_verified=1
     fi
     if [[ "$phone_result" == "PASS" && "$require_ble_hello" == "1" ]] \
       && is_positive_int "$ble_ready_events" \
@@ -315,6 +321,10 @@ if [[ "$no_android_runtime_crash_verified" == "1" ]]; then
   echo "- Focused AndroidRuntime logcat has no com.goose.android crash lines."
   verified_any=1
 fi
+if [[ "$evidence_manifest_verified" == "1" ]]; then
+  echo "- Evidence file manifest with byte counts and SHA-256 hashes is present."
+  verified_any=1
+fi
 if [[ "$ble_hello_verified" == "1" ]]; then
   echo "- BLE session audit proves the app reached ready state with command characteristic ready and client hello sent."
   verified_any=1
@@ -356,6 +366,10 @@ if [[ "$ble_hello_verified" != "1" ]]; then
 fi
 if [[ "$no_android_runtime_crash_verified" != "1" ]]; then
   echo "- Focused AndroidRuntime logcat must have 0 com.goose.android crash lines."
+  remaining_any=1
+fi
+if [[ "$evidence_manifest_verified" != "1" ]]; then
+  echo "- Evidence bundle must include evidence-files-manifest.txt with path, byte, and SHA-256 columns."
   remaining_any=1
 fi
 if [[ "$step_validation_verified" != "1" ]]; then
