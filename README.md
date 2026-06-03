@@ -337,9 +337,10 @@ planned writes, candidates, and attempted records in the audit row.
 The final gate also requires session-tagged raw evidence and a finished capture
 session with `frame_count > 0`, plus installed `com.goose.android` package
 metadata from the device, session-tagged Android BLE live-notification raw
-evidence, and a BLE session audit proving command readiness and client hello
-sent. Add `--allow-emulator` only for development smoke tests; PR acceptance
-still needs physical-phone evidence.
+evidence, no focused AndroidRuntime crash lines for Goose, and a BLE session
+audit proving command readiness and client hello sent. Add `--allow-emulator`
+only for development smoke tests; PR acceptance still needs physical-phone
+evidence.
 Add `--require-step-validation` after running the in-app counted-step validation
 when the final session should require a passing step-validation audit row bound
 to a decoded capture session with a selected counter delta.

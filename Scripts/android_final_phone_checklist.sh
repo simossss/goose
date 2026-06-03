@@ -77,6 +77,7 @@ Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
 ## Evidence Expected To Pass
 
 - Installed com.goose.android package metadata: PASS.
+- Focused AndroidRuntime crash lines: 0.
 - BLE session ready events: at least 1.
 - BLE session hello sent events: at least 1.
 - BLE session command ready events: at least 1.

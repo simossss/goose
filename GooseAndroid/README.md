@@ -166,9 +166,9 @@ permissions-ready planned-write context on that attempt, and
 `GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1` to require a
 successful write. `Scripts/android_phone_final_gate.sh` enables the physical
 device, BLE hello, raw, session, session-tagged raw, finished-session,
-installed-package, Health Connect audit, and write-attempt gates by default.
-Add `--skip-health` only for development smoke tests and `--allow-emulator`
-only for emulator smoke tests.
+installed-package, no-focused-AndroidRuntime-crash, Health Connect audit, and
+write-attempt gates by default. Add `--skip-health` only for development smoke
+tests and `--allow-emulator` only for emulator smoke tests.
 For counted-step validation, set `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1`,
 `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1`, or
 `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION=1`.

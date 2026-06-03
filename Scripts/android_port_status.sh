@@ -97,6 +97,7 @@ Phone-bound completion checks:
   3. Controlled capture pull with session-tagged Android BLE live-notification raw evidence inspected with Scripts/inspect_android_capture.sh.
   4. Step-counter decoder confirmation from real counted-step evidence bound to a decoded capture session.
   5. Health Connect permission grant and real planned write attempt on Android 14+ with permissions-ready planned-write evidence.
+  6. Focused AndroidRuntime logcat has no com.goose.android crash lines.
 
 Generated artifact policy:
   Rust/android/, GooseAndroid/**/build/, GooseAndroid/**/.cxx/, local.properties,
