@@ -568,6 +568,15 @@ final class GooseBleClient {
 
     static List<DeviceRow> cappedPublishedRows(List<DeviceRow> rows) {
         sortDeviceRows(rows);
+        if (hasLikelyWhoop(rows)) {
+            List<DeviceRow> likelyRows = new ArrayList<>();
+            for (DeviceRow row : rows) {
+                if (row.likelyWhoop) {
+                    likelyRows.add(row);
+                }
+            }
+            rows = likelyRows;
+        }
         if (rows.size() > MAX_PUBLISHED_DEVICES) {
             return new ArrayList<>(rows.subList(0, MAX_PUBLISHED_DEVICES));
         }
@@ -589,6 +598,15 @@ final class GooseBleClient {
             }
             return Integer.compare(right.rssi, left.rssi);
         });
+    }
+
+    private static boolean hasLikelyWhoop(List<DeviceRow> rows) {
+        for (DeviceRow row : rows) {
+            if (row.likelyWhoop) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String advertisementSummary(ScanResult result) {

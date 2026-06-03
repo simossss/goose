@@ -895,12 +895,32 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             throw new AssertionError("likely WHOOP row was not kept first in capped scan rows");
         }
         List<GooseBleClient.DeviceRow> publishedRows = GooseBleClient.cappedPublishedRows(new ArrayList<>(trackedRows));
-        if (publishedRows.size() != 8) {
-            throw new AssertionError("published BLE scan rows were not capped: " + publishedRows.size());
+        if (publishedRows.size() != 1) {
+            throw new AssertionError("published BLE scan rows should suppress generic devices after WHOOP is found: "
+                    + publishedRows.size());
         }
         if (publishedRows.get(0) != weakWhoop) {
             throw new AssertionError("likely WHOOP row was not kept first in published scan rows");
         }
+
+        List<GooseBleClient.DeviceRow> genericPublishedRows = GooseBleClient.cappedPublishedRows(noisyGenericRows());
+        if (genericPublishedRows.size() != 8) {
+            throw new AssertionError("generic BLE scan rows were not capped before WHOOP discovery: "
+                    + genericPublishedRows.size());
+        }
+    }
+
+    private List<GooseBleClient.DeviceRow> noisyGenericRows() {
+        List<GooseBleClient.DeviceRow> rows = new ArrayList<>();
+        for (int index = 0; index < 40; index += 1) {
+            rows.add(new GooseBleClient.DeviceRow(
+                    String.format(Locale.US, "00:AA:BB:CC:DD:%02X", index),
+                    "Unknown BLE device",
+                    -90 + index,
+                    "No advertised services",
+                    false));
+        }
+        return rows;
     }
 
     private void assertStepValidationUiGuardrails() {
