@@ -51,7 +51,8 @@ Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real
 This runs local Android validation, collects final phone evidence with required
 step validation, then applies strict PR readiness. Add
 `--require-health-success` when the run must prove a successful Health Connect
-platform write, or `--skip-validate` when local validation was already run.
+platform write, `--skip-validate` when local validation was already run, or
+`--dry-run` to print the command sequence without using adb.
 
 Manual build from Android Studio or the command line:
 
