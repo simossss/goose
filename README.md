@@ -221,7 +221,8 @@ loads the Goose Rust core through a JNI shim, scans/connects over Android BLE,
 subscribes to WHOOP notification characteristics, sends validated WHOOP command
 frames, parses/imports live frames into app-local SQLite, tracks capture
 sessions, exposes Rust-backed Health/Debug/Ops reports, and includes Health
-Connect permission/dry-run scaffolding.
+Connect permission, dry-run, and planned-write support for Goose-owned steps,
+heart rate, and active calories.
 
 Run the Android validation gate from the repository root:
 
@@ -253,7 +254,7 @@ adb shell am instrument -w com.goose.android.test/com.goose.android.GooseRustBri
 
 The remaining phone-dependent work is physical WHOOP strap validation, final
 step-counter decoder confirmation, and Health Connect permission/write testing
-on a real Android device.
+with real planned writes on a real Android device.
 
 ## Data And Privacy
 
