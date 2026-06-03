@@ -54,6 +54,17 @@ step validation, then applies strict PR readiness. Add
 platform write, `--skip-validate` when local validation was already run, or
 `--dry-run` to print the command sequence without using adb.
 
+When counted-step validation is intentionally parked, use the partial phone gate
+to prove the real-phone BLE/capture/installed-package/Health Connect evidence
+without requiring step validation or strict PR readiness:
+
+```sh
+Scripts/android_partial_phone_gate.sh tmp/android-phone-partial-gate-real
+```
+
+The partial gate still requires a physical adb device by default and prints the
+remaining PR-readiness blockers from the collected evidence bundle.
+
 Manual build from Android Studio or the command line:
 
 ```sh
