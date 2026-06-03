@@ -48,6 +48,15 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w com.goose.android.test/com.goose.android.GooseRustBridgeInstrumentationTest
 ```
 
+Pull the debug app's local SQLite store for desktop inspection:
+
+```sh
+Scripts/pull_android_database.sh tmp/goose-phone.sqlite
+```
+
+Set `ANDROID_SERIAL` when more than one adb device is online. The helper uses
+`run-as com.goose.android`, so it expects the debug APK.
+
 The Android build expects generated Rust libraries under `Rust/android/`:
 
 - `arm64-v8a/libgoose_core.so`
