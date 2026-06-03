@@ -304,6 +304,7 @@ final class GooseStoreReporter {
     private JSONArray healthConnectCandidates() throws Exception {
         JSONArray candidates = new JSONArray();
         appendHeartRateHealthConnectCandidates(candidates);
+        appendStepHealthConnectCandidates(candidates);
         return candidates;
     }
 
@@ -353,6 +354,60 @@ final class GooseStoreReporter {
                             .put("evidence_id", feature.optString("evidence_id"))
                             .put("sample_time_source", feature.optString("sample_time_source"))
                             .put("trusted_metric_input", true)));
+        }
+    }
+
+    private void appendStepHealthConnectCandidates(JSONArray candidates) throws Exception {
+        JSONObject args = new JSONObject()
+                .put("database_path", databasePath)
+                .put("start_time_unix_ms", 0L)
+                .put("end_time_unix_ms", System.currentTimeMillis() + 86400000L);
+        JSONObject report = bridge.request("metrics.daily_activity_metrics", args);
+        JSONArray metrics = report.optJSONArray("metrics");
+        if (metrics == null) {
+            return;
+        }
+        for (int index = 0; index < metrics.length(); index += 1) {
+            JSONObject metric = metrics.optJSONObject(index);
+            if (metric == null || metric.isNull("steps")) {
+                continue;
+            }
+            long steps = metric.optLong("steps", 0L);
+            if (steps <= 0L) {
+                continue;
+            }
+            String sourceKind = metric.optString("source_kind", "");
+            if (!"device_counter".equals(sourceKind)) {
+                continue;
+            }
+            long startTimeUnixMs = metric.optLong("start_time_unix_ms", -1L);
+            long endTimeUnixMs = metric.optLong("end_time_unix_ms", -1L);
+            if (startTimeUnixMs < 0L || endTimeUnixMs <= startTimeUnixMs) {
+                continue;
+            }
+            String metricId = metric.optString("daily_metric_id", "");
+            if (metricId.isEmpty()) {
+                continue;
+            }
+            candidates.put(new JSONObject()
+                    .put("record_id", "android-steps-" + metricId)
+                    .put("metric_family", "activity")
+                    .put("semantic", "steps")
+                    .put("source_kind", "local_derived")
+                    .put("start_time", iso8601(startTimeUnixMs))
+                    .put("end_time", iso8601(endTimeUnixMs))
+                    .put("value", steps)
+                    .put("unit", "count")
+                    .put("algorithm_id", "goose.steps.device_counter.v0")
+                    .put("algorithm_version", "0.1.0")
+                    .put("approved_by_user", true)
+                    .put("provenance", new JSONObject()
+                            .put("input_source", "metrics.daily_activity_metrics")
+                            .put("daily_metric_id", metricId)
+                            .put("date_key", metric.optString("date_key", ""))
+                            .put("timezone", metric.optString("timezone", ""))
+                            .put("daily_metric_source_kind", sourceKind)
+                            .put("confidence", metric.optDouble("confidence", 0.0))));
         }
     }
 

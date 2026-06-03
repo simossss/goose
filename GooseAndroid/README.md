@@ -99,7 +99,8 @@ These files are build artifacts and are ignored by git.
   Android 14+ planned writes through the platform `HealthConnectManager`
   adapter for steps, heart rate, and active calories. Android builds
   Health Connect heart-rate candidates from trusted Goose-decoded heart-rate
-  feature rows before syncing.
+  feature rows and step candidates from existing daily device-counter activity
+  metrics before syncing.
 - Includes an instrumentation smoke harness for native loading, `core.version`,
   isolated `storage.check`, `protocol.parse_frame_hex`,
   `health_sync.dry_run`, and `privacy.lint`.
@@ -128,7 +129,8 @@ decoder work separately.
 - Continue packet decoder work for step counters and other packet-derived
   metrics.
 - Health Connect phone/platform permission testing with real planned writes.
-  Trusted heart-rate candidate planning is implemented; step and activity
-  candidate planning still depends on the parked decoder work.
+  Trusted heart-rate candidate planning is implemented; daily step candidate
+  planning is implemented once the parked decoder/rollup produces
+  `daily_activity_metrics` rows.
 - Optional Kotlin/Compose UI migration once the bridge and BLE behavior are
   stable.
