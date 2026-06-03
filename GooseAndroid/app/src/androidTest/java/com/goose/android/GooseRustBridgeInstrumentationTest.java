@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.os.Process;
 import android.util.Log;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
@@ -61,6 +62,34 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 .put("device_type", "Goose")
                 .put("frame_hex", "aa0108000001e67123019101363e5c8d");
         bridge.request("protocol.parse_frame_hex", parseArgs);
+
+        Log.i(TAG, "calling health_sync.dry_run");
+        JSONObject healthSyncArgs = new JSONObject()
+                .put("schema", "goose.health-sync-dry-run-input.v1")
+                .put("platform", "health_connect")
+                .put("permission_grants", new JSONArray())
+                .put("backfill", new JSONObject()
+                        .put("start", "2026-01-01T00:00:00.000Z")
+                        .put("end", "2026-01-02T00:00:00.000Z"))
+                .put("candidates", new JSONArray())
+                .put("existing_records", new JSONArray())
+                .put("partial_plan_policy", "require_all_records_ready")
+                .put("delete_policy", "none");
+        JSONObject healthSync = bridge.request("health_sync.dry_run", healthSyncArgs);
+        if (!"goose.health-sync-dry-run-report.v1".equals(healthSync.optString("schema"))) {
+            throw new AssertionError("health_sync.dry_run returned unexpected schema: " + healthSync);
+        }
+
+        Log.i(TAG, "calling privacy.lint");
+        File lintDir = new File(context.getCacheDir(), "goose-smoke-privacy");
+        if (!lintDir.exists() && !lintDir.mkdirs()) {
+            throw new AssertionError("Could not create privacy lint directory: " + lintDir);
+        }
+        JSONObject privacyLint = bridge.request("privacy.lint",
+                new JSONObject().put("path", lintDir.getAbsolutePath()));
+        if (privacyLint.length() == 0) {
+            throw new AssertionError("privacy.lint returned an empty object");
+        }
     }
 
     private void startTimeoutWatchdog() {

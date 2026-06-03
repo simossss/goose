@@ -57,6 +57,18 @@ final class GooseStoreReporter {
         executor.execute(() -> callback.onReport(runRawExport()));
     }
 
+    void storagePrivacy(Callback callback) {
+        executor.execute(() -> callback.onReport(runStoragePrivacy()));
+    }
+
+    void healthConnectDryRun(Callback callback) {
+        executor.execute(() -> callback.onReport(runHealthConnectDryRun()));
+    }
+
+    void exportPrivacyLint(Callback callback) {
+        executor.execute(() -> callback.onReport(runExportPrivacyLint()));
+    }
+
     void decodeBackfill(Callback callback) {
         executor.execute(() -> callback.onReport(runDecodeBackfill()));
     }
@@ -186,10 +198,77 @@ final class GooseStoreReporter {
                             .put("sqlite"))
                     .put("include_raw_bytes", true);
             JSONObject report = bridge.request("export.raw_timeframe", args);
-            return "Raw export\n" + report.toString(2);
+            String validation = validateExport(zipOutput.exists() ? zipOutput : outputDir);
+            String lint = lintPath(zipOutput.exists() ? zipOutput : outputDir);
+            return "Raw export\n"
+                    + exportSummary(report, outputDir, zipOutput)
+                    + "\n\n" + validation
+                    + "\n\n" + lint;
         } catch (Exception error) {
             return "Raw export failed\n" + error;
         }
+    }
+
+    private String runStoragePrivacy() {
+        StringBuilder builder = new StringBuilder("Storage and privacy\n")
+                .append("database: ").append(databasePath).append('\n')
+                .append("database bytes: ").append(new File(databasePath).length()).append('\n')
+                .append("export directory: ").append(exportDirectory.getAbsolutePath()).append('\n')
+                .append("export files: ").append(exportFileCount()).append('\n');
+        SQLiteDatabase database = null;
+        try {
+            database = SQLiteDatabase.openDatabase(databasePath, null, SQLiteDatabase.OPEN_READONLY);
+            builder.append("raw evidence: ").append(countRows(database, "raw_evidence")).append('\n')
+                    .append("decoded frames: ").append(countRows(database, "decoded_frames")).append('\n')
+                    .append("capture sessions: ").append(countRows(database, "capture_sessions")).append('\n')
+                    .append("step samples: ").append(countRows(database, "step_counter_samples")).append('\n')
+                    .append("activity sessions: ").append(countRows(database, "activity_sessions")).append('\n')
+                    .append("latest capture: ").append(latestValue(database, "raw_evidence", "captured_at")).append('\n')
+                    .append("raw byte policy: local app storage; raw exports include bytes only after tapping Export\n")
+                    .append("delete controls: not exposed in Android debug UI");
+        } catch (Exception error) {
+            builder.append("storage summary failed: ").append(error);
+        } finally {
+            if (database != null) {
+                database.close();
+            }
+        }
+        return builder.toString();
+    }
+
+    private String runHealthConnectDryRun() {
+        try {
+            long now = System.currentTimeMillis();
+            JSONObject args = new JSONObject()
+                    .put("schema", "goose.health-sync-dry-run-input.v1")
+                    .put("platform", "health_connect")
+                    .put("permission_grants", new JSONArray())
+                    .put("backfill", new JSONObject()
+                            .put("start", iso8601(now - 86400000L))
+                            .put("end", iso8601(now)))
+                    .put("candidates", new JSONArray())
+                    .put("existing_records", new JSONArray())
+                    .put("partial_plan_policy", "require_all_records_ready")
+                    .put("delete_policy", "none");
+            JSONObject report = bridge.request("health_sync.dry_run", args);
+            return "Health Connect dry run\n"
+                    + "pass: " + report.optBoolean("pass", false) + "\n"
+                    + "permissions ready: " + report.optBoolean("permissions_ready", false) + "\n"
+                    + "candidate writes: " + report.optInt("candidate_count", 0) + "\n"
+                    + "planned writes: " + report.optInt("planned_write_count", 0) + "\n"
+                    + "blocked: " + report.optInt("blocked_count", 0) + "\n"
+                    + "issues: " + report.optJSONArray("issues") + "\n"
+                    + "status: Android platform adapter not implemented; this is bridge readiness only";
+        } catch (Exception error) {
+            return "Health Connect dry run failed\n" + error;
+        }
+    }
+
+    private String runExportPrivacyLint() {
+        return "Export/privacy lint\n"
+                + lintPath(exportDirectory)
+                + "\n\nRecent exports\n"
+                + recentExportsSummary();
     }
 
     private String runDecodeBackfill() {
@@ -247,6 +326,90 @@ final class GooseStoreReporter {
             database.close();
         }
         return frames;
+    }
+
+    private String validateExport(File path) {
+        try {
+            JSONObject report = bridge.request("export.validate_bundle",
+                    new JSONObject().put("path", path.getAbsolutePath()));
+            return "Export validation\n"
+                    + "path: " + path.getAbsolutePath() + "\n"
+                    + "pass: " + report.optBoolean("pass", false) + "\n"
+                    + "issues: " + report.optJSONArray("issues");
+        } catch (Exception error) {
+            return "Export validation failed\n" + error;
+        }
+    }
+
+    private String lintPath(File path) {
+        try {
+            JSONObject report = bridge.request("privacy.lint",
+                    new JSONObject().put("path", path.getAbsolutePath()));
+            return "Privacy lint\n"
+                    + "path: " + path.getAbsolutePath() + "\n"
+                    + "pass: " + report.optBoolean("pass", false) + "\n"
+                    + "findings: " + report.optInt("finding_count", 0) + "\n"
+                    + "issues: " + report.optJSONArray("issues");
+        } catch (Exception error) {
+            return "Privacy lint failed\n" + error;
+        }
+    }
+
+    private String exportSummary(JSONObject report, File outputDir, File zipOutput) {
+        return "output dir: " + outputDir.getAbsolutePath() + "\n"
+                + "zip: " + zipOutput.getAbsolutePath() + "\n"
+                + "pass: " + report.optBoolean("pass", false) + "\n"
+                + "manifest files: " + report.optInt("file_count", 0) + "\n"
+                + "issues: " + report.optJSONArray("issues");
+    }
+
+    private int countRows(SQLiteDatabase database, String table) {
+        try (Cursor cursor = database.rawQuery("SELECT COUNT(*) FROM " + table, null)) {
+            return cursor.moveToFirst() ? cursor.getInt(0) : 0;
+        }
+    }
+
+    private String latestValue(SQLiteDatabase database, String table, String column) {
+        try (Cursor cursor = database.rawQuery(
+                "SELECT " + column + " FROM " + table + " ORDER BY " + column + " DESC LIMIT 1",
+                null
+        )) {
+            return cursor.moveToFirst() ? cursor.getString(0) : "none";
+        }
+    }
+
+    private int exportFileCount() {
+        File[] files = exportDirectory.listFiles();
+        return files == null ? 0 : files.length;
+    }
+
+    private String recentExportsSummary() {
+        File[] files = exportDirectory.listFiles();
+        if (files == null || files.length == 0) {
+            return "No exports";
+        }
+        java.util.Arrays.sort(files, (left, right) -> Long.compare(right.lastModified(), left.lastModified()));
+        StringBuilder builder = new StringBuilder();
+        int count = Math.min(files.length, 8);
+        for (int index = 0; index < count; index += 1) {
+            File file = files[index];
+            if (index > 0) {
+                builder.append('\n');
+            }
+            builder.append(file.getName())
+                    .append("  ")
+                    .append(file.isDirectory() ? "dir" : file.length() + " bytes");
+        }
+        return builder.toString();
+    }
+
+    private String iso8601(long millis) {
+        java.text.SimpleDateFormat formatter = new java.text.SimpleDateFormat(
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                java.util.Locale.US
+        );
+        formatter.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+        return formatter.format(new java.util.Date(millis));
     }
 
     private String runHeartRateFeatures() {

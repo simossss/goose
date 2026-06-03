@@ -300,6 +300,22 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         metricActions.addView(sensorsButton, weightWrap());
         root.addView(metricActions);
 
+        LinearLayout opsActions = new LinearLayout(this);
+        opsActions.setOrientation(LinearLayout.HORIZONTAL);
+        Button storageButton = new Button(this);
+        storageButton.setText("Storage");
+        storageButton.setOnClickListener(view -> runReport(storeReporter::storagePrivacy));
+        opsActions.addView(storageButton, weightWrap());
+        Button lintButton = new Button(this);
+        lintButton.setText("Privacy");
+        lintButton.setOnClickListener(view -> runReport(storeReporter::exportPrivacyLint));
+        opsActions.addView(lintButton, weightWrap());
+        Button healthConnectButton = new Button(this);
+        healthConnectButton.setText("HC Dry");
+        healthConnectButton.setOnClickListener(view -> runReport(storeReporter::healthConnectDryRun));
+        opsActions.addView(healthConnectButton, weightWrap());
+        root.addView(opsActions);
+
         LinearLayout validationActions = new LinearLayout(this);
         validationActions.setOrientation(LinearLayout.HORIZONTAL);
         manualStepsInput = new EditText(this);
