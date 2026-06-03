@@ -55,6 +55,9 @@ echo "==> Building Android debug and instrumentation APKs"
 echo "==> Validating Android debug APK native libraries"
 assert_apk_native_libs "$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk" "debug"
 
+echo "==> Running Android lint"
+(cd "$ANDROID_DIR" && "$GRADLEW" :app:lintDebug)
+
 echo "==> Building Android release APK"
 (cd "$ANDROID_DIR" && "$GRADLEW" :app:assembleRelease)
 

@@ -499,10 +499,36 @@ final class GooseStoreReporter {
 
     private String addSecondsToIso8601(String value, long seconds) {
         try {
-            return iso8601(java.time.Instant.parse(value).toEpochMilli() + (seconds * 1000L));
+            Long parsedMillis = parseIso8601Millis(value);
+            if (parsedMillis == null) {
+                return value;
+            }
+            return iso8601(parsedMillis + (seconds * 1000L));
         } catch (Exception error) {
             return value;
         }
+    }
+
+    private Long parseIso8601Millis(String value) {
+        String[] patterns = {
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        };
+        for (String pattern : patterns) {
+            try {
+                java.text.SimpleDateFormat formatter = new java.text.SimpleDateFormat(
+                        pattern,
+                        java.util.Locale.US
+                );
+                formatter.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+                java.util.Date parsed = formatter.parse(value);
+                if (parsed != null) {
+                    return parsed.getTime();
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return null;
     }
 
     private String healthConnectDryRunSummary(

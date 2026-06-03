@@ -1,6 +1,7 @@
 package com.goose.android;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -10,6 +11,7 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
+import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanFilter;
@@ -24,7 +26,7 @@ import android.os.Looper;
 
 import java.util.ArrayList;
 import java.util.ArrayDeque;
-import java.util.Comparator;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -268,6 +270,7 @@ final class GooseBleClient {
         startScanner(scanner, true);
     }
 
+    @SuppressLint("MissingPermission")
     void stopScan() {
         if (!scanning || adapter == null || !hasRuntimePermissions()) {
             return;
@@ -282,6 +285,7 @@ final class GooseBleClient {
         emitConnectionProgress("scan_stopped", null);
     }
 
+    @SuppressLint("MissingPermission")
     void connect(String address) {
         closed = false;
         if (!hasRuntimePermissions()) {
@@ -378,6 +382,7 @@ final class GooseBleClient {
         drainOperationQueue(gatt);
     }
 
+    @SuppressLint("MissingPermission")
     void close() {
         closed = true;
         mainHandler.removeCallbacksAndMessages(null);
@@ -433,6 +438,7 @@ final class GooseBleClient {
         }
     };
 
+    @SuppressLint("MissingPermission")
     private void startScanner(BluetoothLeScanner scanner, boolean withWhoopFilters) {
         scanning = true;
         filteredScan = withWhoopFilters;
@@ -521,9 +527,12 @@ final class GooseBleClient {
         }
         lastDevicePublishAtMillis = System.currentTimeMillis();
         List<DeviceRow> rows = new ArrayList<>(devices.values());
-        rows.sort(Comparator
-                .comparing((DeviceRow row) -> row.likelyWhoop).reversed()
-                .thenComparing((DeviceRow row) -> row.rssi, Comparator.reverseOrder()));
+        Collections.sort(rows, (left, right) -> {
+            if (left.likelyWhoop != right.likelyWhoop) {
+                return left.likelyWhoop ? -1 : 1;
+            }
+            return Integer.compare(right.rssi, left.rssi);
+        });
         if (rows.size() > MAX_PUBLISHED_DEVICES) {
             rows = new ArrayList<>(rows.subList(0, MAX_PUBLISHED_DEVICES));
         }
@@ -562,6 +571,7 @@ final class GooseBleClient {
 
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
         @Override
+        @SuppressLint("MissingPermission")
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 listener.onStateChanged("Connected; discovering services");
@@ -671,6 +681,7 @@ final class GooseBleClient {
         BluetoothGattDescriptor descriptor = characteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
         operationQueue.add(new GattOperation() {
             @Override
+            @SuppressLint("MissingPermission")
             public boolean start(BluetoothGatt gatt) {
                 if (!gatt.setCharacteristicNotification(characteristic, true)) {
                     return false;
@@ -684,7 +695,7 @@ final class GooseBleClient {
                         ? BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                         : BluetoothGattDescriptor.ENABLE_INDICATION_VALUE;
                 if (Build.VERSION.SDK_INT >= 33) {
-                    return gatt.writeDescriptor(descriptor, value) == BluetoothGatt.GATT_SUCCESS;
+                    return gatt.writeDescriptor(descriptor, value) == BluetoothStatusCodes.SUCCESS;
                 }
                 descriptor.setValue(value);
                 return gatt.writeDescriptor(descriptor);
@@ -700,6 +711,7 @@ final class GooseBleClient {
     private void enqueueRead(BluetoothGattCharacteristic characteristic) {
         operationQueue.add(new GattOperation() {
             @Override
+            @SuppressLint("MissingPermission")
             public boolean start(BluetoothGatt gatt) {
                 return gatt.readCharacteristic(characteristic);
             }
@@ -776,6 +788,7 @@ final class GooseBleClient {
         readCandidateCount = 0;
     }
 
+    @SuppressLint("MissingPermission")
     private boolean startClientHello(BluetoothGatt gatt, BluetoothGattCharacteristic command) {
         if (command == null) {
             listener.onStateChanged("hello blocked: no command characteristic");
@@ -797,7 +810,7 @@ final class GooseBleClient {
 
         boolean started;
         if (Build.VERSION.SDK_INT >= 33) {
-            started = gatt.writeCharacteristic(command, CLIENT_HELLO_FRAME, writeType) == BluetoothGatt.GATT_SUCCESS;
+            started = gatt.writeCharacteristic(command, CLIENT_HELLO_FRAME, writeType) == BluetoothStatusCodes.SUCCESS;
         } else {
             command.setWriteType(writeType);
             command.setValue(CLIENT_HELLO_FRAME);
@@ -809,6 +822,7 @@ final class GooseBleClient {
         return started;
     }
 
+    @SuppressLint("MissingPermission")
     private boolean writeCommandFrame(
             BluetoothGatt gatt,
             BluetoothGattCharacteristic command,
@@ -830,7 +844,7 @@ final class GooseBleClient {
             return false;
         }
         if (Build.VERSION.SDK_INT >= 33) {
-            return gatt.writeCharacteristic(command, frame, writeType) == BluetoothGatt.GATT_SUCCESS;
+            return gatt.writeCharacteristic(command, frame, writeType) == BluetoothStatusCodes.SUCCESS;
         }
         command.setWriteType(writeType);
         command.setValue(frame);
@@ -974,6 +988,7 @@ final class GooseBleClient {
         return new String(value).trim();
     }
 
+    @SuppressLint("MissingPermission")
     private String displayName(BluetoothDevice device) {
         String name = null;
         if (hasRuntimePermissions()) {
