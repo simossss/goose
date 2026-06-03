@@ -28,6 +28,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private static final int MAX_NOTIFICATION_LOG_ROWS = 40;
     private static final int MAX_NOTIFICATION_HEX_CHARS = 160;
     private static final int MAX_REPORT_CHARS = 12000;
+    private static final long COMMAND_CONFIRM_WINDOW_MS = 15000L;
 
     private final GooseRustBridge bridge = new GooseRustBridge();
     private final Deque<String> notificationLogRows = new ArrayDeque<>();
@@ -55,6 +56,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private String validationStart = "0000";
     private String validationEnd = "9999";
     private String activeCaptureSessionId;
+    private PendingCommand pendingCommand;
     private int notificationCount;
 
     @Override
@@ -92,7 +94,12 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     @Override
     public void onStateChanged(String status) {
-        runOnUiThread(() -> bleStatus.setText(status));
+        runOnUiThread(() -> {
+            if (status.toLowerCase(Locale.US).contains("disconnect")) {
+                pendingCommand = null;
+            }
+            bleStatus.setText(status);
+        });
     }
 
     @Override
@@ -449,15 +456,99 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     }
 
     private void sendBuiltCommand(String command, String payloadHex) {
-        packetStatus.setText("Building command: " + command);
+        long now = System.currentTimeMillis();
+        if (pendingCommand != null
+                && pendingCommand.matches(command, payloadHex)
+                && pendingCommand.expiresAtMillis > now) {
+            PendingCommand commandToSend = pendingCommand;
+            pendingCommand = null;
+            if (!ble.commandReady()) {
+                packetStatus.setText("Command blocked: no connected WHOOP command characteristic"
+                        + "\n" + commandToSend.frameHex
+                        + "\n" + commandToSend.preflightSummary);
+                return;
+            }
+            packetStatus.setText("Sending confirmed " + commandToSend.command
+                    + "\n" + commandToSend.frameHex
+                    + "\n" + commandToSend.preflightSummary);
+            ble.sendCommandFrame("command " + commandToSend.command, commandToSend.frame);
+            return;
+        }
+        pendingCommand = null;
+        packetStatus.setText("Preparing command: " + command);
         commandBuilder.build(command, payloadHex, result -> runOnUiThread(() -> {
             if (result.error != null) {
                 packetStatus.setText("Command build failed: " + result.error);
                 return;
             }
-            packetStatus.setText("Sending " + result.command + "\n" + result.frameHex);
-            ble.sendCommandFrame("command " + result.command, result.frame);
+            prepareCommandConfirmation(result, payloadHex);
         }));
+    }
+
+    private void prepareCommandConfirmation(GooseCommandBuilder.Result result, String payloadHex) {
+        long now = System.currentTimeMillis();
+        long expiresAt = now + COMMAND_CONFIRM_WINDOW_MS;
+        packetStatus.setText("Checking command preflight: " + result.command + "\n" + result.frameHex);
+        sessionExecutor.execute(() -> {
+            String summary = commandPreflightSummary(result.command, result.frameHex, now, expiresAt);
+            PendingCommand preparedCommand = new PendingCommand(
+                    result.command,
+                    payloadHex,
+                    result.frameHex,
+                    result.frame.clone(),
+                    expiresAt,
+                    summary
+            );
+            runOnUiThread(() -> {
+                pendingCommand = preparedCommand;
+                packetStatus.setText("Prepared " + result.command
+                        + "\nTap " + displayCommandName(result.command) + " again within "
+                        + (COMMAND_CONFIRM_WINDOW_MS / 1000) + "s to send."
+                        + "\n" + result.frameHex
+                        + "\n" + summary);
+            });
+        });
+    }
+
+    private String commandPreflightSummary(String command, String frameHex, long now, long expiresAt) {
+        try {
+            JSONObject args = new JSONObject()
+                    .put("database_path", packetIngestor.databasePath())
+                    .put("command", command)
+                    .put("now_unix_ms", now)
+                    .put("override_expires_at_unix_ms", expiresAt)
+                    .put("visible_user_intent", true)
+                    .put("dry_run_bytes_shown", true)
+                    .put("dry_run_frame_hex", frameHex)
+                    .put("dry_run_service_uuid", ble.commandServiceUuid())
+                    .put("dry_run_characteristic_uuid", ble.commandCharacteristicUuid())
+                    .put("dry_run_write_type", ble.commandWriteType())
+                    .put("session_log_ready", true)
+                    .put("connection_state", ble.commandReady() ? "connected" : "disconnected")
+                    .put("active_device_id", ble.activeDeviceId() != null ? ble.activeDeviceId() : "")
+                    .put("critical_visible_confirmation", true)
+                    .put("critical_explicit_approval", true)
+                    .put("critical_rollback_or_restore_acknowledged", true);
+            JSONObject report = bridge.request("commands.direct_send_preflight", args);
+            return "Preflight allowed: " + report.optBoolean("direct_send_allowed", false)
+                    + "\nMissing: " + report.optJSONArray("missing_requirements")
+                    + "\nWarnings: " + report.optJSONArray("warnings");
+        } catch (Exception error) {
+            return "Preflight failed: " + error;
+        }
+    }
+
+    private String displayCommandName(String command) {
+        if ("get_data_range".equals(command)) {
+            return "Range";
+        }
+        if ("send_historical_data".equals(command)) {
+            return "History";
+        }
+        if ("abort_historical_transmits".equals(command)) {
+            return "Abort";
+        }
+        return command;
     }
 
     private void startCaptureSession() {
@@ -631,6 +722,35 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     private interface ReportRunner {
         void run(GooseStoreReporter.Callback callback);
+    }
+
+    private static final class PendingCommand {
+        final String command;
+        final String payloadHex;
+        final String frameHex;
+        final byte[] frame;
+        final long expiresAtMillis;
+        final String preflightSummary;
+
+        PendingCommand(
+                String command,
+                String payloadHex,
+                String frameHex,
+                byte[] frame,
+                long expiresAtMillis,
+                String preflightSummary
+        ) {
+            this.command = command;
+            this.payloadHex = payloadHex;
+            this.frameHex = frameHex;
+            this.frame = frame;
+            this.expiresAtMillis = expiresAtMillis;
+            this.preflightSummary = preflightSummary;
+        }
+
+        boolean matches(String command, String payloadHex) {
+            return this.command.equals(command) && this.payloadHex.equals(payloadHex);
+        }
     }
 
     private TextView sectionText(String value) {

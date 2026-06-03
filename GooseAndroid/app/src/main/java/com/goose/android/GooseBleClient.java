@@ -103,6 +103,7 @@ final class GooseBleClient {
     private BluetoothAdapter adapter;
     private BluetoothGatt gatt;
     private BluetoothGattCharacteristic commandCharacteristic;
+    private String activeDeviceId;
     private final Queue<GattOperation> operationQueue = new ArrayDeque<>();
     private GattOperation activeOperation;
     private boolean scanning;
@@ -197,10 +198,43 @@ final class GooseBleClient {
         stopScan();
         BluetoothDevice device = adapter.getRemoteDevice(address);
         listener.onStateChanged("Connecting " + displayName(device));
+        activeDeviceId = address;
         clientHelloSent = false;
         commandCharacteristic = null;
         resetOperations();
         gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE);
+    }
+
+    String activeDeviceId() {
+        return activeDeviceId;
+    }
+
+    boolean commandReady() {
+        return gatt != null && commandCharacteristic != null;
+    }
+
+    String commandServiceUuid() {
+        return commandCharacteristic != null && commandCharacteristic.getService() != null
+                ? commandCharacteristic.getService().getUuid().toString()
+                : "";
+    }
+
+    String commandCharacteristicUuid() {
+        return commandCharacteristic != null ? commandCharacteristic.getUuid().toString() : "";
+    }
+
+    String commandWriteType() {
+        if (commandCharacteristic == null) {
+            return "";
+        }
+        int properties = commandCharacteristic.getProperties();
+        if ((properties & BluetoothGattCharacteristic.PROPERTY_WRITE) != 0) {
+            return "withResponse";
+        }
+        if ((properties & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0) {
+            return "withoutResponse";
+        }
+        return "";
     }
 
     void sendCommandFrame(String label, byte[] frame) {
@@ -234,6 +268,7 @@ final class GooseBleClient {
             gatt.close();
         }
         gatt = null;
+        activeDeviceId = null;
         resetOperations();
     }
 
@@ -396,6 +431,7 @@ final class GooseBleClient {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 clientHelloSent = false;
                 commandCharacteristic = null;
+                activeDeviceId = null;
                 resetOperations();
                 listener.onStateChanged("Disconnected");
             }

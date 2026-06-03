@@ -62,8 +62,9 @@ These files are build artifacts and are ignored by git.
 - Starts and finishes Android manual capture sessions through
   `capture.start_session` and `capture.finish_session`, then tags incoming raw
   evidence with the active `capture_session_id`.
-- Sends the physical WHOOP command frames for range, historical data, and
-  abort-history through the serialized GATT write queue.
+- Prepares the physical WHOOP command frames for range, historical data, and
+  abort-history with Rust-backed direct-send preflight output, then sends the
+  frame only after a second tap within the confirmation window.
 - Runs Rust-backed operational reports:
   - `metrics.input_readiness`
   - `capture.timeline`
@@ -92,8 +93,9 @@ These files are build artifacts and are ignored by git.
 4. Wait for `Ready; subscribed ...; hello sent`.
 5. Optional but recommended for owned captures: press `Cap Start` before a
    controlled test and `Cap End` afterwards.
-6. Press `Range` to confirm command writes, or `History` to request historical
-   data. Use `Abort` if a history transfer should be stopped.
+6. Press `Range` to prepare a command write, review the frame/preflight text,
+   then press `Range` again within 15 seconds to send. Use the same two-tap
+   flow for `History` and `Abort`.
 7. Use `HR`, `Sensors`, `Steps`, and `Sessions` for compact summaries instead
    of dumping large raw JSON in the UI.
 
