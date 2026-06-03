@@ -85,6 +85,20 @@ echo "==> Installing debug APKs on $device_serial"
 "$ADB" -s "$device_serial" install -r "$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk"
 "$ADB" -s "$device_serial" install -r "$ANDROID_DIR/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
 
+echo "==> Launching Goose Android app on $device_serial"
+launch_output="$("$ADB" -s "$device_serial" shell am start -W -n com.goose.android/.MainActivity 2>&1)"
+printf '%s\n' "$launch_output"
+
+if grep -qE "Error:|Exception" <<<"$launch_output"; then
+  echo "Android app launch failed" >&2
+  exit 1
+fi
+launch_status="$(awk -F': ' '$1 == "Status" { print $2; exit }' <<<"$launch_output")"
+if [[ -n "$launch_status" && "$launch_status" != "ok" ]]; then
+  echo "Android app launch failed with status: $launch_status" >&2
+  exit 1
+fi
+
 echo "==> Running Goose Android bridge instrumentation on $device_serial"
 instrumentation_output="$("$ADB" -s "$device_serial" shell am instrument -w \
   com.goose.android.test/com.goose.android.GooseRustBridgeInstrumentationTest 2>&1)"
