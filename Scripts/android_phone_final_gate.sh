@@ -15,6 +15,8 @@ Usage: Scripts/android_phone_final_gate.sh [output-dir] [--require-health-succes
 Collects the final Android phone evidence bundle with strict pass/fail gates:
 - at least one raw_evidence row
 - at least one capture_sessions row
+- at least one session-tagged raw_evidence row
+- at least one finished capture session with frame_count > 0
 - Health Connect audit log and write_started event, unless --skip-health is set
 
 Use --require-health-success only after granting Health Connect permissions and
@@ -65,6 +67,8 @@ fi
 export GOOSE_ANDROID_STRICT_EVIDENCE=1
 export GOOSE_ANDROID_MIN_RAW_EVIDENCE=1
 export GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1
+export GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=1
+export GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1
 
 if [[ "$REQUIRE_HEALTH" == "1" ]]; then
   export GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1

@@ -6,6 +6,8 @@ DATABASE_BASENAME="${DATABASE%.sqlite}"
 HEALTH_AUDIT_LOG="${HEALTH_AUDIT_LOG:-$DATABASE_BASENAME-health-connect-sync-log.jsonl}"
 MIN_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_RAW_EVIDENCE:-0}"
 MIN_CAPTURE_SESSIONS="${GOOSE_ANDROID_MIN_CAPTURE_SESSIONS:-0}"
+MIN_SESSION_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE:-0}"
+MIN_FINISHED_CAPTURE_SESSIONS="${GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS:-0}"
 REQUIRE_HEALTH_AUDIT="${GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT:-0}"
 REQUIRE_HEALTH_WRITE_ATTEMPT="${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT:-0}"
 REQUIRE_HEALTH_WRITE_SUCCESS="${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS:-0}"
@@ -23,6 +25,8 @@ summary. Pair it with:
 Optional assertions:
   GOOSE_ANDROID_MIN_RAW_EVIDENCE=1
   GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1
+  GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=1
+  GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1
   GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1
   GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1
   GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1
@@ -78,9 +82,21 @@ latest_value() {
   fi
 }
 
+table_scalar_or_missing() {
+  local table="$1"
+  local sql="$2"
+  if table_exists "$table"; then
+    sqlite_scalar "$sql"
+  else
+    printf 'missing'
+  fi
+}
+
 raw_count="$(table_count raw_evidence)"
 decoded_count="$(table_count decoded_frames)"
 session_count="$(table_count capture_sessions)"
+session_raw_count="$(table_scalar_or_missing raw_evidence "SELECT COUNT(*) FROM raw_evidence WHERE COALESCE(capture_session_id, '') != '';")"
+finished_session_count="$(table_scalar_or_missing capture_sessions "SELECT COUNT(*) FROM capture_sessions WHERE status = 'finished' AND frame_count > 0;")"
 step_count="$(table_count step_counter_samples)"
 activity_metric_count="$(table_count daily_activity_metrics)"
 health_audit_bytes=0
@@ -102,6 +118,8 @@ echo "database bytes: $(wc -c < "$DATABASE" | tr -d ' ')"
 echo "raw evidence: $raw_count"
 echo "decoded frames: $decoded_count"
 echo "capture sessions: $session_count"
+echo "session raw evidence: $session_raw_count"
+echo "finished nonempty capture sessions: $finished_session_count"
 echo "step samples: $step_count"
 echo "daily activity metrics: $activity_metric_count"
 echo "latest raw capture: $(latest_value raw_evidence captured_at)"
@@ -191,6 +209,22 @@ if [[ "$session_count" != "missing" && "$session_count" -lt "$MIN_CAPTURE_SESSIO
   echo "FAIL: capture_sessions rows $session_count < required $MIN_CAPTURE_SESSIONS" >&2
   failures=$((failures + 1))
 elif [[ "$session_count" == "missing" && "$MIN_CAPTURE_SESSIONS" -gt 0 ]]; then
+  echo "FAIL: capture_sessions table missing" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$session_raw_count" != "missing" && "$session_raw_count" -lt "$MIN_SESSION_RAW_EVIDENCE" ]]; then
+  echo "FAIL: session-tagged raw_evidence rows $session_raw_count < required $MIN_SESSION_RAW_EVIDENCE" >&2
+  failures=$((failures + 1))
+elif [[ "$session_raw_count" == "missing" && "$MIN_SESSION_RAW_EVIDENCE" -gt 0 ]]; then
+  echo "FAIL: raw_evidence table missing" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$finished_session_count" != "missing" && "$finished_session_count" -lt "$MIN_FINISHED_CAPTURE_SESSIONS" ]]; then
+  echo "FAIL: finished nonempty capture_sessions rows $finished_session_count < required $MIN_FINISHED_CAPTURE_SESSIONS" >&2
+  failures=$((failures + 1))
+elif [[ "$finished_session_count" == "missing" && "$MIN_FINISHED_CAPTURE_SESSIONS" -gt 0 ]]; then
   echo "FAIL: capture_sessions table missing" >&2
   failures=$((failures + 1))
 fi

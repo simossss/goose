@@ -95,6 +95,8 @@ Result: ${inspection_result:-unknown}
 - Raw evidence rows: $(summary_value "raw evidence")
 - Decoded frame rows: $(summary_value "decoded frames")
 - Capture sessions: $(summary_value "capture sessions")
+- Session raw evidence rows: $(summary_value "session raw evidence")
+- Finished nonempty capture sessions: $(summary_value "finished nonempty capture sessions")
 - Step samples: $(summary_value "step samples")
 - Daily activity metrics: $(summary_value "daily activity metrics")
 - Latest raw capture: $(summary_value "latest raw capture")
@@ -139,6 +141,8 @@ Strict mode:
 GOOSE_ANDROID_STRICT_EVIDENCE=1 Scripts/collect_android_phone_evidence.sh
 
 Strict mode requires at least one raw_evidence row and one capture_sessions row.
+The final phone gate additionally requires session-tagged raw_evidence and a
+finished nonempty capture session.
 Set GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1 as well when validating a Health
 Connect sync attempt. Set GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1 to
 require a platform write attempt and GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1
