@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -197,6 +198,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertBluetoothManifestScope(context);
         Log.i(TAG, "checking runtime Bluetooth permission request set");
         assertBluetoothRuntimePermissionScope(context);
+        Log.i(TAG, "checking BLE device row display contract");
+        assertBleDeviceRowDisplayContract();
         Log.i(TAG, "checking installed app privacy flags");
         assertApplicationPrivacyFlags(context);
         Log.i(TAG, "checking installed app launch and hardware manifest");
@@ -628,6 +631,47 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             }
         } finally {
             client.close();
+        }
+    }
+
+    private void assertBleDeviceRowDisplayContract() {
+        StringBuilder services = new StringBuilder("Services:");
+        for (int index = 0; index < 12; index += 1) {
+            services.append('\n')
+                    .append("fd4b")
+                    .append(String.format(Locale.US, "%04d", index))
+                    .append("-cce1-4033-93ce-002d5875f58a");
+        }
+        GooseBleClient.DeviceRow row = new GooseBleClient.DeviceRow(
+                "E4:B9:C9:42:F9:A8",
+                "WHOOP 5AM0298379",
+                -45,
+                services.toString(),
+                true);
+        String display = row.displayText();
+        if (!display.startsWith("WHOOP candidate: WHOOP 5AM0298379")) {
+            throw new AssertionError("WHOOP candidate display prefix missing: " + display);
+        }
+        if (!display.contains("...9 more services")) {
+            throw new AssertionError("BLE service list was not compacted: " + display);
+        }
+        if (display.contains("fd4b0004")) {
+            throw new AssertionError("BLE display leaked too many service rows: " + display);
+        }
+
+        StringBuilder longSummary = new StringBuilder("Services:\n");
+        for (int index = 0; index < 500; index += 1) {
+            longSummary.append('a');
+        }
+        GooseBleClient.DeviceRow longRow = new GooseBleClient.DeviceRow(
+                "00:11:22:33:44:55",
+                "Unknown BLE device",
+                -31,
+                longSummary.toString(),
+                false);
+        String longDisplay = longRow.displayText();
+        if (longDisplay.length() > 300 || !longDisplay.endsWith("...")) {
+            throw new AssertionError("BLE display was not character-capped: " + longDisplay.length());
         }
     }
 

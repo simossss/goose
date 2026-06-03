@@ -66,7 +66,29 @@ final class GooseBleClient {
 
         String displayText() {
             String prefix = likelyWhoop ? "WHOOP candidate: " : "";
-            return prefix + name + "  " + rssi + " dBm\n" + address + "\n" + advertisementSummary;
+            return prefix + name + "  " + rssi + " dBm\n" + address + "\n" + compactAdvertisementSummary();
+        }
+
+        private String compactAdvertisementSummary() {
+            String[] lines = advertisementSummary.split("\\R");
+            StringBuilder builder = new StringBuilder();
+            int lineLimit = Math.min(lines.length, MAX_ADVERTISEMENT_DISPLAY_LINES);
+            for (int index = 0; index < lineLimit; index += 1) {
+                if (index > 0) {
+                    builder.append('\n');
+                }
+                builder.append(lines[index]);
+            }
+            if (lines.length > MAX_ADVERTISEMENT_DISPLAY_LINES) {
+                builder.append('\n')
+                        .append("...")
+                        .append(lines.length - MAX_ADVERTISEMENT_DISPLAY_LINES)
+                        .append(" more services");
+            }
+            if (builder.length() > MAX_ADVERTISEMENT_DISPLAY_CHARS) {
+                return builder.substring(0, MAX_ADVERTISEMENT_DISPLAY_CHARS) + "...";
+            }
+            return builder.toString();
         }
     }
 
@@ -179,7 +201,9 @@ final class GooseBleClient {
     private static final UUID MANUFACTURER_NAME = UUID.fromString("00002a29-0000-1000-8000-00805f9b34fb");
     private static final UUID CLIENT_CHARACTERISTIC_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
     private static final byte[] CLIENT_HELLO_FRAME = Hex.decode("aa0108000001e67123019101363e5c8d");
-    private static final int MAX_PUBLISHED_DEVICES = 20;
+    private static final int MAX_PUBLISHED_DEVICES = 8;
+    private static final int MAX_ADVERTISEMENT_DISPLAY_LINES = 4;
+    private static final int MAX_ADVERTISEMENT_DISPLAY_CHARS = 220;
     private static final long DEVICE_PUBLISH_INTERVAL_MS = 750;
 
     private final Context context;
