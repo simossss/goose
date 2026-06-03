@@ -45,6 +45,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private TextView sessionStatus;
     private TextView reportStatus;
     private TextView notificationLog;
+    private LinearLayout captureSection;
+    private LinearLayout reportsSection;
+    private LinearLayout opsSection;
+    private LinearLayout logSection;
     private EditText manualStepsInput;
     private String validationStart = "0000";
     private String validationEnd = "9999";
@@ -155,13 +159,47 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         title.setGravity(Gravity.START);
         root.addView(title);
 
+        LinearLayout modeActions = new LinearLayout(this);
+        modeActions.setOrientation(LinearLayout.HORIZONTAL);
+        modeActions.setPadding(0, 18, 0, 0);
+        Button captureModeButton = new Button(this);
+        captureModeButton.setText("Capture");
+        captureModeButton.setOnClickListener(view -> showMode(captureSection));
+        modeActions.addView(captureModeButton, weightWrap());
+        Button reportsModeButton = new Button(this);
+        reportsModeButton.setText("Reports");
+        reportsModeButton.setOnClickListener(view -> showMode(reportsSection));
+        modeActions.addView(reportsModeButton, weightWrap());
+        Button opsModeButton = new Button(this);
+        opsModeButton.setText("Ops");
+        opsModeButton.setOnClickListener(view -> showMode(opsSection));
+        modeActions.addView(opsModeButton, weightWrap());
+        Button logModeButton = new Button(this);
+        logModeButton.setText("Log");
+        logModeButton.setOnClickListener(view -> showMode(logSection));
+        modeActions.addView(logModeButton, weightWrap());
+        root.addView(modeActions);
+
+        reportStatus = bodyText("No report run");
+        reportStatus.setPadding(0, 12, 0, 0);
+        root.addView(reportStatus);
+
+        captureSection = sectionContainer();
+        reportsSection = sectionContainer();
+        opsSection = sectionContainer();
+        logSection = sectionContainer();
+        root.addView(captureSection);
+        root.addView(reportsSection);
+        root.addView(opsSection);
+        root.addView(logSection);
+
         bridgeStatus = bodyText("Checking Rust bridge");
         bridgeStatus.setPadding(0, 24, 0, 0);
-        root.addView(bridgeStatus);
+        captureSection.addView(bridgeStatus);
 
         storeStatus = bodyText("Checking local store");
         storeStatus.setPadding(0, 18, 0, 0);
-        root.addView(storeStatus);
+        captureSection.addView(storeStatus);
 
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
@@ -182,31 +220,31 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         stopButton.setText("Stop");
         stopButton.setOnClickListener(view -> ble.stopScan());
         actions.addView(stopButton, weightWrap());
-        root.addView(actions);
+        captureSection.addView(actions);
 
         bleStatus = sectionText("Bluetooth: not started");
-        root.addView(bleStatus);
+        captureSection.addView(bleStatus);
 
         metadataStatus = bodyText("No device metadata read");
         metadataStatus.setPadding(0, 8, 0, 0);
-        root.addView(metadataStatus);
+        captureSection.addView(metadataStatus);
 
         TextView devicesTitle = sectionText("Devices");
-        root.addView(devicesTitle);
+        captureSection.addView(devicesTitle);
         deviceList = new LinearLayout(this);
         deviceList.setOrientation(LinearLayout.VERTICAL);
         deviceList.addView(bodyText("No WHOOP devices discovered"));
-        root.addView(deviceList);
+        captureSection.addView(deviceList);
 
         packetStatus = sectionText("Packets: waiting");
-        root.addView(packetStatus);
+        captureSection.addView(packetStatus);
 
         sessionStatus = bodyText("Capture session: none");
         sessionStatus.setPadding(0, 8, 0, 0);
-        root.addView(sessionStatus);
+        captureSection.addView(sessionStatus);
 
         TextView reportsTitle = sectionText("Health and debug reports");
-        root.addView(reportsTitle);
+        reportsSection.addView(reportsTitle);
 
         LinearLayout reportActionsTop = new LinearLayout(this);
         reportActionsTop.setOrientation(LinearLayout.HORIZONTAL);
@@ -218,7 +256,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         timelineButton.setText("Timeline");
         timelineButton.setOnClickListener(view -> runReport(storeReporter::captureTimeline));
         reportActionsTop.addView(timelineButton, weightWrap());
-        root.addView(reportActionsTop);
+        reportsSection.addView(reportActionsTop);
 
         LinearLayout reportActionsBottom = new LinearLayout(this);
         reportActionsBottom.setOrientation(LinearLayout.HORIZONTAL);
@@ -234,7 +272,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         backfillButton.setText("Backfill");
         backfillButton.setOnClickListener(view -> runReport(storeReporter::decodeBackfill));
         reportActionsBottom.addView(backfillButton, weightWrap());
-        root.addView(reportActionsBottom);
+        opsSection.addView(reportActionsBottom);
 
         LinearLayout commandActions = new LinearLayout(this);
         commandActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -250,7 +288,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         recordsButton.setText("Records");
         recordsButton.setOnClickListener(view -> runReport(storeReporter::commandValidationRecords));
         commandActions.addView(recordsButton, weightWrap());
-        root.addView(commandActions);
+        opsSection.addView(commandActions);
 
         LinearLayout physicalCommandActions = new LinearLayout(this);
         physicalCommandActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -266,7 +304,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         abortHistoryButton.setText("Abort");
         abortHistoryButton.setOnClickListener(view -> sendBuiltCommand("abort_historical_transmits", ""));
         physicalCommandActions.addView(abortHistoryButton, weightWrap());
-        root.addView(physicalCommandActions);
+        captureSection.addView(physicalCommandActions);
 
         LinearLayout captureActions = new LinearLayout(this);
         captureActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -282,7 +320,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         captureListButton.setText("Sessions");
         captureListButton.setOnClickListener(view -> listCaptureSessions());
         captureActions.addView(captureListButton, weightWrap());
-        root.addView(captureActions);
+        captureSection.addView(captureActions);
 
         LinearLayout metricActions = new LinearLayout(this);
         metricActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -298,7 +336,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         sensorsButton.setText("Sensors");
         sensorsButton.setOnClickListener(view -> runReport(storeReporter::recoverySensors));
         metricActions.addView(sensorsButton, weightWrap());
-        root.addView(metricActions);
+        reportsSection.addView(metricActions);
 
         LinearLayout opsActions = new LinearLayout(this);
         opsActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -314,7 +352,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         healthConnectButton.setText("HC Dry");
         healthConnectButton.setOnClickListener(view -> runReport(storeReporter::healthConnectDryRun));
         opsActions.addView(healthConnectButton, weightWrap());
-        root.addView(opsActions);
+        opsSection.addView(opsActions);
 
         LinearLayout validationActions = new LinearLayout(this);
         validationActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -335,15 +373,13 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         validationRunButton.setText("Validate");
         validationRunButton.setOnClickListener(view -> runStepValidation());
         validationActions.addView(validationRunButton, weightWrap());
-        root.addView(validationActions);
-
-        reportStatus = bodyText("No report run");
-        reportStatus.setPadding(0, 12, 0, 0);
-        root.addView(reportStatus);
+        captureSection.addView(validationActions);
 
         notificationLog = bodyText("No notifications");
         notificationLog.setPadding(0, 16, 0, 0);
-        root.addView(notificationLog);
+        logSection.addView(notificationLog);
+
+        showMode(captureSection);
 
         return scroll;
     }
@@ -570,6 +606,22 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         view.setTextSize(15);
         view.setGravity(Gravity.START);
         return view;
+    }
+
+    private LinearLayout sectionContainer() {
+        LinearLayout section = new LinearLayout(this);
+        section.setOrientation(LinearLayout.VERTICAL);
+        return section;
+    }
+
+    private void showMode(LinearLayout visibleSection) {
+        if (captureSection == null || reportsSection == null || opsSection == null || logSection == null) {
+            return;
+        }
+        captureSection.setVisibility(visibleSection == captureSection ? View.VISIBLE : View.GONE);
+        reportsSection.setVisibility(visibleSection == reportsSection ? View.VISIBLE : View.GONE);
+        opsSection.setVisibility(visibleSection == opsSection ? View.VISIBLE : View.GONE);
+        logSection.setVisibility(visibleSection == logSection ? View.VISIBLE : View.GONE);
     }
 
     private LinearLayout.LayoutParams matchWrap() {
