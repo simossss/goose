@@ -65,6 +65,49 @@ is_positive_int() {
   [[ "${1:-}" =~ ^[0-9]+$ && "$1" -gt 0 ]]
 }
 
+file_size() {
+  local file="$1"
+  wc -c < "$file" | tr -d ' '
+}
+
+file_sha256() {
+  local file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$file" | awk '{ print $1 }'
+  else
+    shasum -a 256 "$file" | awk '{ print $1 }'
+  fi
+}
+
+verify_evidence_manifest() {
+  local dir="$1"
+  local manifest="$2"
+  local line_number=0
+  local verified_count=0
+
+  [[ -f "$manifest" ]] || return 1
+  while IFS=$'\t' read -r rel_path expected_bytes expected_sha extra || [[ -n "$rel_path" ]]; do
+    line_number=$((line_number + 1))
+    if [[ "$line_number" -eq 1 ]]; then
+      [[ "$rel_path" == "path" && "$expected_bytes" == "bytes" && "$expected_sha" == "sha256" && -z "${extra:-}" ]] || return 1
+      continue
+    fi
+    [[ -n "$rel_path" && -n "$expected_bytes" && -n "$expected_sha" && -z "${extra:-}" ]] || return 1
+    [[ "$rel_path" != /* && "$rel_path" != *".."* && "$rel_path" != *$'\n'* ]] || return 1
+    [[ "$expected_bytes" =~ ^[0-9]+$ ]] || return 1
+    [[ "$expected_sha" =~ ^[0-9A-Fa-f]{64}$ ]] || return 1
+    local file="$dir/$rel_path"
+    [[ -f "$file" ]] || return 1
+    [[ "$(file_size "$file")" == "$expected_bytes" ]] || return 1
+    local normalized_sha
+    normalized_sha="$(printf '%s' "$expected_sha" | tr 'A-F' 'a-f')"
+    [[ "$(file_sha256 "$file")" == "$normalized_sha" ]] || return 1
+    verified_count=$((verified_count + 1))
+  done < "$manifest"
+
+  [[ "$verified_count" -gt 0 ]]
+}
+
 latest_commit="$(git -C "$APP_DIR" rev-parse --short HEAD) $(git -C "$APP_DIR" log -1 --pretty=%s)"
 branch="$(git -C "$APP_DIR" rev-parse --abbrev-ref HEAD)"
 dirty_tracked="$(git -C "$APP_DIR" status --short --untracked-files=no | wc -l | tr -d ' ')"
@@ -184,8 +227,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     if [[ "$phone_result" == "PASS" && "$android_runtime_crash_lines" =~ ^[0-9]+$ && "$android_runtime_crash_lines" -eq 0 ]]; then
       no_android_runtime_crash_verified=1
     fi
-    if [[ "$phone_result" == "PASS" && -f "$manifest" ]] \
-      && head -n 1 "$manifest" | grep -qx $'path\tbytes\tsha256'; then
+    if [[ "$phone_result" == "PASS" ]] && verify_evidence_manifest "$PHONE_EVIDENCE_DIR" "$manifest"; then
       evidence_manifest_verified=1
     fi
     if [[ "$phone_result" == "PASS" && "$require_ble_hello" == "1" ]] \
@@ -322,7 +364,7 @@ if [[ "$no_android_runtime_crash_verified" == "1" ]]; then
   verified_any=1
 fi
 if [[ "$evidence_manifest_verified" == "1" ]]; then
-  echo "- Evidence file manifest with byte counts and SHA-256 hashes is present."
+  echo "- Evidence file manifest verifies byte counts and SHA-256 hashes for collected files."
   verified_any=1
 fi
 if [[ "$ble_hello_verified" == "1" ]]; then
@@ -369,7 +411,7 @@ if [[ "$no_android_runtime_crash_verified" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$evidence_manifest_verified" != "1" ]]; then
-  echo "- Evidence bundle must include evidence-files-manifest.txt with path, byte, and SHA-256 columns."
+  echo "- Evidence bundle must include a valid evidence-files-manifest.txt with matching path, byte, and SHA-256 columns."
   remaining_any=1
 fi
 if [[ "$step_validation_verified" != "1" ]]; then
