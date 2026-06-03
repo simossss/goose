@@ -413,6 +413,9 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         if ((info.flags & ApplicationInfo.FLAG_USES_CLEARTEXT_TRAFFIC) != 0) {
             throw new AssertionError("android:usesCleartextTraffic must remain false");
         }
+        if (info.icon == 0) {
+            throw new AssertionError("application icon must be set");
+        }
     }
 
     private void assertBluetoothManifestScope(Context context) throws Exception {

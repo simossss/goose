@@ -130,6 +130,8 @@ These files are build artifacts and are ignored by git.
   activity metrics before syncing.
 - Records Health Connect sync attempts, blocked writes, successes, and failures
   to `files/goose/health-connect-sync-log.jsonl` for real-device debugging.
+- Disables Android backup and device-transfer extraction for app-local health
+  data through manifest flags plus explicit backup/data-extraction rules.
 - Provides the Health Connect permissions rationale activity and Android 14+
   permission-usage alias required by the platform permissions screen.
 - Includes an instrumentation smoke harness for native loading, `core.version`,
