@@ -20,6 +20,7 @@ Collects the final Android phone evidence bundle with strict pass/fail gates:
 - at least one raw_evidence row
 - at least one capture_sessions row
 - at least one session-tagged raw_evidence row
+- at least one session-tagged Android BLE live-notification raw_evidence row
 - at least one finished capture session with frame_count > 0
 - installed com.goose.android package metadata
 - Health Connect audit log and write_started event, unless --skip-health is set
@@ -94,6 +95,7 @@ export GOOSE_ANDROID_STRICT_EVIDENCE=1
 export GOOSE_ANDROID_MIN_RAW_EVIDENCE=1
 export GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1
 export GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=1
+export GOOSE_ANDROID_MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE=1
 export GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1
 export GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=1
 export GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT=1

@@ -93,6 +93,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     raw_rows="$(summary_bullet_value "Raw evidence rows" "$summary")"
     capture_sessions="$(summary_bullet_value "Capture sessions" "$summary")"
     session_raw_rows="$(summary_bullet_value "Session raw evidence rows" "$summary")"
+    session_live_notification_raw_rows="$(summary_bullet_value "Session live notification raw evidence rows" "$summary")"
     finished_sessions="$(summary_bullet_value "Finished nonempty capture sessions" "$summary")"
     ble_ready_events="$(summary_bullet_value "Ready events" "$summary")"
     ble_hello_sent_events="$(summary_bullet_value "Hello sent events" "$summary")"
@@ -126,6 +127,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && is_positive_int "$raw_rows" \
       && is_positive_int "$capture_sessions" \
       && is_positive_int "$session_raw_rows" \
+      && is_positive_int "$session_live_notification_raw_rows" \
       && is_positive_int "$finished_sessions"; then
       capture_verified=1
     fi
@@ -178,6 +180,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Raw evidence rows: $raw_rows"
     echo "- Capture sessions: $capture_sessions"
     echo "- Session raw evidence rows: $session_raw_rows"
+    echo "- Session live notification raw evidence rows: $session_live_notification_raw_rows"
     echo "- Finished nonempty capture sessions: $finished_sessions"
     echo "- Step samples: $(summary_bullet_value "Step samples" "$summary")"
     echo "- Daily activity metrics: $(summary_bullet_value "Daily activity metrics" "$summary")"
@@ -221,7 +224,7 @@ echo "## Verified Phone Acceptance"
 echo
 verified_any=0
 if [[ "$capture_verified" == "1" ]]; then
-  echo "- Controlled capture database pull has raw evidence, capture session, session-tagged raw evidence, and a finished nonempty session."
+  echo "- Controlled capture database pull has raw evidence, capture session, session-tagged Android BLE live-notification raw evidence, and a finished nonempty session."
   verified_any=1
 fi
 if [[ "$physical_capture_verified" == "1" ]]; then

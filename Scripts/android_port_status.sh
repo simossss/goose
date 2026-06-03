@@ -94,7 +94,7 @@ Final phone evidence gate:
 Phone-bound completion checks:
   1. Physical WHOOP scan/connect validation on a real Android phone.
   2. BLE session audit proving command readiness and client hello sent.
-  3. Controlled capture pull inspected with Scripts/inspect_android_capture.sh.
+  3. Controlled capture pull with session-tagged Android BLE live-notification raw evidence inspected with Scripts/inspect_android_capture.sh.
   4. Step-counter decoder confirmation from real counted-step evidence bound to a decoded capture session.
   5. Health Connect permission grant and real planned write attempt on Android 14+ with permissions-ready planned-write evidence.
 

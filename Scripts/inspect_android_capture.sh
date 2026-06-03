@@ -9,6 +9,7 @@ BLE_SESSION_LOG="${BLE_SESSION_LOG:-$DATABASE_BASENAME-ble-session-log.jsonl}"
 MIN_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_RAW_EVIDENCE:-0}"
 MIN_CAPTURE_SESSIONS="${GOOSE_ANDROID_MIN_CAPTURE_SESSIONS:-0}"
 MIN_SESSION_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE:-0}"
+MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE:-0}"
 MIN_FINISHED_CAPTURE_SESSIONS="${GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS:-0}"
 REQUIRE_BLE_SESSION_AUDIT="${GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT:-0}"
 REQUIRE_BLE_HELLO_SENT="${GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT:-0}"
@@ -34,6 +35,7 @@ Optional assertions:
   GOOSE_ANDROID_MIN_RAW_EVIDENCE=1
   GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1
   GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=1
+  GOOSE_ANDROID_MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE=1
   GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1
   GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT=1
   GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1
@@ -110,6 +112,7 @@ raw_count="$(table_count raw_evidence)"
 decoded_count="$(table_count decoded_frames)"
 session_count="$(table_count capture_sessions)"
 session_raw_count="$(table_scalar_or_missing raw_evidence "SELECT COUNT(*) FROM raw_evidence WHERE COALESCE(capture_session_id, '') != '';")"
+session_live_notification_raw_count="$(table_scalar_or_missing raw_evidence "SELECT COUNT(*) FROM raw_evidence WHERE COALESCE(capture_session_id, '') != '' AND source LIKE 'goose-android/live-notification/%';")"
 finished_session_count="$(table_scalar_or_missing capture_sessions "SELECT COUNT(*) FROM capture_sessions WHERE status = 'finished' AND frame_count > 0;")"
 step_count="$(table_count step_counter_samples)"
 activity_metric_count="$(table_count daily_activity_metrics)"
@@ -167,6 +170,7 @@ echo "raw evidence: $raw_count"
 echo "decoded frames: $decoded_count"
 echo "capture sessions: $session_count"
 echo "session raw evidence: $session_raw_count"
+echo "session live notification raw evidence: $session_live_notification_raw_count"
 echo "finished nonempty capture sessions: $finished_session_count"
 echo "step samples: $step_count"
 echo "daily activity metrics: $activity_metric_count"
@@ -294,6 +298,14 @@ if [[ "$session_raw_count" != "missing" && "$session_raw_count" -lt "$MIN_SESSIO
   echo "FAIL: session-tagged raw_evidence rows $session_raw_count < required $MIN_SESSION_RAW_EVIDENCE" >&2
   failures=$((failures + 1))
 elif [[ "$session_raw_count" == "missing" && "$MIN_SESSION_RAW_EVIDENCE" -gt 0 ]]; then
+  echo "FAIL: raw_evidence table missing" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$session_live_notification_raw_count" != "missing" && "$session_live_notification_raw_count" -lt "$MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE" ]]; then
+  echo "FAIL: session-tagged Android BLE live notification raw_evidence rows $session_live_notification_raw_count < required $MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE" >&2
+  failures=$((failures + 1))
+elif [[ "$session_live_notification_raw_count" == "missing" && "$MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE" -gt 0 ]]; then
   echo "FAIL: raw_evidence table missing" >&2
   failures=$((failures + 1))
 fi

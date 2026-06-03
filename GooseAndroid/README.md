@@ -126,6 +126,7 @@ stricter post-capture gate, set
 `GOOSE_ANDROID_MIN_RAW_EVIDENCE=1`,
 `GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1`,
 `GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=1`,
+`GOOSE_ANDROID_MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE=1`,
 `GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1`,
 `GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1`, or
 `GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1`. For Health Connect phone validation, add
@@ -169,7 +170,8 @@ These files are build artifacts and are ignored by git.
   `capture.import_frame_batch`.
 - Starts and finishes Android manual capture sessions through
   `capture.start_session` and `capture.finish_session`, then tags incoming raw
-  evidence with the active `capture_session_id`.
+  evidence from `goose-android/live-notification/...` with the active
+  `capture_session_id`.
 - Prepares the physical WHOOP command frames for range, historical data, and
   abort-history with Rust-backed direct-send preflight output, then sends the
   frame only after a second tap within the confirmation window.

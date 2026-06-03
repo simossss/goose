@@ -70,6 +70,7 @@ Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-real
 - Raw evidence rows: at least 1.
 - Capture sessions: at least 1.
 - Session-tagged raw evidence rows: at least 1.
+- Session live notification raw evidence rows: at least 1.
 - Finished nonempty capture sessions: at least 1.
 - Step validation completed events: at least 1.
 - Step validation passed events: at least 1.
