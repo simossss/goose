@@ -3,7 +3,45 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-PHONE_EVIDENCE_DIR="${1:-}"
+PHONE_EVIDENCE_DIR=""
+STRICT=0
+
+usage() {
+  cat <<'USAGE'
+Usage: Scripts/android_pr_readiness.sh [--strict] [phone-evidence-dir]
+
+Prints the Android PR readiness summary. With --strict, exits nonzero when the
+supplied final phone evidence bundle leaves any phone-bound acceptance item
+unproven.
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --strict)
+      STRICT=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -*)
+      echo "Unknown argument: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+    *)
+      if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
+        echo "Unexpected extra evidence directory: $1" >&2
+        usage >&2
+        exit 1
+      fi
+      PHONE_EVIDENCE_DIR="$1"
+      shift
+      ;;
+  esac
+done
 
 status_value() {
   local key="$1"
@@ -59,6 +97,7 @@ echo
 echo "- \`Scripts/validate_android.sh\`"
 echo "- \`Scripts/android_phone_final_gate.sh [output-dir] --require-step-validation\`"
 echo "- Add \`--require-health-success\` only when the final phone run must prove a successful Health Connect platform write."
+echo "- \`Scripts/android_pr_readiness.sh --strict [output-dir]\` after final phone evidence is collected."
 echo
 echo "## Phone Evidence"
 echo
@@ -280,4 +319,15 @@ if [[ "$health_attempt_verified" != "1" ]]; then
 fi
 if [[ "$remaining_any" == "0" ]]; then
   echo "- None from the supplied evidence bundle."
+fi
+
+if [[ "$STRICT" == "1" && "$remaining_any" != "0" ]]; then
+  echo
+  echo "Strict PR readiness: FAIL" >&2
+  exit 1
+fi
+
+if [[ "$STRICT" == "1" ]]; then
+  echo
+  echo "Strict PR readiness: PASS"
 fi

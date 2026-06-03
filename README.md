@@ -247,7 +247,11 @@ including a collected phone evidence bundle:
 
 ```bash
 Scripts/android_pr_readiness.sh [tmp/android-phone-final-gate-...]
+Scripts/android_pr_readiness.sh --strict [tmp/android-phone-final-gate-...]
 ```
+
+Use `--strict` after final phone evidence collection when the command should
+exit nonzero if any physical-phone acceptance item is still missing.
 
 Print the final real-phone run sheet before starting the controlled capture:
 

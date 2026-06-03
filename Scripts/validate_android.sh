@@ -58,9 +58,14 @@ bash -n "$SCRIPT_DIR/validate_android.sh"
 echo "==> Checking Android handoff helper output"
 checklist_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-checklist.XXXXXX")"
 readiness_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness.XXXXXX")"
-TMP_FILES+=("$checklist_output" "$readiness_output")
+readiness_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-strict.XXXXXX")"
+TMP_FILES+=("$checklist_output" "$readiness_output" "$readiness_strict_output")
 "$SCRIPT_DIR/android_final_phone_checklist.sh" > "$checklist_output"
 "$SCRIPT_DIR/android_pr_readiness.sh" > "$readiness_output"
+if "$SCRIPT_DIR/android_pr_readiness.sh" --strict > "$readiness_strict_output" 2>&1; then
+  echo "PR readiness strict mode unexpectedly passed without phone evidence" >&2
+  exit 1
+fi
 assert_file_contains "$checklist_output" "Goose Android Final Phone Checklist" "final phone checklist"
 assert_file_contains "$checklist_output" "Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation" "final phone checklist"
 assert_file_contains "$checklist_output" "BLE session hello sent events: at least 1." "final phone checklist"
@@ -71,6 +76,8 @@ assert_file_contains "$checklist_output" "Health Connect ready write started eve
 assert_file_contains "$readiness_output" "Goose Android PR Readiness" "PR readiness"
 assert_file_contains "$readiness_output" "No phone evidence directory supplied." "PR readiness"
 assert_file_contains "$readiness_output" "Remaining Phone-Bound Acceptance" "PR readiness"
+assert_file_contains "$readiness_output" "Scripts/android_pr_readiness.sh --strict [output-dir]" "PR readiness"
+assert_file_contains "$readiness_strict_output" "Strict PR readiness: FAIL" "PR readiness strict"
 
 find_build_tool() {
   local tool="$1"

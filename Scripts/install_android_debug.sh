@@ -134,6 +134,7 @@ Phone test checklist:
    Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation
 6. Generate PR evidence:
    Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-real
+   Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
 
 Still phone-bound: physical WHOOP BLE session evidence, live-notification raw
 capture provenance, counted-step decoder confirmation, and Health Connect

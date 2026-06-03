@@ -59,6 +59,7 @@ Then generate the PR-ready summary:
 
 \`\`\`sh
 Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-real
+Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
 \`\`\`
 
 ## Evidence Expected To Pass

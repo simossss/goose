@@ -30,7 +30,11 @@ optional phone evidence bundle:
 
 ```sh
 Scripts/android_pr_readiness.sh [tmp/android-phone-final-gate-...]
+Scripts/android_pr_readiness.sh --strict [tmp/android-phone-final-gate-...]
 ```
+
+Use `--strict` after the final phone gate when the command should fail if any
+phone-bound acceptance item remains unproven.
 
 Print the final real-phone run sheet before starting the controlled capture:
 
@@ -268,7 +272,9 @@ These files are build artifacts and are ignored by git.
    `Scripts/collect_android_phone_evidence.sh`.
 11. After final evidence collection, run
     `Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-...` for the
-    PR checklist summary.
+    PR checklist summary, then
+    `Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-...`
+    for a nonzero exit if any final acceptance item is still missing.
     Final evidence must come from a physical adb device; emulator evidence is
     accepted only for development smoke tests with `--allow-emulator`.
 
