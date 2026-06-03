@@ -9,6 +9,8 @@ import android.content.pm.FeatureInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.health.connect.datatypes.ActiveCaloriesBurnedRecord;
 import android.health.connect.datatypes.HeartRateRecord;
 import android.health.connect.datatypes.Record;
@@ -29,6 +31,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
     private static final String TAG = "GooseBridgeSmoke";
@@ -90,6 +94,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         if (!storage.optBoolean("pass", false)) {
             throw new AssertionError("storage.check did not pass: " + storage);
         }
+        Log.i(TAG, "checking Android capture session raw evidence tagging");
+        assertAndroidCaptureSessionTagging(context);
 
         Log.i(TAG, "calling unavailable metric status reports");
         assertUnavailableStatusReports(bridge, databaseFile);
@@ -315,6 +321,107 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 .put("write_metric", false));
         if (!"goose.recovery-unavailable-daily-status-report.v1".equals(recovery.optString("schema"))) {
             throw new AssertionError("unexpected recovery unavailable schema: " + recovery);
+        }
+    }
+
+    private void assertAndroidCaptureSessionTagging(Context context) throws Exception {
+        GoosePacketIngestor ingestor = new GoosePacketIngestor(context);
+        GooseRustBridge bridge = new GooseRustBridge();
+        File databaseFile = new File(ingestor.databasePath());
+        deleteDatabaseFiles(databaseFile);
+        String sessionId = "android-smoke-session-" + System.currentTimeMillis();
+        long startedAt = 1767225600000L;
+        bridge.request("capture.start_session", new JSONObject()
+                .put("database_path", databaseFile.getAbsolutePath())
+                .put("session_id", sessionId)
+                .put("source", "goose-android/instrumentation")
+                .put("started_at_unix_ms", startedAt)
+                .put("device_model", "WHOOP 5.0 Goose Android")
+                .put("provenance", new JSONObject()
+                        .put("capture_app", "goose_android")
+                        .put("capture_kind", "instrumentation_smoke")));
+        ingestor.startCaptureSession(sessionId);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        List<GoosePacketIngestor.Result> results = new ArrayList<>();
+        ingestor.ingest(new GooseBleClient.GooseNotification(
+                "0000180d-0000-1000-8000-00805f9b34fb",
+                "00002a37-0000-1000-8000-00805f9b34fb",
+                new byte[]{0x00, 0x44},
+                startedAt + 1000L
+        ), result -> {
+            results.add(result);
+            latch.countDown();
+        });
+        if (!latch.await(5, TimeUnit.SECONDS)) {
+            throw new AssertionError("Android packet ingestor did not callback");
+        }
+        GoosePacketIngestor.Result result = results.get(0);
+        if (result.error != null) {
+            throw new AssertionError("Android packet ingest failed: " + result.error);
+        }
+        if (!"standard_heart_rate".equals(result.payloadKind)) {
+            throw new AssertionError("standard heart-rate notification not classified: " + result.payloadKind);
+        }
+        int frameCount = ingestor.finishCaptureSession(sessionId);
+        ingestor.close();
+        if (frameCount != 1) {
+            throw new AssertionError("capture session frame count should be 1, got " + frameCount);
+        }
+        JSONObject finish = bridge.request("capture.finish_session", new JSONObject()
+                .put("database_path", databaseFile.getAbsolutePath())
+                .put("session_id", sessionId)
+                .put("ended_at_unix_ms", startedAt + 2000L)
+                .put("frame_count", frameCount));
+        JSONObject session = finish.optJSONObject("session");
+        if (session == null
+                || !"finished".equals(session.optString("status"))
+                || session.optInt("frame_count", 0) != 1) {
+            throw new AssertionError("capture session did not finish with frame count: " + finish);
+        }
+        assertRawEvidenceTagged(databaseFile, sessionId);
+    }
+
+    private void assertRawEvidenceTagged(File databaseFile, String sessionId) {
+        SQLiteDatabase database = SQLiteDatabase.openDatabase(databaseFile.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
+        Cursor cursor = null;
+        try {
+            cursor = database.rawQuery(
+                    "SELECT COUNT(*), COALESCE(MAX(payload_hex), ''), COALESCE(MAX(source), '') "
+                            + "FROM raw_evidence WHERE capture_session_id = ?",
+                    new String[]{sessionId});
+            if (!cursor.moveToFirst()) {
+                throw new AssertionError("raw evidence query returned no rows");
+            }
+            int rows = cursor.getInt(0);
+            String payloadHex = cursor.getString(1);
+            String source = cursor.getString(2);
+            if (rows != 1) {
+                throw new AssertionError("expected 1 session-tagged raw_evidence row, got " + rows);
+            }
+            if (!"0044".equals(payloadHex)) {
+                throw new AssertionError("session-tagged raw_evidence payload mismatch: " + payloadHex);
+            }
+            if (!source.contains("goose-android/live-notification/0000180d-0000-1000-8000-00805f9b34fb/00002a37-0000-1000-8000-00805f9b34fb")) {
+                throw new AssertionError("session-tagged raw_evidence source mismatch: " + source);
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+            database.close();
+        }
+    }
+
+    private void deleteDatabaseFiles(File databaseFile) {
+        deleteIfExists(databaseFile);
+        deleteIfExists(new File(databaseFile.getAbsolutePath() + "-wal"));
+        deleteIfExists(new File(databaseFile.getAbsolutePath() + "-shm"));
+    }
+
+    private void deleteIfExists(File file) {
+        if (file.exists() && !file.delete()) {
+            throw new AssertionError("could not delete stale database file: " + file);
         }
     }
 
