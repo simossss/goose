@@ -43,6 +43,8 @@ final class GooseBleClient {
         void onMetadataChanged(String metadata);
 
         void onCommandEvent(CommandEvent event);
+
+        void onConnectionProgress(ConnectionProgress progress);
     }
 
     static final class DeviceRow {
@@ -111,6 +113,55 @@ final class GooseBleClient {
         }
     }
 
+    static final class ConnectionProgress {
+        final String phase;
+        final String deviceId;
+        final int discoveredDeviceCount;
+        final int serviceCount;
+        final int interestingServiceCount;
+        final int notificationCandidateCount;
+        final int readCandidateCount;
+        final int queuedOperationCount;
+        final int completedOperationCount;
+        final int subscriptionCount;
+        final boolean commandReady;
+        final boolean helloSent;
+        final String error;
+        final long occurredAtMillis;
+
+        ConnectionProgress(
+                String phase,
+                String deviceId,
+                int discoveredDeviceCount,
+                int serviceCount,
+                int interestingServiceCount,
+                int notificationCandidateCount,
+                int readCandidateCount,
+                int queuedOperationCount,
+                int completedOperationCount,
+                int subscriptionCount,
+                boolean commandReady,
+                boolean helloSent,
+                String error,
+                long occurredAtMillis
+        ) {
+            this.phase = phase;
+            this.deviceId = deviceId;
+            this.discoveredDeviceCount = discoveredDeviceCount;
+            this.serviceCount = serviceCount;
+            this.interestingServiceCount = interestingServiceCount;
+            this.notificationCandidateCount = notificationCandidateCount;
+            this.readCandidateCount = readCandidateCount;
+            this.queuedOperationCount = queuedOperationCount;
+            this.completedOperationCount = completedOperationCount;
+            this.subscriptionCount = subscriptionCount;
+            this.commandReady = commandReady;
+            this.helloSent = helloSent;
+            this.error = error;
+            this.occurredAtMillis = occurredAtMillis;
+        }
+    }
+
     private static final UUID WHOOP_GEN5_SERVICE = UUID.fromString("fd4b0001-cce1-4033-93ce-002d5875f58a");
     private static final UUID WHOOP_GEN4_SERVICE = UUID.fromString("61080001-8d6d-82b8-614a-1c8cb0f8dcc6");
     private static final UUID STANDARD_HEART_RATE_SERVICE = UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb");
@@ -145,6 +196,11 @@ final class GooseBleClient {
     private long lastDevicePublishAtMillis;
     private boolean clientHelloSent;
     private int subscriptionCount;
+    private int completedOperationCount;
+    private int serviceCount;
+    private int interestingServiceCount;
+    private int notificationCandidateCount;
+    private int readCandidateCount;
     private final Map<String, String> metadata = new LinkedHashMap<>();
 
     private interface GattOperation {
@@ -223,6 +279,7 @@ final class GooseBleClient {
         scanning = false;
         filteredScan = false;
         listener.onStateChanged("Scan stopped");
+        emitConnectionProgress("scan_stopped", null);
     }
 
     void connect(String address) {
@@ -241,6 +298,8 @@ final class GooseBleClient {
         clientHelloSent = false;
         commandCharacteristic = null;
         resetOperations();
+        resetDiscoveryCounts();
+        emitConnectionProgress("connecting", null);
         gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE);
     }
 
@@ -322,6 +381,8 @@ final class GooseBleClient {
         gatt = null;
         activeDeviceId = null;
         resetOperations();
+        resetDiscoveryCounts();
+        emitConnectionProgress("closed", null);
     }
 
     private final ScanCallback scanCallback = new ScanCallback() {
@@ -341,6 +402,7 @@ final class GooseBleClient {
                 stopScan();
                 publishDevicesNow();
                 listener.onStateChanged("WHOOP candidate found; scan stopped so you can tap it");
+                emitConnectionProgress("candidate_found", null);
             } else {
                 scheduleDevicePublish();
             }
@@ -351,6 +413,7 @@ final class GooseBleClient {
             scanning = false;
             filteredScan = false;
             listener.onStateChanged("Scan failed: " + scanFailureName(errorCode));
+            emitConnectionProgress("scan_failed", scanFailureName(errorCode));
         }
     };
 
@@ -360,6 +423,7 @@ final class GooseBleClient {
         listener.onStateChanged(withWhoopFilters
                 ? "Scanning for WHOOP advertisements"
                 : "Fallback scan: showing all BLE advertisers");
+        emitConnectionProgress(withWhoopFilters ? "scan_filtered" : "scan_fallback", null);
 
         List<ScanFilter> filters = new ArrayList<>();
         if (withWhoopFilters) {
@@ -479,13 +543,17 @@ final class GooseBleClient {
                 clientHelloSent = false;
                 commandCharacteristic = null;
                 resetOperations();
+                resetDiscoveryCounts();
+                emitConnectionProgress("connected", null);
                 gatt.discoverServices();
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 clientHelloSent = false;
                 commandCharacteristic = null;
                 activeDeviceId = null;
                 resetOperations();
+                resetDiscoveryCounts();
                 listener.onStateChanged("Disconnected");
+                emitConnectionProgress("disconnected", null);
             }
         }
 
@@ -493,26 +561,33 @@ final class GooseBleClient {
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 listener.onStateChanged("Service discovery failed: " + status);
+                emitConnectionProgress("service_discovery_failed", "status " + status);
                 return;
             }
             resetOperations();
+            resetDiscoveryCounts();
             subscriptionCount = 0;
+            serviceCount = gatt.getServices().size();
             for (BluetoothGattService service : gatt.getServices()) {
                 UUID serviceUuid = service.getUuid();
                 if (!interestingService(serviceUuid)) {
                     continue;
                 }
+                interestingServiceCount += 1;
                 for (BluetoothGattCharacteristic characteristic : service.getCharacteristics()) {
                     if (notificationCandidate(characteristic)) {
+                        notificationCandidateCount += 1;
                         enqueueSubscribe(characteristic);
                     }
                     if (readCandidate(characteristic)) {
+                        readCandidateCount += 1;
                         enqueueRead(characteristic);
                     }
                 }
             }
             enqueueClientHello(gatt);
             listener.onStateChanged("Discovered services; queued " + operationQueue.size() + " GATT operations");
+            emitConnectionProgress("services_discovered", null);
             drainOperationQueue(gatt);
         }
 
@@ -634,6 +709,7 @@ final class GooseBleClient {
         while (!operationQueue.isEmpty()) {
             GattOperation next = operationQueue.poll();
             activeOperation = next;
+            emitConnectionProgress("operation_start", null);
             boolean async = next.start(gatt);
             if (async) {
                 next.onStarted();
@@ -643,18 +719,21 @@ final class GooseBleClient {
             activeOperation = null;
         }
         listener.onStateChanged("Ready; subscribed " + subscriptionCount + " characteristics; hello " + (clientHelloSent ? "sent" : "not sent"));
+        emitConnectionProgress("ready", null);
     }
 
     private void finishActiveOperation(BluetoothGatt gatt, String error) {
         String label = activeOperation != null ? activeOperation.label() : "unknown";
         GattOperation completedOperation = activeOperation;
         activeOperation = null;
+        completedOperationCount += 1;
         if (completedOperation != null) {
             completedOperation.onComplete(error);
         }
         if (error != null) {
             listener.onStateChanged(label + ": " + error);
         }
+        emitConnectionProgress(error == null ? "operation_complete" : "operation_failed", error);
         drainOperationQueue(gatt);
     }
 
@@ -662,6 +741,14 @@ final class GooseBleClient {
         operationQueue.clear();
         activeOperation = null;
         subscriptionCount = 0;
+        completedOperationCount = 0;
+    }
+
+    private void resetDiscoveryCounts() {
+        serviceCount = 0;
+        interestingServiceCount = 0;
+        notificationCandidateCount = 0;
+        readCandidateCount = 0;
     }
 
     private boolean startClientHello(BluetoothGatt gatt, BluetoothGattCharacteristic command) {
@@ -733,6 +820,25 @@ final class GooseBleClient {
                 commandCharacteristicUuid(),
                 commandWriteType(),
                 Hex.encode(frame),
+                error,
+                System.currentTimeMillis()
+        ));
+    }
+
+    private void emitConnectionProgress(String phase, String error) {
+        listener.onConnectionProgress(new ConnectionProgress(
+                phase,
+                activeDeviceId != null ? activeDeviceId : "",
+                devices.size(),
+                serviceCount,
+                interestingServiceCount,
+                notificationCandidateCount,
+                readCandidateCount,
+                operationQueue.size() + (activeOperation != null ? 1 : 0),
+                completedOperationCount,
+                subscriptionCount,
+                commandReady(),
+                clientHelloSent,
                 error,
                 System.currentTimeMillis()
         ));

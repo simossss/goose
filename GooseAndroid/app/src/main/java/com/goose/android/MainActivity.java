@@ -47,6 +47,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private TextView bleStatus;
     private TextView storeStatus;
     private TextView metadataStatus;
+    private TextView connectionStatus;
     private TextView packetStatus;
     private TextView transferStatus;
     private TextView commandStatus;
@@ -158,6 +159,15 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         });
     }
 
+    @Override
+    public void onConnectionProgress(GooseBleClient.ConnectionProgress progress) {
+        runOnUiThread(() -> {
+            if (connectionStatus != null) {
+                connectionStatus.setText(connectionProgressSummary(progress));
+            }
+        });
+    }
+
     private void refreshStoreStatus() {
         try {
             JSONObject args = new JSONObject()
@@ -258,6 +268,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         metadataStatus = bodyText("No device metadata read");
         metadataStatus.setPadding(0, 8, 0, 0);
         captureSection.addView(metadataStatus);
+
+        connectionStatus = bodyText("Connection progress\nphase: not started");
+        connectionStatus.setPadding(0, 8, 0, 0);
+        captureSection.addView(connectionStatus);
 
         TextView devicesTitle = sectionText("Devices");
         captureSection.addView(devicesTitle);
@@ -756,6 +770,29 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 + " blocked command " + command.command
                 + "\nno connected WHOOP command characteristic"
                 + "\n" + truncateHex(command.frameHex);
+    }
+
+    private String connectionProgressSummary(GooseBleClient.ConnectionProgress progress) {
+        StringBuilder builder = new StringBuilder("Connection progress")
+                .append("\nphase: ").append(progress.phase)
+                .append(" at ").append(new SimpleDateFormat("HH:mm:ss", Locale.US).format(new Date(progress.occurredAtMillis)));
+        if (!progress.deviceId.isEmpty()) {
+            builder.append("\ndevice: ").append(progress.deviceId);
+        }
+        builder.append("\ndevices seen: ").append(progress.discoveredDeviceCount)
+                .append("\nservices: ").append(progress.serviceCount)
+                .append(", interesting: ").append(progress.interestingServiceCount)
+                .append("\nnotify candidates: ").append(progress.notificationCandidateCount)
+                .append(", reads: ").append(progress.readCandidateCount)
+                .append("\nGATT queued: ").append(progress.queuedOperationCount)
+                .append(", completed: ").append(progress.completedOperationCount)
+                .append(", subscribed: ").append(progress.subscriptionCount)
+                .append("\ncommand ready: ").append(progress.commandReady)
+                .append(", hello sent: ").append(progress.helloSent);
+        if (progress.error != null) {
+            builder.append("\nerror: ").append(progress.error);
+        }
+        return builder.toString();
     }
 
     private String truncateHex(String frameHex) {
