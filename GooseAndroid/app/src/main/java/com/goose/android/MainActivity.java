@@ -11,6 +11,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
@@ -26,12 +27,14 @@ import java.util.concurrent.Executors;
 public final class MainActivity extends Activity implements GooseBleClient.Listener {
     private static final int PERMISSION_REQUEST_BLE = 1001;
     private static final int MAX_NOTIFICATION_LOG_ROWS = 40;
+    private static final int MAX_COMMAND_LOG_ROWS = 12;
     private static final int MAX_NOTIFICATION_HEX_CHARS = 160;
     private static final int MAX_REPORT_CHARS = 12000;
     private static final long COMMAND_CONFIRM_WINDOW_MS = 15000L;
 
     private final GooseRustBridge bridge = new GooseRustBridge();
     private final Deque<String> notificationLogRows = new ArrayDeque<>();
+    private final Deque<String> commandLogRows = new ArrayDeque<>();
     private final ExecutorService sessionExecutor = Executors.newSingleThreadExecutor();
     private GooseBleClient ble;
     private GooseCommandBuilder commandBuilder;
@@ -44,6 +47,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private TextView storeStatus;
     private TextView metadataStatus;
     private TextView packetStatus;
+    private TextView commandStatus;
     private TextView sessionStatus;
     private TextView healthConnectStatus;
     private TextView reportStatus;
@@ -140,13 +144,19 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         runOnUiThread(() -> metadataStatus.setText(metadata));
     }
 
+    @Override
+    public void onCommandEvent(GooseBleClient.CommandEvent event) {
+        String stamp = new SimpleDateFormat("HH:mm:ss", Locale.US).format(new Date(event.occurredAtMillis));
+        runOnUiThread(() -> appendCommandRow(commandEventSummary(stamp, event)));
+    }
+
     private void refreshStoreStatus() {
         try {
             JSONObject args = new JSONObject()
                     .put("database_path", packetIngestor.databasePath())
                     .put("self_test", true);
             JSONObject report = bridge.request("storage.check", args);
-            storeStatus.setText("Store: " + packetIngestor.databasePath() + "\n" + report.toString(2));
+            storeStatus.setText(compactStoreSummary(report));
         } catch (Exception error) {
             storeStatus.setText("Store check failed\n" + packetIngestor.databasePath() + "\n" + error);
         }
@@ -322,6 +332,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         physicalCommandActions.addView(abortHistoryButton, weightWrap());
         captureSection.addView(physicalCommandActions);
 
+        commandStatus = bodyText("Command results: none");
+        commandStatus.setPadding(0, 8, 0, 0);
+        captureSection.addView(commandStatus);
+
         LinearLayout captureActions = new LinearLayout(this);
         captureActions.setOrientation(LinearLayout.HORIZONTAL);
         Button captureStartButton = new Button(this);
@@ -466,6 +480,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 packetStatus.setText("Command blocked: no connected WHOOP command characteristic"
                         + "\n" + commandToSend.frameHex
                         + "\n" + commandToSend.preflightSummary);
+                appendCommandRow(commandBlockedSummary(commandToSend));
                 return;
             }
             packetStatus.setText("Sending confirmed " + commandToSend.command
@@ -488,10 +503,23 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private void prepareCommandConfirmation(GooseCommandBuilder.Result result, String payloadHex) {
         long now = System.currentTimeMillis();
         long expiresAt = now + COMMAND_CONFIRM_WINDOW_MS;
-        packetStatus.setText("Checking command preflight: " + result.command + "\n" + result.frameHex);
+        PendingCommand preparedCommand = new PendingCommand(
+                result.command,
+                payloadHex,
+                result.frameHex,
+                result.frame.clone(),
+                expiresAt,
+                "Preflight pending"
+        );
+        pendingCommand = preparedCommand;
+        packetStatus.setText("Prepared " + result.command
+                + "\nTap " + displayCommandName(result.command) + " again within "
+                + (COMMAND_CONFIRM_WINDOW_MS / 1000) + "s to send."
+                + "\n" + result.frameHex
+                + "\nPreflight pending");
         sessionExecutor.execute(() -> {
             String summary = commandPreflightSummary(result.command, result.frameHex, now, expiresAt);
-            PendingCommand preparedCommand = new PendingCommand(
+            PendingCommand updatedCommand = new PendingCommand(
                     result.command,
                     payloadHex,
                     result.frameHex,
@@ -500,7 +528,12 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                     summary
             );
             runOnUiThread(() -> {
-                pendingCommand = preparedCommand;
+                if (pendingCommand == null
+                        || !pendingCommand.matches(result.command, payloadHex)
+                        || !pendingCommand.frameHex.equals(result.frameHex)) {
+                    return;
+                }
+                pendingCommand = updatedCommand;
                 packetStatus.setText("Prepared " + result.command
                         + "\nTap " + displayCommandName(result.command) + " again within "
                         + (COMMAND_CONFIRM_WINDOW_MS / 1000) + "s to send."
@@ -670,6 +703,47 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         notificationLog.setText(log.toString());
     }
 
+    private void appendCommandRow(String row) {
+        commandLogRows.addFirst(row);
+        while (commandLogRows.size() > MAX_COMMAND_LOG_ROWS) {
+            commandLogRows.removeLast();
+        }
+        StringBuilder log = new StringBuilder("Command results");
+        for (String commandRow : commandLogRows) {
+            log.append("\n\n").append(commandRow);
+        }
+        if (commandStatus != null) {
+            commandStatus.setText(log.toString());
+        }
+    }
+
+    private String commandEventSummary(String stamp, GooseBleClient.CommandEvent event) {
+        String endpoint = event.serviceUuid.isEmpty() || event.characteristicUuid.isEmpty()
+                ? "endpoint: unavailable"
+                : event.writeType + " " + event.serviceUuid + " / " + event.characteristicUuid;
+        StringBuilder builder = new StringBuilder(stamp)
+                .append(" ")
+                .append(event.status)
+                .append(" ")
+                .append(event.label)
+                .append('\n')
+                .append(endpoint)
+                .append('\n')
+                .append(truncateHex(event.frameHex));
+        if (event.error != null) {
+            builder.append('\n').append(event.error);
+        }
+        return builder.toString();
+    }
+
+    private String commandBlockedSummary(PendingCommand command) {
+        String stamp = new SimpleDateFormat("HH:mm:ss", Locale.US).format(new Date());
+        return stamp
+                + " blocked command " + command.command
+                + "\nno connected WHOOP command characteristic"
+                + "\n" + truncateHex(command.frameHex);
+    }
+
     private String truncateHex(String frameHex) {
         if (frameHex.length() <= MAX_NOTIFICATION_HEX_CHARS) {
             return frameHex;
@@ -684,6 +758,34 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         }
         return value.substring(0, MAX_REPORT_CHARS)
                 + "\n\n[truncated " + (value.length() - MAX_REPORT_CHARS) + " chars for display]";
+    }
+
+    private String compactStoreSummary(JSONObject report) {
+        return "Store: " + packetIngestor.databasePath()
+                + "\npass: " + report.optBoolean("pass", false)
+                + ", storage ready: " + report.optBoolean("storage_ready", false)
+                + "\nschema: " + report.optInt("actual_schema_version", -1)
+                + " / expected " + report.optInt("expected_schema_version", -1)
+                + "\nraw: " + tableRowCount(report, "raw_evidence")
+                + ", decoded: " + tableRowCount(report, "decoded_frames")
+                + ", sessions: " + tableRowCount(report, "capture_sessions")
+                + ", steps: " + tableRowCount(report, "step_counter_samples")
+                + "\nissues: " + report.optJSONArray("issues")
+                + "\nFull storage/privacy details are in Ops.";
+    }
+
+    private int tableRowCount(JSONObject report, String tableName) {
+        JSONArray tables = report.optJSONArray("tables");
+        if (tables == null) {
+            return 0;
+        }
+        for (int index = 0; index < tables.length(); index += 1) {
+            JSONObject table = tables.optJSONObject(index);
+            if (table != null && tableName.equals(table.optString("table"))) {
+                return table.optInt("row_count", 0);
+            }
+        }
+        return 0;
     }
 
     private String captureSessionListSummary(JSONObject report) {

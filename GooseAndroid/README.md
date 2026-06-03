@@ -65,6 +65,10 @@ These files are build artifacts and are ignored by git.
 - Prepares the physical WHOOP command frames for range, historical data, and
   abort-history with Rust-backed direct-send preflight output, then sends the
   frame only after a second tap within the confirmation window.
+- Shows structured command progress for queued, writing, written, blocked, and
+  failed physical command writes.
+- Keeps the default Capture tab status compact; full JSON-heavy storage,
+  privacy, export, and bridge reports live behind report buttons.
 - Runs Rust-backed operational reports:
   - `metrics.input_readiness`
   - `capture.timeline`
@@ -108,7 +112,7 @@ decoder work separately.
 
 - Replace the Java debug surface with a production Android UI once BLE and
   report behavior are stable.
-- Add richer connection/history progress state and structured command results.
+- Add richer connection/history transfer progress state.
 - Continue packet decoder work for step counters and other packet-derived
   metrics.
 - Health Connect write adapter implementation after phone/platform permission

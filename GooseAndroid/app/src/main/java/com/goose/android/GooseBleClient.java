@@ -41,6 +41,8 @@ final class GooseBleClient {
         void onNotification(GooseNotification notification);
 
         void onMetadataChanged(String metadata);
+
+        void onCommandEvent(CommandEvent event);
     }
 
     static final class DeviceRow {
@@ -75,6 +77,37 @@ final class GooseBleClient {
             this.characteristicUuid = characteristicUuid;
             this.value = value;
             this.capturedAtMillis = capturedAtMillis;
+        }
+    }
+
+    static final class CommandEvent {
+        final String label;
+        final String status;
+        final String serviceUuid;
+        final String characteristicUuid;
+        final String writeType;
+        final String frameHex;
+        final String error;
+        final long occurredAtMillis;
+
+        CommandEvent(
+                String label,
+                String status,
+                String serviceUuid,
+                String characteristicUuid,
+                String writeType,
+                String frameHex,
+                String error,
+                long occurredAtMillis
+        ) {
+            this.label = label;
+            this.status = status;
+            this.serviceUuid = serviceUuid;
+            this.characteristicUuid = characteristicUuid;
+            this.writeType = writeType;
+            this.frameHex = frameHex;
+            this.error = error;
+            this.occurredAtMillis = occurredAtMillis;
         }
     }
 
@@ -118,6 +151,12 @@ final class GooseBleClient {
         boolean start(BluetoothGatt gatt);
 
         String label();
+
+        default void onStarted() {
+        }
+
+        default void onComplete(String error) {
+        }
     }
 
     GooseBleClient(Context context, Listener listener) {
@@ -240,10 +279,12 @@ final class GooseBleClient {
     void sendCommandFrame(String label, byte[] frame) {
         if (!hasRuntimePermissions()) {
             listener.onStateChanged("Bluetooth permissions required");
+            emitCommandEvent(label, "blocked", frame, "Bluetooth permissions required");
             return;
         }
         if (gatt == null || commandCharacteristic == null) {
             listener.onStateChanged(label + " blocked: no connected WHOOP command characteristic");
+            emitCommandEvent(label, "blocked", frame, "no connected WHOOP command characteristic");
             return;
         }
         byte[] frameCopy = frame.clone();
@@ -257,8 +298,19 @@ final class GooseBleClient {
             public String label() {
                 return label;
             }
+
+            @Override
+            public void onStarted() {
+                emitCommandEvent(label, "writing", frameCopy, null);
+            }
+
+            @Override
+            public void onComplete(String error) {
+                emitCommandEvent(label, error == null ? "written" : "failed", frameCopy, error);
+            }
         });
         listener.onStateChanged(label + " queued");
+        emitCommandEvent(label, "queued", frameCopy, null);
         drainOperationQueue(gatt);
     }
 
@@ -584,8 +636,10 @@ final class GooseBleClient {
             activeOperation = next;
             boolean async = next.start(gatt);
             if (async) {
+                next.onStarted();
                 return;
             }
+            next.onComplete("not started");
             activeOperation = null;
         }
         listener.onStateChanged("Ready; subscribed " + subscriptionCount + " characteristics; hello " + (clientHelloSent ? "sent" : "not sent"));
@@ -593,7 +647,11 @@ final class GooseBleClient {
 
     private void finishActiveOperation(BluetoothGatt gatt, String error) {
         String label = activeOperation != null ? activeOperation.label() : "unknown";
+        GattOperation completedOperation = activeOperation;
         activeOperation = null;
+        if (completedOperation != null) {
+            completedOperation.onComplete(error);
+        }
         if (error != null) {
             listener.onStateChanged(label + ": " + error);
         }
@@ -665,6 +723,19 @@ final class GooseBleClient {
         command.setWriteType(writeType);
         command.setValue(frame);
         return gatt.writeCharacteristic(command);
+    }
+
+    private void emitCommandEvent(String label, String status, byte[] frame, String error) {
+        listener.onCommandEvent(new CommandEvent(
+                label,
+                status,
+                commandServiceUuid(),
+                commandCharacteristicUuid(),
+                commandWriteType(),
+                Hex.encode(frame),
+                error,
+                System.currentTimeMillis()
+        ));
     }
 
     private BluetoothGattCharacteristic findCommandCharacteristic(BluetoothGatt gatt) {
