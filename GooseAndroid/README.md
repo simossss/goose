@@ -55,7 +55,8 @@ Scripts/pull_android_database.sh tmp/goose-phone.sqlite
 ```
 
 Set `ANDROID_SERIAL` when more than one adb device is online. The helper uses
-`run-as com.goose.android`, so it expects the debug APK.
+`run-as com.goose.android`, so it expects the debug APK. It also pulls the
+bounded Health Connect sync audit log when present.
 
 The Android build expects generated Rust libraries under `Rust/android/`:
 
@@ -127,6 +128,8 @@ These files are build artifacts and are ignored by git.
   Health Connect heart-rate candidates from trusted Goose-decoded heart-rate
   feature rows plus step and active-calorie candidates from existing daily
   activity metrics before syncing.
+- Records Health Connect sync attempts, blocked writes, successes, and failures
+  to `files/goose/health-connect-sync-log.jsonl` for real-device debugging.
 - Provides the Health Connect permissions rationale activity and Android 14+
   permission-usage alias required by the platform permissions screen.
 - Includes an instrumentation smoke harness for native loading, `core.version`,

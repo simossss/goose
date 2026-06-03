@@ -17,6 +17,8 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.OutcomeReceiver;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -31,6 +33,7 @@ import org.json.JSONObject;
 
 final class HealthConnectSupport {
     static final int REQUEST_HEALTH_CONNECT = 2001;
+    private static final long MAX_SYNC_AUDIT_BYTES = 256L * 1024L;
 
     private static final String ACTION_MANAGE_HEALTH_PERMISSIONS =
             "android.health.connect.action.MANAGE_HEALTH_PERMISSIONS";
@@ -43,9 +46,11 @@ final class HealthConnectSupport {
 
     private final Context context;
     private final ExecutorService healthExecutor = Executors.newSingleThreadExecutor();
+    private final File syncAuditFile;
 
     HealthConnectSupport(Context context) {
         this.context = context.getApplicationContext();
+        syncAuditFile = syncAuditFileFor(this.context);
     }
 
     interface WriteCallback {
@@ -112,16 +117,22 @@ final class HealthConnectSupport {
 
     void writePlannedRecords(JSONObject dryRunReport, WriteCallback callback) {
         if (!platformAvailable()) {
+            appendSyncAudit("blocked", auditDetails(
+                    "reason", "platform_unavailable",
+                    "sdk_int", Build.VERSION.SDK_INT));
             callback.onReport("Health Connect sync\nAndroid 14+ is required for the platform writer.");
             return;
         }
         if (dryRunReport == null) {
+            appendSyncAudit("blocked", auditDetails("reason", "dry_run_report_missing"));
             callback.onReport("Health Connect sync\nNo dry-run report available.");
             return;
         }
         if (!dryRunReport.optBoolean("pass", false)
                 || !dryRunReport.optBoolean("all_records_ready", false)
                 || dryRunReport.optInt("blocked_count", 0) > 0) {
+            appendSyncAudit("blocked", putAudit(dryRunAuditDetails(dryRunReport),
+                    "reason", "dry_run_not_ready"));
             callback.onReport("Health Connect sync blocked\n"
                     + "pass: " + dryRunReport.optBoolean("pass", false) + "\n"
                     + "all records ready: " + dryRunReport.optBoolean("all_records_ready", false) + "\n"
@@ -131,6 +142,8 @@ final class HealthConnectSupport {
         }
         JSONArray plannedWrites = dryRunReport.optJSONArray("planned_writes");
         if (plannedWrites == null || plannedWrites.length() == 0) {
+            appendSyncAudit("blocked", putAudit(dryRunAuditDetails(dryRunReport),
+                    "reason", "no_planned_writes"));
             callback.onReport("Health Connect sync\nNo planned writes. Capture and decode Goose-owned metrics first.");
             return;
         }
@@ -157,6 +170,8 @@ final class HealthConnectSupport {
             }
         }
         if (records.isEmpty()) {
+            appendSyncAudit("blocked", putAudit(putAudit(dryRunAuditDetails(dryRunReport),
+                    "reason", "no_writeable_records"), "skipped", jsonArray(skipped)));
             callback.onReport("Health Connect sync blocked\n"
                     + "planned writes: " + plannedWrites.length() + "\n"
                     + "writeable records: 0\n"
@@ -175,12 +190,25 @@ final class HealthConnectSupport {
     ) {
         HealthConnectManager manager = context.getSystemService(HealthConnectManager.class);
         if (manager == null) {
+            appendSyncAudit("blocked", auditDetails(
+                    "reason", "manager_unavailable",
+                    "records_attempted", records.size(),
+                    "attempted", jsonArray(attempted),
+                    "skipped", jsonArray(skipped)));
             callback.onReport("Health Connect sync\nHealthConnectManager unavailable.");
             return;
         }
+        appendSyncAudit("write_started", auditDetails(
+                "records_attempted", records.size(),
+                "attempted", jsonArray(attempted),
+                "skipped", jsonArray(skipped)));
         manager.insertRecords(records, healthExecutor, new OutcomeReceiver<InsertRecordsResponse, HealthConnectException>() {
             @Override
             public void onResult(InsertRecordsResponse result) {
+                appendSyncAudit("write_succeeded", auditDetails(
+                        "records_inserted", records.size(),
+                        "attempted", jsonArray(attempted),
+                        "skipped", jsonArray(skipped)));
                 callback.onReport("Health Connect sync\n"
                         + "inserted records: " + records.size() + "\n"
                         + "attempted detail: " + attempted + "\n"
@@ -190,6 +218,11 @@ final class HealthConnectSupport {
 
             @Override
             public void onError(HealthConnectException error) {
+                appendSyncAudit("write_failed", auditDetails(
+                        "records_attempted", records.size(),
+                        "attempted", jsonArray(attempted),
+                        "skipped", jsonArray(skipped),
+                        "error", String.valueOf(error)));
                 callback.onReport("Health Connect sync failed\n"
                         + "records attempted: " + records.size() + "\n"
                         + "attempted detail: " + attempted + "\n"
@@ -267,5 +300,79 @@ final class HealthConnectSupport {
         if (context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED) {
             grants.add(destinationType);
         }
+    }
+
+    static File syncAuditFileFor(Context context) {
+        return new File(new File(context.getFilesDir(), "goose"), "health-connect-sync-log.jsonl");
+    }
+
+    private JSONObject dryRunAuditDetails(JSONObject report) {
+        return auditDetails(
+                "pass", report.optBoolean("pass", false),
+                "all_records_ready", report.optBoolean("all_records_ready", false),
+                "permissions_ready", report.optBoolean("permissions_ready", false),
+                "candidate_count", report.optInt("candidate_count", 0),
+                "planned_write_count", report.optInt("planned_write_count", 0),
+                "blocked_count", report.optInt("blocked_count", 0),
+                "issues", report.optJSONArray("issues"));
+    }
+
+    private JSONArray jsonArray(List<String> values) {
+        JSONArray array = new JSONArray();
+        for (String value : values) {
+            array.put(value);
+        }
+        return array;
+    }
+
+    private void appendSyncAudit(String event, JSONObject details) {
+        try {
+            File parent = syncAuditFile.getParentFile();
+            if (parent != null && !parent.exists() && !parent.mkdirs()) {
+                return;
+            }
+            rotateSyncAuditIfNeeded();
+            JSONObject row = auditDetails(
+                    "schema", "goose.android.health-connect-sync-audit.v1",
+                    "generated_by", "goose-android",
+                    "created_at_unix_ms", System.currentTimeMillis(),
+                    "event", event,
+                    "details", details);
+            FileWriter writer = new FileWriter(syncAuditFile, true);
+            try {
+                writer.write(row.toString());
+                writer.write('\n');
+            } finally {
+                writer.close();
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private JSONObject auditDetails(Object... pairs) {
+        JSONObject object = new JSONObject();
+        for (int index = 0; index + 1 < pairs.length; index += 2) {
+            putAudit(object, String.valueOf(pairs[index]), pairs[index + 1]);
+        }
+        return object;
+    }
+
+    private JSONObject putAudit(JSONObject object, String key, Object value) {
+        try {
+            object.put(key, value);
+        } catch (Exception ignored) {
+        }
+        return object;
+    }
+
+    private void rotateSyncAuditIfNeeded() {
+        if (!syncAuditFile.exists() || syncAuditFile.length() <= MAX_SYNC_AUDIT_BYTES) {
+            return;
+        }
+        File rotated = new File(syncAuditFile.getParentFile(), syncAuditFile.getName() + ".old");
+        if (rotated.exists() && !rotated.delete()) {
+            return;
+        }
+        syncAuditFile.renameTo(rotated);
     }
 }

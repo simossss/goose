@@ -24,10 +24,14 @@ final class GooseStoreReporter {
     private final GooseRustBridge bridge = new GooseRustBridge();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final File exportDirectory;
+    private final File healthSyncAuditFile;
     private final String databasePath;
 
     GooseStoreReporter(Context context, String databasePath) {
         this.databasePath = databasePath;
+        File databaseDirectory = new File(databasePath).getParentFile();
+        healthSyncAuditFile = new File(databaseDirectory != null ? databaseDirectory : context.getFilesDir(),
+                "health-connect-sync-log.jsonl");
         exportDirectory = new File(context.getFilesDir(), "exports");
         if (!exportDirectory.exists()) {
             exportDirectory.mkdirs();
@@ -245,6 +249,8 @@ final class GooseStoreReporter {
         StringBuilder builder = new StringBuilder("Storage and privacy\n")
                 .append("database: ").append(databasePath).append('\n')
                 .append("database bytes: ").append(new File(databasePath).length()).append('\n')
+                .append("health sync audit: ").append(healthSyncAuditFile.getAbsolutePath()).append('\n')
+                .append("health sync audit bytes: ").append(healthSyncAuditFile.length()).append('\n')
                 .append("export directory: ").append(exportDirectory.getAbsolutePath()).append('\n')
                 .append("export files: ").append(exportFileCount()).append('\n');
         SQLiteDatabase database = null;

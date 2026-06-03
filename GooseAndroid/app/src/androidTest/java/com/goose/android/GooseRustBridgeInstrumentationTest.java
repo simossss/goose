@@ -21,7 +21,9 @@ import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -175,6 +177,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         }
         Log.i(TAG, "checking Android Health Connect record conversion");
         assertHealthConnectRecordConversion();
+        Log.i(TAG, "checking Android Health Connect sync audit log");
+        assertHealthConnectSyncAudit(context);
 
         Log.i(TAG, "checking declared Health Connect permissions");
         assertHealthConnectManifestScope(context);
@@ -308,6 +312,35 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 .put("write_metric", false));
         if (!"goose.recovery-unavailable-daily-status-report.v1".equals(recovery.optString("schema"))) {
             throw new AssertionError("unexpected recovery unavailable schema: " + recovery);
+        }
+    }
+
+    private void assertHealthConnectSyncAudit(Context context) throws Exception {
+        File auditFile = HealthConnectSupport.syncAuditFileFor(context);
+        if (auditFile.exists() && !auditFile.delete()) {
+            throw new AssertionError("could not clear stale Health Connect sync audit log: " + auditFile);
+        }
+        HealthConnectSupport support = new HealthConnectSupport(context);
+        try {
+            support.writePlannedRecords(null, report -> {
+            });
+        } finally {
+            support.close();
+        }
+        if (!auditFile.isFile()) {
+            throw new AssertionError("Health Connect sync audit log was not created: " + auditFile);
+        }
+        BufferedReader reader = new BufferedReader(new FileReader(auditFile));
+        try {
+            String line = reader.readLine();
+            if (line == null || !line.contains("goose.android.health-connect-sync-audit.v1")) {
+                throw new AssertionError("Health Connect sync audit log missing schema: " + line);
+            }
+            if (!line.contains("\"event\":\"blocked\"")) {
+                throw new AssertionError("Health Connect sync audit log missing blocked event: " + line);
+            }
+        } finally {
+            reader.close();
         }
     }
 

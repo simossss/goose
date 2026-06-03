@@ -9,6 +9,7 @@ ADB="${ADB:-adb}"
 PACKAGE="${PACKAGE:-com.goose.android}"
 REMOTE_DIR="${REMOTE_DIR:-files/goose}"
 OUTPUT="${1:-tmp/goose-phone.sqlite}"
+OUTPUT_BASENAME="${OUTPUT%.sqlite}"
 
 if ! command -v "$ADB" >/dev/null 2>&1; then
   echo "adb not found. Set ADB or add Android platform-tools to PATH." >&2
@@ -51,5 +52,7 @@ pull_file() {
 pull_file "$REMOTE_DIR/goose.sqlite" "$OUTPUT" 1
 pull_file "$REMOTE_DIR/goose.sqlite-wal" "$OUTPUT-wal" 0
 pull_file "$REMOTE_DIR/goose.sqlite-shm" "$OUTPUT-shm" 0
+pull_file "$REMOTE_DIR/health-connect-sync-log.jsonl" "$OUTPUT_BASENAME-health-connect-sync-log.jsonl" 0
+pull_file "$REMOTE_DIR/health-connect-sync-log.jsonl.old" "$OUTPUT_BASENAME-health-connect-sync-log.jsonl.old" 0
 
 echo "Android Goose database pull complete from $device_serial."
