@@ -47,6 +47,33 @@ assert_file_contains() {
   fi
 }
 
+select_adb_target() {
+  if [[ -n "${ANDROID_SERIAL:-}" ]]; then
+    printf '%s\n' "$ANDROID_SERIAL"
+    return
+  fi
+
+  local devices=()
+  while IFS= read -r serial; do
+    devices+=("$serial")
+  done < <("$ADB" devices | awk 'NR > 1 && $2 == "device" { print $1 }')
+
+  if [[ "${#devices[@]}" -eq 1 ]]; then
+    printf '%s\n' "${devices[0]}"
+    return
+  fi
+
+  if [[ "${#devices[@]}" -eq 0 ]]; then
+    return
+  fi
+
+  {
+    echo "Multiple adb devices are online. Set ANDROID_SERIAL to one of:"
+    printf '  %s\n' "${devices[@]}"
+  } >&2
+  return 2
+}
+
 file_size() {
   local file="$1"
   wc -c < "$file" | tr -d ' '
@@ -483,6 +510,7 @@ assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "## Capture
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" 'summary_section "Capture session evidence detail"' "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/pull_android_database.sh" "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" "database pull"
+assert_file_contains "$SCRIPT_DIR/validate_android.sh" "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" "Android validation"
 
 find_build_tool() {
   local tool="$1"
@@ -622,10 +650,7 @@ if ! command -v "$ADB" >/dev/null 2>&1; then
   exit 0
 fi
 
-device_serial="${ANDROID_SERIAL:-}"
-if [[ -z "$device_serial" ]]; then
-  device_serial="$("$ADB" devices | awk 'NR > 1 && $2 == "device" { print $1; exit }')"
-fi
+device_serial="$(select_adb_target)"
 
 if [[ -z "$device_serial" ]]; then
   echo "==> No adb device/emulator online; skipping Android instrumentation smoke"
