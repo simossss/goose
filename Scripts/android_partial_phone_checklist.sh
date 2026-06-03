@@ -65,7 +65,7 @@ Scripts/android_pr_readiness.sh tmp/android-phone-partial-gate-real
 
 ## Evidence Expected To Pass
 
-- Installed com.goose.android package metadata: PASS.
+- Installed com.goose.android package metadata and APK hash match: PASS.
 - Device kind: physical.
 - Focused AndroidRuntime crash lines: 0.
 - BLE session ready events: at least 1.

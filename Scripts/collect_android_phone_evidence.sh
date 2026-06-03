@@ -387,7 +387,8 @@ Strict mode requires at least one raw_evidence row and one capture_sessions row.
 The final phone gate additionally requires session-tagged raw_evidence, at least
 one session-tagged Android BLE live-notification raw_evidence row, and a finished
 nonempty capture session. Set GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=1 to
-require installed com.goose.android package metadata.
+require installed com.goose.android package metadata and an installed APK hash
+match.
 Set GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE=1 to reject emulator evidence.
 Set GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH=1 to fail the bundle when
 the focused AndroidRuntime logcat contains com.goose.android crash lines.

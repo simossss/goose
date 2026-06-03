@@ -400,7 +400,7 @@ if [[ "$physical_capture_verified" == "1" ]]; then
   verified_any=1
 fi
 if [[ "$installed_package_verified" == "1" ]]; then
-  echo "- Installed com.goose.android package metadata is present and passed the evidence gate."
+  echo "- Installed com.goose.android package metadata and APK hash match passed the evidence gate."
   verified_any=1
 fi
 if [[ "$no_android_runtime_crash_verified" == "1" ]]; then
@@ -443,7 +443,7 @@ if [[ "$physical_capture_verified" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$installed_package_verified" != "1" ]]; then
-  echo "- Installed com.goose.android package metadata must pass the evidence gate."
+  echo "- Installed com.goose.android package metadata and APK hash match must pass the evidence gate."
   remaining_any=1
 fi
 if [[ "$ble_hello_verified" != "1" ]]; then

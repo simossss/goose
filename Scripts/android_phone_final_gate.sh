@@ -22,7 +22,7 @@ Collects the final Android phone evidence bundle with strict pass/fail gates:
 - at least one session-tagged raw_evidence row
 - at least one session-tagged Android BLE live-notification raw_evidence row
 - at least one finished capture session with frame_count > 0
-- installed com.goose.android package metadata
+- installed com.goose.android package metadata and APK hash match
 - Health Connect audit log and write_started event, unless --skip-health is set
 
 Use --require-health-success only after granting Health Connect permissions and

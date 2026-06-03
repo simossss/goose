@@ -76,7 +76,7 @@ Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
 
 ## Evidence Expected To Pass
 
-- Installed com.goose.android package metadata: PASS.
+- Installed com.goose.android package metadata and APK hash match: PASS.
 - Focused AndroidRuntime crash lines: 0.
 - BLE session ready events: at least 1.
 - BLE session hello sent events: at least 1.
@@ -104,9 +104,12 @@ Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
 - \`evidence-gates.txt\`
 - \`inspect-android-capture.txt\`
 - \`goose-package-summary.txt\`
+- \`goose-local-debug-apk-sha256.txt\`
+- \`goose-installed-apk-sha256.txt\`
 - \`goose-phone.sqlite\`
 - \`goose-phone-ble-session-log.jsonl\`
 - \`goose-phone-health-connect-sync-log.jsonl\`
 - \`goose-phone-step-validation-log.jsonl\`
 - \`logcat-goose-brief.txt\`
+- \`evidence-files-manifest.txt\`
 CHECKLIST
