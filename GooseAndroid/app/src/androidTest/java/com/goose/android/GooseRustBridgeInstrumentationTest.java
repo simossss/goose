@@ -2,6 +2,7 @@ package com.goose.android;
 
 import android.app.Instrumentation;
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -153,6 +154,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertBluetoothManifestScope(context);
         Log.i(TAG, "checking runtime Bluetooth permission request set");
         assertBluetoothRuntimePermissionScope(context);
+        Log.i(TAG, "checking installed app privacy flags");
+        assertApplicationPrivacyFlags(context);
 
         Log.i(TAG, "calling privacy.lint");
         File lintDir = new File(context.getCacheDir(), "goose-smoke-privacy");
@@ -163,6 +166,16 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 new JSONObject().put("path", lintDir.getAbsolutePath()));
         if (privacyLint.length() == 0) {
             throw new AssertionError("privacy.lint returned an empty object");
+        }
+    }
+
+    private void assertApplicationPrivacyFlags(Context context) throws Exception {
+        ApplicationInfo info = context.getPackageManager().getApplicationInfo(
+                context.getPackageName(),
+                0
+        );
+        if ((info.flags & ApplicationInfo.FLAG_ALLOW_BACKUP) != 0) {
+            throw new AssertionError("android:allowBackup must remain false for local health data");
         }
     }
 
