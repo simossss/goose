@@ -177,6 +177,9 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         if ((info.flags & ApplicationInfo.FLAG_ALLOW_BACKUP) != 0) {
             throw new AssertionError("android:allowBackup must remain false for local health data");
         }
+        if ((info.flags & ApplicationInfo.FLAG_USES_CLEARTEXT_TRAFFIC) != 0) {
+            throw new AssertionError("android:usesCleartextTraffic must remain false");
+        }
     }
 
     private void assertBluetoothManifestScope(Context context) throws Exception {
