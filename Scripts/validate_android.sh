@@ -107,11 +107,12 @@ readiness_package_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readine
 readiness_health_success_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-health-success-strict.XXXXXX")"
 readiness_manifest_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-manifest-strict.XXXXXX")"
 readiness_stale_manifest_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-stale-manifest-strict.XXXXXX")"
+readiness_incomplete_manifest_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-incomplete-manifest-strict.XXXXXX")"
 final_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-final-gate-dry-run.XXXXXX")"
 partial_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-partial-gate-dry-run.XXXXXX")"
 inspect_session_detail_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-inspect-session-detail.XXXXXX")"
 synthetic_session_db="$(mktemp "${TMPDIR:-/tmp}/goose-android-session-detail.XXXXXX.sqlite")"
-TMP_FILES+=("$checklist_output" "$partial_checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$readiness_crash_strict_output" "$readiness_package_strict_output" "$readiness_health_success_strict_output" "$readiness_manifest_strict_output" "$readiness_stale_manifest_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output" "$inspect_session_detail_output" "$synthetic_session_db")
+TMP_FILES+=("$checklist_output" "$partial_checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$readiness_crash_strict_output" "$readiness_package_strict_output" "$readiness_health_success_strict_output" "$readiness_manifest_strict_output" "$readiness_stale_manifest_strict_output" "$readiness_incomplete_manifest_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output" "$inspect_session_detail_output" "$synthetic_session_db")
 synthetic_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-final-evidence.XXXXXX")"
 synthetic_partial_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-partial-evidence.XXXXXX")"
 synthetic_crash_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-crash-evidence.XXXXXX")"
@@ -119,7 +120,8 @@ synthetic_package_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-packa
 synthetic_health_success_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-health-success-evidence.XXXXXX")"
 synthetic_manifest_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-manifest-evidence.XXXXXX")"
 synthetic_stale_manifest_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-stale-manifest-evidence.XXXXXX")"
-TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir" "$synthetic_crash_evidence_dir" "$synthetic_package_evidence_dir" "$synthetic_health_success_evidence_dir" "$synthetic_manifest_evidence_dir" "$synthetic_stale_manifest_evidence_dir")
+synthetic_incomplete_manifest_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-incomplete-manifest-evidence.XXXXXX")"
+TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir" "$synthetic_crash_evidence_dir" "$synthetic_package_evidence_dir" "$synthetic_health_success_evidence_dir" "$synthetic_manifest_evidence_dir" "$synthetic_stale_manifest_evidence_dir" "$synthetic_incomplete_manifest_evidence_dir")
 "$SCRIPT_DIR/android_final_phone_checklist.sh" > "$checklist_output"
 "$SCRIPT_DIR/android_partial_phone_checklist.sh" > "$partial_checklist_output"
 "$SCRIPT_DIR/android_final_pr_gate.sh" tmp/android-phone-final-gate-real --skip-validate --require-health-success --dry-run > "$final_gate_dry_run_output"
@@ -333,6 +335,19 @@ if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_stale_manifest_evi
   echo "PR readiness strict mode unexpectedly passed with stale evidence manifest" >&2
   exit 1
 fi
+cp "$synthetic_evidence_dir/phone-handoff-summary.md" "$synthetic_incomplete_manifest_evidence_dir/phone-handoff-summary.md"
+cp "$synthetic_evidence_dir/evidence-gates.txt" "$synthetic_incomplete_manifest_evidence_dir/evidence-gates.txt"
+{
+  echo "path	bytes	sha256"
+  printf '%s\t%s\t%s\n' \
+    "phone-handoff-summary.md" \
+    "$(file_size "$synthetic_incomplete_manifest_evidence_dir/phone-handoff-summary.md")" \
+    "$(file_sha256 "$synthetic_incomplete_manifest_evidence_dir/phone-handoff-summary.md")"
+} > "$synthetic_incomplete_manifest_evidence_dir/evidence-files-manifest.txt"
+if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_incomplete_manifest_evidence_dir" > "$readiness_incomplete_manifest_strict_output" 2>&1; then
+  echo "PR readiness strict mode unexpectedly passed with incomplete evidence manifest" >&2
+  exit 1
+fi
 cat > "$synthetic_partial_evidence_dir/phone-handoff-summary.md" <<'SUMMARY'
 # Goose Android Phone Evidence
 
@@ -433,10 +448,12 @@ assert_file_contains "$readiness_package_strict_output" "Installed com.goose.and
 assert_file_contains "$readiness_package_strict_output" "Strict PR readiness: FAIL" "PR readiness package strict"
 assert_file_contains "$readiness_health_success_strict_output" "Health Connect successful platform write must be recorded because the final gate required it." "PR readiness health success strict"
 assert_file_contains "$readiness_health_success_strict_output" "Strict PR readiness: FAIL" "PR readiness health success strict"
-assert_file_contains "$readiness_manifest_strict_output" "Evidence bundle must include a valid evidence-files-manifest.txt with matching path, byte, and SHA-256 columns." "PR readiness manifest strict"
+assert_file_contains "$readiness_manifest_strict_output" "Evidence bundle must include a valid evidence-files-manifest.txt with matching path, byte, and SHA-256 columns for required evidence files." "PR readiness manifest strict"
 assert_file_contains "$readiness_manifest_strict_output" "Strict PR readiness: FAIL" "PR readiness manifest strict"
-assert_file_contains "$readiness_stale_manifest_strict_output" "Evidence bundle must include a valid evidence-files-manifest.txt with matching path, byte, and SHA-256 columns." "PR readiness stale manifest strict"
+assert_file_contains "$readiness_stale_manifest_strict_output" "Evidence bundle must include a valid evidence-files-manifest.txt with matching path, byte, and SHA-256 columns for required evidence files." "PR readiness stale manifest strict"
 assert_file_contains "$readiness_stale_manifest_strict_output" "Strict PR readiness: FAIL" "PR readiness stale manifest strict"
+assert_file_contains "$readiness_incomplete_manifest_strict_output" "Evidence bundle must include a valid evidence-files-manifest.txt with matching path, byte, and SHA-256 columns for required evidence files." "PR readiness incomplete manifest strict"
+assert_file_contains "$readiness_incomplete_manifest_strict_output" "Strict PR readiness: FAIL" "PR readiness incomplete manifest strict"
 assert_file_contains "$readiness_partial_output" "Bundle profile: partial phone evidence" "PR readiness partial"
 assert_file_contains "$readiness_partial_output" "not enough for final PR readiness" "PR readiness partial"
 assert_file_contains "$readiness_partial_strict_output" "Strict PR readiness: FAIL" "PR readiness partial strict"

@@ -84,6 +84,8 @@ verify_evidence_manifest() {
   local manifest="$2"
   local line_number=0
   local verified_count=0
+  local saw_summary=0
+  local saw_gates=0
 
   [[ -f "$manifest" ]] || return 1
   while IFS=$'\t' read -r rel_path expected_bytes expected_sha extra || [[ -n "$rel_path" ]]; do
@@ -102,10 +104,15 @@ verify_evidence_manifest() {
     local normalized_sha
     normalized_sha="$(printf '%s' "$expected_sha" | tr 'A-F' 'a-f')"
     [[ "$(file_sha256 "$file")" == "$normalized_sha" ]] || return 1
+    if [[ "$rel_path" == "phone-handoff-summary.md" ]]; then
+      saw_summary=1
+    elif [[ "$rel_path" == "evidence-gates.txt" ]]; then
+      saw_gates=1
+    fi
     verified_count=$((verified_count + 1))
   done < "$manifest"
 
-  [[ "$verified_count" -gt 0 ]]
+  [[ "$verified_count" -gt 0 && "$saw_summary" == "1" && "$saw_gates" == "1" ]]
 }
 
 latest_commit="$(git -C "$APP_DIR" rev-parse --short HEAD) $(git -C "$APP_DIR" log -1 --pretty=%s)"
@@ -364,7 +371,7 @@ if [[ "$no_android_runtime_crash_verified" == "1" ]]; then
   verified_any=1
 fi
 if [[ "$evidence_manifest_verified" == "1" ]]; then
-  echo "- Evidence file manifest verifies byte counts and SHA-256 hashes for collected files."
+  echo "- Evidence file manifest verifies byte counts and SHA-256 hashes for required evidence files."
   verified_any=1
 fi
 if [[ "$ble_hello_verified" == "1" ]]; then
@@ -411,7 +418,7 @@ if [[ "$no_android_runtime_crash_verified" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$evidence_manifest_verified" != "1" ]]; then
-  echo "- Evidence bundle must include a valid evidence-files-manifest.txt with matching path, byte, and SHA-256 columns."
+  echo "- Evidence bundle must include a valid evidence-files-manifest.txt with matching path, byte, and SHA-256 columns for required evidence files."
   remaining_any=1
 fi
 if [[ "$step_validation_verified" != "1" ]]; then
