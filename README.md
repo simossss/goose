@@ -259,6 +259,17 @@ Print the final real-phone run sheet before starting the controlled capture:
 Scripts/android_final_phone_checklist.sh
 ```
 
+After the controlled phone capture, run the full final PR gate:
+
+```bash
+Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real
+```
+
+This runs local Android validation, collects final phone evidence with required
+step validation, then applies strict PR readiness. Add
+`--require-health-success` when the run must prove a successful Health Connect
+platform write, or `--skip-validate` when local validation was already run.
+
 Manual app build:
 
 ```bash

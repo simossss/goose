@@ -49,6 +49,7 @@ assert_file_contains() {
 
 echo "==> Checking Android helper shell syntax"
 bash -n "$SCRIPT_DIR/android_final_phone_checklist.sh"
+bash -n "$SCRIPT_DIR/android_final_pr_gate.sh"
 bash -n "$SCRIPT_DIR/android_port_status.sh"
 bash -n "$SCRIPT_DIR/android_phone_final_gate.sh"
 bash -n "$SCRIPT_DIR/android_pr_readiness.sh"
@@ -135,6 +136,7 @@ GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=0
 GATES
 "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_evidence_dir" > "$readiness_strict_pass_output"
 assert_file_contains "$checklist_output" "Goose Android Final Phone Checklist" "final phone checklist"
+assert_file_contains "$checklist_output" "Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real" "final phone checklist"
 assert_file_contains "$checklist_output" "Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation" "final phone checklist"
 assert_file_contains "$checklist_output" "BLE session hello sent events: at least 1." "final phone checklist"
 assert_file_contains "$checklist_output" "Session live notification raw evidence rows: at least 1." "final phone checklist"

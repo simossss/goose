@@ -42,6 +42,17 @@ Print the final real-phone run sheet before starting the controlled capture:
 Scripts/android_final_phone_checklist.sh
 ```
 
+Run the full final PR gate after the controlled phone capture:
+
+```sh
+Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real
+```
+
+This runs local Android validation, collects final phone evidence with required
+step validation, then applies strict PR readiness. Add
+`--require-health-success` when the run must prove a successful Health Connect
+platform write, or `--skip-validate` when local validation was already run.
+
 Manual build from Android Studio or the command line:
 
 ```sh
@@ -274,7 +285,9 @@ These files are build artifacts and are ignored by git.
     `Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-...` for the
     PR checklist summary, then
     `Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-...`
-    for a nonzero exit if any final acceptance item is still missing.
+    for a nonzero exit if any final acceptance item is still missing. The
+    composed command is
+    `Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real`.
     Final evidence must come from a physical adb device; emulator evidence is
     accepted only for development smoke tests with `--allow-emulator`.
 

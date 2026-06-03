@@ -46,10 +46,22 @@ Use the strict final gate after the app-side run. This requires a physical adb
 device by default; \`--allow-emulator\` is only for development smoke tests.
 
 \`\`\`sh
-Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation
+Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real
 \`\`\`
 
 Require successful Health Connect write as well:
+
+\`\`\`sh
+Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real --require-health-success
+\`\`\`
+
+For manual debugging, the wrapper runs these lower-level commands:
+
+\`\`\`sh
+Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation
+\`\`\`
+
+Lower-level Health Connect success gate:
 
 \`\`\`sh
 Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation --require-health-success

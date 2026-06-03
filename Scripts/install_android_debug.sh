@@ -131,6 +131,7 @@ Phone test checklist:
 3. Press Scan, tap the WHOOP candidate, then wait for "Ready; subscribed ...; hello sent".
 4. Start a capture session and validation window before the counted walk.
 5. Finish the capture session, press Validate, run Health Gate/Sync, then pull:
+   Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real --skip-validate
    Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation
 6. Generate PR evidence:
    Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-real
