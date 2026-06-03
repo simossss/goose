@@ -274,6 +274,10 @@ logcat, pulled SQLite files, and inspection output:
 Scripts/collect_android_phone_evidence.sh
 ```
 
+Use `GOOSE_ANDROID_STRICT_EVIDENCE=1 Scripts/collect_android_phone_evidence.sh`
+after a controlled capture to require at least one raw packet row and one
+capture session in the pulled debug store.
+
 Run the Android bridge/storage/protocol smoke harness on an emulator or device:
 
 ```bash

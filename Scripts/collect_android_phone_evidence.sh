@@ -45,8 +45,19 @@ echo "$device_serial" > "$OUTPUT_DIR/android-serial.txt"
 ANDROID_SERIAL="$device_serial" "$SCRIPT_DIR/pull_android_database.sh" "$OUTPUT_DIR/goose-phone.sqlite" \
   > "$OUTPUT_DIR/pull-android-database.txt" 2>&1
 
-"$SCRIPT_DIR/inspect_android_capture.sh" "$OUTPUT_DIR/goose-phone.sqlite" \
-  > "$OUTPUT_DIR/inspect-android-capture.txt" 2>&1
+if [[ "${GOOSE_ANDROID_STRICT_EVIDENCE:-0}" == "1" ]]; then
+  export GOOSE_ANDROID_MIN_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_RAW_EVIDENCE:-1}"
+  export GOOSE_ANDROID_MIN_CAPTURE_SESSIONS="${GOOSE_ANDROID_MIN_CAPTURE_SESSIONS:-1}"
+fi
+
+inspection_status=0
+if "$SCRIPT_DIR/inspect_android_capture.sh" "$OUTPUT_DIR/goose-phone.sqlite" \
+  > "$OUTPUT_DIR/inspect-android-capture.txt" 2>&1; then
+  echo "RESULT: PASS" > "$OUTPUT_DIR/evidence-result.txt"
+else
+  inspection_status=$?
+  echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
+fi
 
 cat > "$OUTPUT_DIR/README.txt" <<README
 Goose Android phone evidence bundle
@@ -63,9 +74,18 @@ Key files:
 - goose-phone-health-connect-sync-log.jsonl: Health Connect sync audit log when present.
 - inspect-android-capture.txt: read-only SQLite capture summary.
 - pull-android-database.txt: pull helper output.
+- evidence-result.txt: PASS/FAIL for the capture inspection gate.
 
-For stricter capture checks, rerun inspect_android_capture.sh with:
-GOOSE_ANDROID_MIN_RAW_EVIDENCE=1 GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1
+Strict mode:
+GOOSE_ANDROID_STRICT_EVIDENCE=1 Scripts/collect_android_phone_evidence.sh
+
+Strict mode requires at least one raw_evidence row and one capture_sessions row.
+Set GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=1 as well when validating a Health
+Connect sync attempt.
 README
 
 echo "Android phone evidence collection complete: $OUTPUT_DIR"
+if [[ "$inspection_status" -ne 0 ]]; then
+  echo "Android phone evidence inspection failed; see $OUTPUT_DIR/inspect-android-capture.txt" >&2
+  exit "$inspection_status"
+fi

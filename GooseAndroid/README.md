@@ -79,6 +79,12 @@ Collect a timestamped phone evidence bundle after a real-device test:
 Scripts/collect_android_phone_evidence.sh
 ```
 
+For a stricter post-capture pass/fail bundle:
+
+```sh
+GOOSE_ANDROID_STRICT_EVIDENCE=1 Scripts/collect_android_phone_evidence.sh
+```
+
 Set `ANDROID_SERIAL` when more than one adb device is online. The helper uses
 `run-as com.goose.android`, so it expects the debug APK. It also pulls the
 bounded Health Connect sync audit log when present. The inspector prints table
