@@ -40,6 +40,17 @@ The Gradle project wires `:app:preDebugBuild`,
 markers before packaging. You can still run `Scripts/build_android_rust.sh`
 directly when debugging the Rust cross-compile step.
 
+Install and launch the debug APK on a connected phone:
+
+```sh
+Scripts/install_android_debug.sh
+```
+
+Use `Scripts/install_android_debug.sh --no-build` after Android Studio has
+already built the APK. Set `ANDROID_SERIAL` when more than one adb device or
+emulator is online. The helper installs `app-debug.apk`, launches Goose, checks
+for immediate AndroidRuntime crashes, and prints the physical test checklist.
+
 Run the on-device/emulator smoke harness:
 
 ```sh
@@ -140,7 +151,8 @@ These files are build artifacts and are ignored by git.
 
 ## Physical Device Workflow
 
-1. Install and open the debug app on an Android phone.
+1. Install and open the debug app on an Android phone with
+   `Scripts/install_android_debug.sh`, or run the app from Android Studio.
 2. Grant Bluetooth permissions. Android 11 and older also require location for
    BLE scanning.
 3. Press `Scan`, then tap the WHOOP candidate when it appears.

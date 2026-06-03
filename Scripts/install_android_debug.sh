@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ANDROID_DIR="$APP_DIR/GooseAndroid"
+APK_PATH="$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk"
+PACKAGE="${PACKAGE:-com.goose.android}"
+ACTIVITY="${ACTIVITY:-.MainActivity}"
+
+if [[ -z "${ADB:-}" && -x "$HOME/Library/Android/sdk/platform-tools/adb" ]]; then
+  ADB="$HOME/Library/Android/sdk/platform-tools/adb"
+fi
+ADB="${ADB:-adb}"
+
+export ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
+export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+
+if [[ -d "/Applications/Android Studio.app/Contents/jbr/Contents/Home" ]]; then
+  export JAVA_HOME="${JAVA_HOME:-/Applications/Android Studio.app/Contents/jbr/Contents/Home}"
+fi
+
+if [[ -n "${JAVA_HOME:-}" ]]; then
+  export PATH="$JAVA_HOME/bin:$PATH"
+fi
+
+usage() {
+  cat <<'USAGE'
+Usage: Scripts/install_android_debug.sh [--no-build]
+
+Builds the Android debug APK unless --no-build or GOOSE_ANDROID_SKIP_BUILD=1 is
+set, installs it on an adb device, launches Goose, and checks for immediate
+AndroidRuntime crashes.
+
+Set ANDROID_SERIAL when more than one adb device is online.
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-build)
+      GOOSE_ANDROID_SKIP_BUILD=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+if ! command -v "$ADB" >/dev/null 2>&1; then
+  echo "adb not found. Set ADB or add Android platform-tools to PATH." >&2
+  exit 1
+fi
+
+if [[ "${GOOSE_ANDROID_SKIP_BUILD:-0}" != "1" ]]; then
+  echo "==> Building Android debug APK"
+  (cd "$ANDROID_DIR" && ./gradlew :app:assembleDebug)
+fi
+
+if [[ ! -f "$APK_PATH" ]]; then
+  echo "Debug APK not found: $APK_PATH" >&2
+  echo "Run without --no-build first, or build :app:assembleDebug in Android Studio." >&2
+  exit 1
+fi
+
+devices=()
+while IFS= read -r serial; do
+  devices+=("$serial")
+done < <("$ADB" devices | awk 'NR > 1 && $2 == "device" { print $1 }')
+device_serial="${ANDROID_SERIAL:-}"
+if [[ -z "$device_serial" ]]; then
+  if [[ "${#devices[@]}" -eq 1 ]]; then
+    device_serial="${devices[0]}"
+  elif [[ "${#devices[@]}" -eq 0 ]]; then
+    echo "No adb device online. Enable USB debugging and accept the phone trust prompt." >&2
+    exit 1
+  else
+    echo "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" >&2
+    printf '  %s\n' "${devices[@]}" >&2
+    exit 1
+  fi
+fi
+
+device_state="$("$ADB" -s "$device_serial" get-state 2>/dev/null || true)"
+if [[ "$device_state" != "device" ]]; then
+  echo "adb target is not online: $device_serial ($device_state)" >&2
+  exit 1
+fi
+
+echo "==> Installing $PACKAGE on $device_serial"
+"$ADB" -s "$device_serial" install -r "$APK_PATH"
+
+"$ADB" -s "$device_serial" logcat -c || true
+
+echo "==> Launching $PACKAGE/$ACTIVITY on $device_serial"
+launch_output="$("$ADB" -s "$device_serial" shell am start -W -n "$PACKAGE/$ACTIVITY" 2>&1)"
+printf '%s\n' "$launch_output"
+
+if grep -qE "Error:|Exception" <<<"$launch_output"; then
+  echo "Android app launch failed" >&2
+  exit 1
+fi
+
+launch_status="$(awk -F': ' '$1 == "Status" { print $2; exit }' <<<"$launch_output")"
+if [[ -n "$launch_status" && "$launch_status" != "ok" ]]; then
+  echo "Android app launch failed with status: $launch_status" >&2
+  exit 1
+fi
+
+sleep 2
+launch_crash_log="$("$ADB" -s "$device_serial" logcat -d -v brief AndroidRuntime:E '*:S' 2>/dev/null || true)"
+if grep -q "$PACKAGE" <<<"$launch_crash_log"; then
+  printf '%s\n' "$launch_crash_log" >&2
+  echo "Android app logged a fatal exception after launch" >&2
+  exit 1
+fi
+
+cat <<NEXT_STEPS
+==> Goose launched cleanly on $device_serial
+
+Phone test checklist:
+1. Grant Bluetooth permissions.
+2. Press Scan.
+3. Tap the WHOOP candidate.
+4. Wait for "Ready; subscribed ...; hello sent".
+5. For owned captures, press Start before the test and Finish afterwards.
+6. Use Scripts/pull_android_database.sh tmp/goose-phone.sqlite after capture.
+
+Parked for later: explicit step-counter decoder confirmation and Health Connect
+write validation still need real-phone evidence.
+NEXT_STEPS

@@ -243,6 +243,16 @@ cd GooseAndroid
 ./gradlew :app:assembleDebug
 ```
 
+Install and launch a debug build on a connected Android phone:
+
+```bash
+Scripts/install_android_debug.sh
+```
+
+Use `Scripts/install_android_debug.sh --no-build` after Android Studio has
+already built the debug APK. Set `ANDROID_SERIAL` when multiple adb devices are
+online.
+
 Run the Android bridge/storage/protocol smoke harness on an emulator or device:
 
 ```bash
