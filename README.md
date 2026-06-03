@@ -235,6 +235,12 @@ instrumentation APKs, and runs the bridge/storage/protocol/Health Connect/privac
 smoke harness when an emulator or device is online. Set
 `GOOSE_ANDROID_SKIP_INSTRUMENTATION=1` to skip the adb install/smoke step.
 
+Print a PR/phone-handoff snapshot of the Android port:
+
+```bash
+Scripts/android_port_status.sh
+```
+
 Manual app build:
 
 ```bash

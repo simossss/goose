@@ -18,6 +18,12 @@ matching Rust Android libraries before each APK variant, then the script checks
 APK native-library contents, verifies packaged manifest metadata, runs Android
 lint, and runs the smoke harness when an adb device or emulator is online.
 
+Print a concise Android port status snapshot for PR and phone handoff:
+
+```sh
+Scripts/android_port_status.sh
+```
+
 Manual build from Android Studio or the command line:
 
 ```sh
