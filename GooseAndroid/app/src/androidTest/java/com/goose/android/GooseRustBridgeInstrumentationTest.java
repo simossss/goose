@@ -24,6 +24,7 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -179,6 +180,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertHealthConnectRecordConversion();
         Log.i(TAG, "checking Android Health Connect sync audit log");
         assertHealthConnectSyncAudit(context);
+        Log.i(TAG, "checking Android Health Connect ready-plan audit path");
+        assertHealthConnectReadyPlanAudit(context);
 
         Log.i(TAG, "checking declared Health Connect permissions");
         assertHealthConnectManifestScope(context);
@@ -342,6 +345,71 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         } finally {
             reader.close();
         }
+    }
+
+    private void assertHealthConnectReadyPlanAudit(Context context) throws Exception {
+        File auditFile = HealthConnectSupport.syncAuditFileFor(context);
+        if (auditFile.exists() && !auditFile.delete()) {
+            throw new AssertionError("could not clear stale Health Connect ready-plan audit log: " + auditFile);
+        }
+        JSONObject readyReport = new JSONObject()
+                .put("pass", true)
+                .put("all_records_ready", true)
+                .put("permissions_ready", true)
+                .put("candidate_count", 1)
+                .put("planned_write_count", 1)
+                .put("blocked_count", 0)
+                .put("issues", new JSONArray())
+                .put("planned_writes", new JSONArray().put(plannedWrite(
+                        "StepsRecord",
+                        "android-ready-plan-steps",
+                        "2026-01-01T00:00:00.000Z",
+                        "2026-01-01T01:00:00.000Z",
+                        42.0
+                )));
+        List<String> reports = new ArrayList<>();
+        HealthConnectSupport support = new HealthConnectSupport(context);
+        try {
+            support.writePlannedRecords(readyReport, reports::add);
+        } finally {
+            support.close();
+        }
+        String audit = readFile(auditFile);
+        if (Build.VERSION.SDK_INT < 34) {
+            if (!audit.contains("\"reason\":\"platform_unavailable\"")) {
+                throw new AssertionError("ready-plan audit did not record platform_unavailable: " + audit);
+            }
+            return;
+        }
+        if (!(audit.contains("\"event\":\"write_started\"")
+                || audit.contains("\"reason\":\"manager_unavailable\"")
+                || audit.contains("\"event\":\"write_failed\"")
+                || audit.contains("\"event\":\"write_succeeded\""))) {
+            throw new AssertionError("ready-plan audit did not record a write attempt outcome: " + audit);
+        }
+        if (!audit.contains("android-ready-plan-steps")) {
+            throw new AssertionError("ready-plan audit missing source record id: " + audit);
+        }
+        if (!audit.contains("records_attempted")) {
+            throw new AssertionError("ready-plan audit missing records_attempted: " + audit);
+        }
+    }
+
+    private String readFile(File file) throws Exception {
+        if (!file.isFile()) {
+            throw new AssertionError("expected file missing: " + file);
+        }
+        StringBuilder builder = new StringBuilder();
+        BufferedReader reader = new BufferedReader(new FileReader(file));
+        try {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                builder.append(line).append('\n');
+            }
+        } finally {
+            reader.close();
+        }
+        return builder.toString();
     }
 
     private JSONObject plannedWrite(
