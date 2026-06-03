@@ -276,6 +276,7 @@ to prove the real-phone BLE/capture/installed-package/Health Connect evidence
 without requiring step validation or strict PR readiness:
 
 ```bash
+Scripts/android_partial_phone_checklist.sh
 Scripts/android_partial_phone_gate.sh tmp/android-phone-partial-gate-real
 ```
 
