@@ -86,6 +86,60 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             throw new AssertionError("health_sync.dry_run did not pass cleanly: " + healthSync);
         }
 
+        Log.i(TAG, "calling Android Health Connect candidate mapper");
+        JSONArray dailyActivityMetrics = new JSONArray()
+                .put(new JSONObject()
+                        .put("daily_metric_id", "daily-activity-steps-2026-01-01-utc-device-counter-v0")
+                        .put("date_key", "2026-01-01")
+                        .put("timezone", "UTC")
+                        .put("start_time_unix_ms", 1767225600000L)
+                        .put("end_time_unix_ms", 1767312000000L)
+                        .put("steps", 1234)
+                        .put("active_kcal", JSONObject.NULL)
+                        .put("source_kind", "device_counter")
+                        .put("confidence", 0.91))
+                .put(new JSONObject()
+                        .put("daily_metric_id", "daily-activity-energy-2026-01-01-utc-local-estimate-v0")
+                        .put("date_key", "2026-01-01")
+                        .put("timezone", "UTC")
+                        .put("start_time_unix_ms", 1767225600000L)
+                        .put("end_time_unix_ms", 1767312000000L)
+                        .put("steps", JSONObject.NULL)
+                        .put("active_kcal", 321.5)
+                        .put("source_kind", "local_estimate")
+                        .put("confidence", 0.74))
+                .put(new JSONObject()
+                        .put("daily_metric_id", "imported-steps")
+                        .put("date_key", "2026-01-01")
+                        .put("timezone", "UTC")
+                        .put("start_time_unix_ms", 1767225600000L)
+                        .put("end_time_unix_ms", 1767312000000L)
+                        .put("steps", 999)
+                        .put("source_kind", "platform_import")
+                        .put("confidence", 1.0));
+        JSONArray candidates = new JSONArray();
+        GooseStoreReporter.appendDailyActivityMetricCandidates(candidates, dailyActivityMetrics);
+        if (candidates.length() != 2) {
+            throw new AssertionError("daily activity mapper produced unexpected candidates: " + candidates);
+        }
+        JSONObject plannedDailyActivity = bridge.request("health_sync.dry_run", new JSONObject()
+                .put("schema", "goose.health-sync-dry-run.v1")
+                .put("platform", "health_connect")
+                .put("permission_grants", new JSONArray()
+                        .put("StepsRecord")
+                        .put("ActiveCaloriesBurnedRecord"))
+                .put("backfill", new JSONObject()
+                        .put("start", "2026-01-01T00:00:00.000Z")
+                        .put("end", "2026-01-02T00:00:00.000Z"))
+                .put("candidates", candidates)
+                .put("existing_records", new JSONArray())
+                .put("partial_plan_policy", "require_all_records_ready")
+                .put("delete_policy", "none"));
+        if (!plannedDailyActivity.optBoolean("pass", false)
+                || plannedDailyActivity.optInt("planned_write_count", 0) != 2) {
+            throw new AssertionError("daily activity candidates did not plan cleanly: " + plannedDailyActivity);
+        }
+
         Log.i(TAG, "calling privacy.lint");
         File lintDir = new File(context.getCacheDir(), "goose-smoke-privacy");
         if (!lintDir.exists() && !lintDir.mkdirs()) {

@@ -367,6 +367,10 @@ final class GooseStoreReporter {
         if (metrics == null) {
             return;
         }
+        appendDailyActivityMetricCandidates(candidates, metrics);
+    }
+
+    static void appendDailyActivityMetricCandidates(JSONArray candidates, JSONArray metrics) throws Exception {
         for (int index = 0; index < metrics.length(); index += 1) {
             JSONObject metric = metrics.optJSONObject(index);
             if (metric == null) {
@@ -389,7 +393,7 @@ final class GooseStoreReporter {
         }
     }
 
-    private void appendStepHealthConnectCandidate(
+    private static void appendStepHealthConnectCandidate(
             JSONArray candidates,
             JSONObject metric,
             String metricId,
@@ -413,7 +417,7 @@ final class GooseStoreReporter {
                 .put("algorithm_version", "0.1.0"));
     }
 
-    private void appendActiveEnergyHealthConnectCandidate(
+    private static void appendActiveEnergyHealthConnectCandidate(
             JSONArray candidates,
             JSONObject metric,
             String metricId,
@@ -437,7 +441,7 @@ final class GooseStoreReporter {
                 .put("algorithm_version", "0.1.0"));
     }
 
-    private JSONObject dailyActivityCandidate(
+    private static JSONObject dailyActivityCandidate(
             JSONObject metric,
             String metricId,
             String sourceKind,
@@ -779,7 +783,7 @@ final class GooseStoreReporter {
         long deletedBytes;
     }
 
-    private String iso8601(long millis) {
+    private static String iso8601(long millis) {
         java.text.SimpleDateFormat formatter = new java.text.SimpleDateFormat(
                 "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
                 java.util.Locale.US
