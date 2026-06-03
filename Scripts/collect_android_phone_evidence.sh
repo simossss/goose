@@ -136,6 +136,37 @@ first_line() {
   fi
 }
 
+file_size() {
+  local file="$1"
+  wc -c < "$file" | tr -d ' '
+}
+
+file_sha256() {
+  local file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$file" | awk '{ print $1 }'
+  else
+    shasum -a 256 "$file" | awk '{ print $1 }'
+  fi
+}
+
+write_file_manifest() {
+  local manifest="$OUTPUT_DIR/evidence-files-manifest.txt"
+  local tmp_manifest="$manifest.tmp"
+
+  {
+    echo "path	bytes	sha256"
+    while IFS= read -r path; do
+      local name="${path#$OUTPUT_DIR/}"
+      if [[ "$name" == "evidence-files-manifest.txt" || "$name" == "evidence-files-manifest.txt.tmp" ]]; then
+        continue
+      fi
+      printf '%s\t%s\t%s\n' "$name" "$(file_size "$path")" "$(file_sha256 "$path")"
+    done < <(find "$OUTPUT_DIR" -maxdepth 1 -type f | sort)
+  } > "$tmp_manifest"
+  mv "$tmp_manifest" "$manifest"
+}
+
 port_commit="$(summary_value "commit")"
 if [[ -z "$port_commit" ]]; then
   port_commit="$(awk -F': ' '$1 == "commit" { print $2; exit }' "$OUTPUT_DIR/android-port-status.txt")"
@@ -274,6 +305,7 @@ $(summary_section "Capture session evidence detail")
 - goose-phone-health-connect-sync-log.jsonl, when present
 - goose-phone-step-validation-log.jsonl, when present
 - logcat-goose-brief.txt
+- evidence-files-manifest.txt
 SUMMARY
 
 cat > "$OUTPUT_DIR/README.txt" <<README
@@ -299,6 +331,7 @@ Key files:
 - goose-phone-step-validation-log.jsonl: counted-step validation audit log when present.
 - inspect-android-capture.txt: read-only SQLite capture summary.
 - phone-handoff-summary.md: concise PR and phone-session summary.
+- evidence-files-manifest.txt: pulled evidence files with byte counts and SHA-256 hashes.
 - pull-android-database.txt: pull helper output.
 - evidence-result.txt: PASS/FAIL for the capture inspection gate.
 
@@ -328,6 +361,8 @@ to require permissions-ready dry-run context with planned writes and attempted
 records on the write attempt, and GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1
 to require a successful write.
 README
+
+write_file_manifest
 
 echo "Android phone evidence collection complete: $OUTPUT_DIR"
 if [[ "$inspection_status" -ne 0 ]]; then

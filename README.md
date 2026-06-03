@@ -314,7 +314,7 @@ Scripts/inspect_android_capture.sh tmp/goose-phone.sqlite
 
 For a timestamped phone evidence bundle, including status, adb device details,
 strict gate configuration, installed `com.goose.android` package metadata,
-logcat, pulled SQLite files, and inspection output:
+logcat, pulled SQLite files, inspection output, and a byte/hash file manifest:
 
 ```bash
 Scripts/collect_android_phone_evidence.sh
