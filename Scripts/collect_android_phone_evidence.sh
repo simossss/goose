@@ -118,6 +118,15 @@ summary_value() {
   awk -F': ' -v key="$key" '$1 == key { print $2; exit }' "$OUTPUT_DIR/inspect-android-capture.txt"
 }
 
+summary_section() {
+  local title="$1"
+  awk -v title="$title" '
+    $0 == title { in_section = 1; print; next }
+    in_section && /^$/ { exit }
+    in_section { print }
+  ' "$OUTPUT_DIR/inspect-android-capture.txt"
+}
+
 first_line() {
   local file="$1"
   if [[ -f "$file" ]]; then
@@ -201,6 +210,12 @@ Result: ${inspection_result:-unknown}
 - Step samples: $(summary_value "step samples")
 - Daily activity metrics: $(summary_value "daily activity metrics")
 - Latest raw capture: $(summary_value "latest raw capture")
+
+## Capture Session Evidence Detail
+
+\`\`\`
+$(summary_section "Capture session evidence detail")
+\`\`\`
 
 ## BLE Session
 

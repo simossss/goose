@@ -303,6 +303,8 @@ assert_file_contains "$inspect_session_detail_output" "android-session-a" "captu
 assert_file_contains "$inspect_session_detail_output" "live_notification_rows" "capture inspector session detail"
 assert_file_contains "$inspect_session_detail_output" "decoded_frames" "capture inspector session detail"
 assert_file_contains "$inspect_session_detail_output" "step_samples" "capture inspector session detail"
+assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "## Capture Session Evidence Detail" "phone evidence collector"
+assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" 'summary_section "Capture session evidence detail"' "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/pull_android_database.sh" "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" "database pull"
 
