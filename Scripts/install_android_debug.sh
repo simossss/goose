@@ -126,13 +126,15 @@ cat <<NEXT_STEPS
 ==> Goose launched cleanly on $device_serial
 
 Phone test checklist:
-1. Grant Bluetooth permissions.
-2. Press Scan.
-3. Tap the WHOOP candidate.
-4. Wait for "Ready; subscribed ...; hello sent".
-5. For owned captures, press Start before the test and Finish afterwards.
-6. Use Scripts/pull_android_database.sh tmp/goose-phone.sqlite after capture.
+1. Run Scripts/android_final_phone_checklist.sh for the current final-run sheet.
+2. Grant Bluetooth permissions.
+3. Press Scan, tap the WHOOP candidate, then wait for "Ready; subscribed ...; hello sent".
+4. Start a capture session and validation window before the counted walk.
+5. Finish the capture session, press Validate, run Health Gate/Sync, then pull:
+   Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation
+6. Generate PR evidence:
+   Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-real
 
-Parked for later: explicit step-counter decoder confirmation and Health Connect
-write validation still need real-phone evidence.
+Still phone-bound: counted-step decoder confirmation and Health Connect write
+evidence from a real Android phone.
 NEXT_STEPS
