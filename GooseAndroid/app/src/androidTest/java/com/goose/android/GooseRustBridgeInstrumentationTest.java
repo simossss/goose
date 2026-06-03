@@ -202,6 +202,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertBluetoothRuntimePermissionScope(context);
         Log.i(TAG, "checking BLE device row display contract");
         assertBleDeviceRowDisplayContract();
+        Log.i(TAG, "checking step validation UI guardrails");
+        assertStepValidationUiGuardrails();
         Log.i(TAG, "checking installed app privacy flags");
         assertApplicationPrivacyFlags(context);
         Log.i(TAG, "checking installed app launch and hardware manifest");
@@ -803,6 +805,33 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         String longDisplay = longRow.displayText();
         if (longDisplay.length() > 300 || !longDisplay.endsWith("...")) {
             throw new AssertionError("BLE display was not character-capped: " + longDisplay.length());
+        }
+    }
+
+    private void assertStepValidationUiGuardrails() {
+        String validStart = "2026-01-01T00:00:00.000Z";
+        String validEnd = "2026-01-01T00:01:00.000Z";
+        String sessionId = "android-smoke-session";
+        if (MainActivity.stepValidationBlockReason(40L, validStart, validEnd, sessionId) != null) {
+            throw new AssertionError("valid step validation inputs should not be blocked");
+        }
+        assertStepValidationBlocked(0L, validStart, validEnd, sessionId, "greater than zero");
+        assertStepValidationBlocked(40L, "0000", validEnd, sessionId, "Tap Step validation Start");
+        assertStepValidationBlocked(40L, validStart, "9999", sessionId, "Tap Step validation End");
+        assertStepValidationBlocked(40L, validEnd, validStart, sessionId, "End must be after Start");
+        assertStepValidationBlocked(40L, validStart, validEnd, "", "capture session");
+    }
+
+    private void assertStepValidationBlocked(
+            long manualSteps,
+            String start,
+            String end,
+            String captureSessionId,
+            String expected
+    ) {
+        String reason = MainActivity.stepValidationBlockReason(manualSteps, start, end, captureSessionId);
+        if (reason == null || !reason.contains(expected)) {
+            throw new AssertionError("unexpected step validation guardrail reason: " + reason);
         }
     }
 

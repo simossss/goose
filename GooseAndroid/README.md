@@ -279,7 +279,9 @@ These files are build artifacts and are ignored by git.
 7. For counted-step validation, use the `Step validation` row: press `Start`
    before the counted walk, press `End` afterwards, enter the manual count,
    then press `Validate`. The report should name the active or most recently
-   finished capture session.
+   finished capture session. The app blocks validation until the manual count is
+   positive, the validation window is marked, and a capture session is active or
+   recently finished.
 8. Use `Heart`, `Sensors`, `Steps`, `Blocked`, and `Sessions` for compact
    summaries instead of dumping large raw JSON in the UI.
 9. Pull and inspect the debug store:

@@ -808,8 +808,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     private void runStepValidation() {
         long manualSteps;
+        String manualStepsText = manualStepsInput.getText().toString().trim();
         try {
-            manualSteps = Long.parseLong(manualStepsInput.getText().toString().trim());
+            manualSteps = Long.parseLong(manualStepsText);
         } catch (NumberFormatException error) {
             reportStatus.setText("Manual steps must be a number");
             return;
@@ -817,16 +818,39 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         String captureSessionId = activeCaptureSessionId != null
                 ? activeCaptureSessionId
                 : lastFinishedCaptureSessionId;
-        if (captureSessionId == null) {
-            reportStatus.setText("Running step validation...\n"
-                    + "capture session: none\n"
-                    + "Final phone evidence needs an active or recently finished capture session.");
-        } else {
-            reportStatus.setText("Running step validation...\n"
-                    + "capture session: " + captureSessionId);
+        String blockReason = stepValidationBlockReason(manualSteps, validationStart, validationEnd, captureSessionId);
+        if (blockReason != null) {
+            reportStatus.setText("Step validation blocked\n" + blockReason);
+            return;
         }
+        reportStatus.setText("Running step validation...\n"
+                + "capture session: " + captureSessionId);
         storeReporter.stepValidation(validationStart, validationEnd, manualSteps, captureSessionId,
                 report -> runOnUiThreadIfAlive(() -> reportStatus.setText(truncateForDisplay(report))));
+    }
+
+    static String stepValidationBlockReason(
+            long manualSteps,
+            String start,
+            String end,
+            String captureSessionId
+    ) {
+        if (manualSteps <= 0) {
+            return "Manual steps must be greater than zero.";
+        }
+        if (start == null || start.trim().isEmpty() || "0000".equals(start)) {
+            return "Tap Step validation Start before the counted walk.";
+        }
+        if (end == null || end.trim().isEmpty() || "9999".equals(end)) {
+            return "Tap Step validation End after the counted walk.";
+        }
+        if (end.compareTo(start) <= 0) {
+            return "Step validation End must be after Start.";
+        }
+        if (captureSessionId == null || captureSessionId.trim().isEmpty()) {
+            return "Start or finish a capture session before running final step validation.";
+        }
+        return null;
     }
 
     private void appendNotificationLog(String stamp, String characteristicUuid, String frameHex) {
