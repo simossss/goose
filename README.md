@@ -278,6 +278,16 @@ Use `GOOSE_ANDROID_STRICT_EVIDENCE=1 Scripts/collect_android_phone_evidence.sh`
 after a controlled capture to require at least one raw packet row and one
 capture session in the pulled debug store.
 
+Run the final phone handoff gate after a controlled capture and Health Connect
+sync attempt:
+
+```bash
+Scripts/android_phone_final_gate.sh
+```
+
+Add `--require-health-success` when the final session should require a
+successful Health Connect platform write in addition to a write attempt.
+
 Run the Android bridge/storage/protocol smoke harness on an emulator or device:
 
 ```bash

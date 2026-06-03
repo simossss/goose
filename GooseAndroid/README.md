@@ -85,6 +85,16 @@ For a stricter post-capture pass/fail bundle:
 GOOSE_ANDROID_STRICT_EVIDENCE=1 Scripts/collect_android_phone_evidence.sh
 ```
 
+For the final phone handoff gate after a controlled capture and Health Connect
+sync attempt:
+
+```sh
+Scripts/android_phone_final_gate.sh
+```
+
+Add `--require-health-success` after granting Health Connect permissions when
+the session should prove a successful platform write, not just a write attempt.
+
 Set `ANDROID_SERIAL` when more than one adb device is online. The helper uses
 `run-as com.goose.android`, so it expects the debug APK. It also pulls the
 bounded Health Connect sync audit log when present. The inspector prints table

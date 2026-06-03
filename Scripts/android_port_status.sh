@@ -88,6 +88,9 @@ cat <<'STATUS'
 Validation gate:
   Scripts/validate_android.sh
 
+Final phone evidence gate:
+  Scripts/android_phone_final_gate.sh
+
 Phone-bound completion checks:
   1. Physical WHOOP scan/connect/client-hello validation on a real Android phone.
   2. Controlled capture pull inspected with Scripts/inspect_android_capture.sh.
