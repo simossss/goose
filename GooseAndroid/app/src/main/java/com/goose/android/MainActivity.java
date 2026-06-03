@@ -19,6 +19,9 @@ import java.util.Date;
 import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity implements GooseBleClient.Listener {
     private static final int PERMISSION_REQUEST_BLE = 1001;
@@ -28,6 +31,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     private final GooseRustBridge bridge = new GooseRustBridge();
     private final Deque<String> notificationLogRows = new ArrayDeque<>();
+    private final ExecutorService sessionExecutor = Executors.newSingleThreadExecutor();
     private GooseBleClient ble;
     private GooseCommandBuilder commandBuilder;
     private GoosePacketIngestor packetIngestor;
@@ -38,11 +42,13 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private TextView storeStatus;
     private TextView metadataStatus;
     private TextView packetStatus;
+    private TextView sessionStatus;
     private TextView reportStatus;
     private TextView notificationLog;
     private EditText manualStepsInput;
     private String validationStart = "0000";
     private String validationEnd = "9999";
+    private String activeCaptureSessionId;
     private int notificationCount;
 
     @Override
@@ -63,6 +69,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         commandBuilder.close();
         packetIngestor.close();
         storeReporter.close();
+        sessionExecutor.shutdownNow();
         super.onDestroy();
     }
 
@@ -194,6 +201,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         packetStatus = sectionText("Packets: waiting");
         root.addView(packetStatus);
 
+        sessionStatus = bodyText("Capture session: none");
+        sessionStatus.setPadding(0, 8, 0, 0);
+        root.addView(sessionStatus);
+
         TextView reportsTitle = sectionText("Health and debug reports");
         root.addView(reportsTitle);
 
@@ -256,6 +267,22 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         abortHistoryButton.setOnClickListener(view -> sendBuiltCommand("abort_historical_transmits", ""));
         physicalCommandActions.addView(abortHistoryButton, weightWrap());
         root.addView(physicalCommandActions);
+
+        LinearLayout captureActions = new LinearLayout(this);
+        captureActions.setOrientation(LinearLayout.HORIZONTAL);
+        Button captureStartButton = new Button(this);
+        captureStartButton.setText("Cap Start");
+        captureStartButton.setOnClickListener(view -> startCaptureSession());
+        captureActions.addView(captureStartButton, weightWrap());
+        Button captureEndButton = new Button(this);
+        captureEndButton.setText("Cap End");
+        captureEndButton.setOnClickListener(view -> finishCaptureSession());
+        captureActions.addView(captureEndButton, weightWrap());
+        Button captureListButton = new Button(this);
+        captureListButton.setText("Sessions");
+        captureListButton.setOnClickListener(view -> listCaptureSessions());
+        captureActions.addView(captureListButton, weightWrap());
+        root.addView(captureActions);
 
         LinearLayout metricActions = new LinearLayout(this);
         metricActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -341,6 +368,86 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         }));
     }
 
+    private void startCaptureSession() {
+        if (activeCaptureSessionId != null) {
+            sessionStatus.setText("Capture session active\n" + activeCaptureSessionId);
+            return;
+        }
+        String sessionId = "android-" + iso8601(System.currentTimeMillis())
+                .replace(":", "")
+                .replace(".", "")
+                .replace("-", "")
+                + "-" + UUID.randomUUID().toString().substring(0, 8);
+        long startedAt = System.currentTimeMillis();
+        sessionStatus.setText("Starting capture session\n" + sessionId);
+        sessionExecutor.execute(() -> {
+            try {
+                JSONObject args = new JSONObject()
+                        .put("database_path", packetIngestor.databasePath())
+                        .put("session_id", sessionId)
+                        .put("source", "goose-android/manual-capture")
+                        .put("started_at_unix_ms", startedAt)
+                        .put("device_model", "WHOOP 5.0 Goose Android")
+                        .put("provenance", new JSONObject()
+                                .put("capture_app", "goose_android")
+                                .put("capture_kind", "manual_android_session")
+                                .put("step_decoding_status", "parked"));
+                bridge.request("capture.start_session", args);
+                packetIngestor.startCaptureSession(sessionId);
+                activeCaptureSessionId = sessionId;
+                runOnUiThread(() -> sessionStatus.setText("Capture session active\n" + sessionId));
+            } catch (Exception error) {
+                runOnUiThread(() -> sessionStatus.setText("Capture session start failed\n" + error));
+            }
+        });
+    }
+
+    private void finishCaptureSession() {
+        String sessionId = activeCaptureSessionId != null
+                ? activeCaptureSessionId
+                : packetIngestor.activeCaptureSessionId();
+        if (sessionId == null) {
+            sessionStatus.setText("Capture session: none");
+            return;
+        }
+        int frameCount = packetIngestor.finishCaptureSession(sessionId);
+        activeCaptureSessionId = null;
+        long endedAt = System.currentTimeMillis();
+        sessionStatus.setText("Finishing capture session\n" + sessionId);
+        sessionExecutor.execute(() -> {
+            try {
+                JSONObject args = new JSONObject()
+                        .put("database_path", packetIngestor.databasePath())
+                        .put("session_id", sessionId)
+                        .put("ended_at_unix_ms", endedAt)
+                        .put("frame_count", frameCount);
+                JSONObject report = bridge.request("capture.finish_session", args);
+                runOnUiThread(() -> sessionStatus.setText("Capture session finished\n"
+                        + sessionId
+                        + "\nframes: " + frameCount
+                        + "\n" + summarizeSession(report.optJSONObject("session"))));
+            } catch (Exception error) {
+                runOnUiThread(() -> sessionStatus.setText("Capture session finish failed\n" + error));
+            }
+        });
+    }
+
+    private void listCaptureSessions() {
+        reportStatus.setText("Loading capture sessions...");
+        sessionExecutor.execute(() -> {
+            try {
+                JSONObject args = new JSONObject()
+                        .put("database_path", packetIngestor.databasePath())
+                        .put("start_unix_ms", 0)
+                        .put("end_unix_ms", System.currentTimeMillis() + 86400000L);
+                JSONObject report = bridge.request("capture.list_sessions", args);
+                runOnUiThread(() -> reportStatus.setText(captureSessionListSummary(report)));
+            } catch (Exception error) {
+                runOnUiThread(() -> reportStatus.setText("Capture sessions failed\n" + error));
+            }
+        });
+    }
+
     private void markValidationStart() {
         validationStart = iso8601(System.currentTimeMillis());
         reportStatus.setText("Step validation start\n" + validationStart);
@@ -394,6 +501,34 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         }
         return value.substring(0, MAX_REPORT_CHARS)
                 + "\n\n[truncated " + (value.length() - MAX_REPORT_CHARS) + " chars for display]";
+    }
+
+    private String captureSessionListSummary(JSONObject report) {
+        StringBuilder builder = new StringBuilder("Capture sessions\ncount: ")
+                .append(report.optInt("session_count", 0));
+        org.json.JSONArray sessions = report.optJSONArray("sessions");
+        if (sessions == null) {
+            return builder.toString();
+        }
+        int start = Math.max(0, sessions.length() - 8);
+        for (int index = sessions.length() - 1; index >= start; index -= 1) {
+            JSONObject session = sessions.optJSONObject(index);
+            if (session != null) {
+                builder.append("\n\n").append(summarizeSession(session));
+            }
+        }
+        return builder.toString();
+    }
+
+    private String summarizeSession(JSONObject session) {
+        if (session == null) {
+            return "session: unavailable";
+        }
+        return session.optString("session_id", "unknown")
+                + "\nstatus: " + session.optString("status", "unknown")
+                + ", frames: " + session.optInt("frame_count", 0)
+                + "\nstarted: " + session.optLong("started_at_unix_ms", 0)
+                + ", ended: " + session.optLong("ended_at_unix_ms", 0);
     }
 
     private String iso8601(long millis) {

@@ -40,6 +40,8 @@ final class GoosePacketIngestor {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final File databaseFile;
     private int frameCounter;
+    private String activeCaptureSessionId;
+    private int activeCaptureSessionFrameCount;
 
     GoosePacketIngestor(Context context) {
         File directory = new File(context.getFilesDir(), "goose");
@@ -58,17 +60,61 @@ final class GoosePacketIngestor {
         String serviceUuid = notification.serviceUuid;
         String characteristicUuid = notification.characteristicUuid;
         long capturedAtMillis = notification.capturedAtMillis;
-        executor.execute(() -> callback.onIngested(ingestNow(value, serviceUuid, characteristicUuid, capturedAtMillis)));
+        String captureSessionId = currentCaptureSessionIdForNotification();
+        executor.execute(() -> callback.onIngested(ingestNow(
+                value,
+                serviceUuid,
+                characteristicUuid,
+                capturedAtMillis,
+                captureSessionId
+        )));
+    }
+
+    synchronized void startCaptureSession(String sessionId) {
+        activeCaptureSessionId = sessionId;
+        activeCaptureSessionFrameCount = 0;
+    }
+
+    synchronized int finishCaptureSession(String sessionId) {
+        int frameCount = activeCaptureSessionFrameCount;
+        if (sessionId.equals(activeCaptureSessionId)) {
+            activeCaptureSessionId = null;
+            activeCaptureSessionFrameCount = 0;
+        }
+        return frameCount;
+    }
+
+    synchronized String activeCaptureSessionId() {
+        return activeCaptureSessionId;
     }
 
     void close() {
         executor.shutdownNow();
     }
 
-    private Result ingestNow(byte[] value, String serviceUuid, String characteristicUuid, long capturedAtMillis) {
+    private synchronized String currentCaptureSessionIdForNotification() {
+        if (activeCaptureSessionId != null) {
+            activeCaptureSessionFrameCount += 1;
+        }
+        return activeCaptureSessionId;
+    }
+
+    private Result ingestNow(
+            byte[] value,
+            String serviceUuid,
+            String characteristicUuid,
+            long capturedAtMillis,
+            String captureSessionId
+    ) {
         String frameHex = Hex.encode(value);
         try {
-            JSONObject importReport = importFrame(frameHex, serviceUuid, characteristicUuid, capturedAtMillis);
+            JSONObject importReport = importFrame(
+                    frameHex,
+                    serviceUuid,
+                    characteristicUuid,
+                    capturedAtMillis,
+                    captureSessionId
+            );
             JSONArray issues = importReport.optJSONArray("issues");
             String importSummary = "raw inserted "
                     + importReport.optInt("raw_inserted", 0)
@@ -125,7 +171,8 @@ final class GoosePacketIngestor {
             String frameHex,
             String serviceUuid,
             String characteristicUuid,
-            long capturedAtMillis
+            long capturedAtMillis,
+            String captureSessionId
     ) throws Exception {
         frameCounter += 1;
         String evidenceId = UUID.randomUUID().toString();
@@ -140,8 +187,12 @@ final class GoosePacketIngestor {
                 .put("device_model", "WHOOP 5.0 Goose Android")
                 .put("frame_hex", frameHex)
                 .put("sensitivity", "raw_device_evidence")
-                .put("capture_session_id", JSONObject.NULL)
                 .put("device_type", "GOOSE");
+        if (captureSessionId == null) {
+            row.put("capture_session_id", JSONObject.NULL);
+        } else {
+            row.put("capture_session_id", captureSessionId);
+        }
 
         JSONObject args = new JSONObject()
                 .put("database_path", databaseFile.getAbsolutePath())
@@ -161,7 +212,13 @@ final class GoosePacketIngestor {
                     .put("frames_existing", 0)
                     .put("issues", new JSONArray().put(error.toString()));
         }
-        boolean directInserted = insertRawEvidenceDirect(evidenceId, source, capturedAt, frameHex);
+        boolean directInserted = insertRawEvidenceDirect(
+                evidenceId,
+                source,
+                capturedAt,
+                frameHex,
+                captureSessionId
+        );
         report.put("direct_raw_inserted", directInserted ? 1 : 0);
         return report;
     }
@@ -170,7 +227,8 @@ final class GoosePacketIngestor {
             String evidenceId,
             String source,
             String capturedAt,
-            String payloadHex
+            String payloadHex,
+            String captureSessionId
     ) throws Exception {
         ContentValues values = new ContentValues();
         values.put("evidence_id", evidenceId);
@@ -180,6 +238,9 @@ final class GoosePacketIngestor {
         values.put("payload_hex", payloadHex);
         values.put("sha256", sha256Hex(Hex.decode(payloadHex)));
         values.put("sensitivity", "raw_device_evidence");
+        if (captureSessionId != null) {
+            values.put("capture_session_id", captureSessionId);
+        }
         SQLiteDatabase database = SQLiteDatabase.openDatabase(databaseFile.getAbsolutePath(), null, SQLiteDatabase.OPEN_READWRITE);
         try {
             return database.insertWithOnConflict("raw_evidence", null, values, SQLiteDatabase.CONFLICT_IGNORE) != -1;
