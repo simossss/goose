@@ -204,6 +204,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertBleDeviceRowDisplayContract();
         Log.i(TAG, "checking step validation UI guardrails");
         assertStepValidationUiGuardrails();
+        Log.i(TAG, "checking Health Connect sync UI guardrails");
+        assertHealthConnectSyncUiGuardrails();
         Log.i(TAG, "checking installed app privacy flags");
         assertApplicationPrivacyFlags(context);
         Log.i(TAG, "checking installed app launch and hardware manifest");
@@ -832,6 +834,48 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         String reason = MainActivity.stepValidationBlockReason(manualSteps, start, end, captureSessionId);
         if (reason == null || !reason.contains(expected)) {
             throw new AssertionError("unexpected step validation guardrail reason: " + reason);
+        }
+    }
+
+    private void assertHealthConnectSyncUiGuardrails() throws Exception {
+        if (MainActivity.healthConnectSyncBlockReason(healthSyncUiReport(
+                true,
+                true,
+                true,
+                1,
+                1,
+                0
+        )) != null) {
+            throw new AssertionError("valid Health Connect sync dry-run should not be blocked");
+        }
+        assertHealthConnectSyncBlocked(healthSyncUiReport(true, true, true, 1, 0, 0), "No planned writes");
+        assertHealthConnectSyncBlocked(healthSyncUiReport(true, true, false, 1, 1, 0), "Grant Health Connect");
+        assertHealthConnectSyncBlocked(healthSyncUiReport(false, true, true, 1, 1, 0), "Dry run is not ready");
+        assertHealthConnectSyncBlocked(healthSyncUiReport(true, false, true, 1, 1, 0), "Dry run is not ready");
+        assertHealthConnectSyncBlocked(healthSyncUiReport(true, true, true, 1, 1, 1), "Dry run is not ready");
+    }
+
+    private JSONObject healthSyncUiReport(
+            boolean pass,
+            boolean allRecordsReady,
+            boolean permissionsReady,
+            int candidateCount,
+            int plannedWriteCount,
+            int blockedCount
+    ) throws Exception {
+        return new JSONObject()
+                .put("pass", pass)
+                .put("all_records_ready", allRecordsReady)
+                .put("permissions_ready", permissionsReady)
+                .put("candidate_count", candidateCount)
+                .put("planned_write_count", plannedWriteCount)
+                .put("blocked_count", blockedCount);
+    }
+
+    private void assertHealthConnectSyncBlocked(JSONObject report, String expected) {
+        String reason = MainActivity.healthConnectSyncBlockReason(report);
+        if (reason == null || !reason.contains(expected)) {
+            throw new AssertionError("unexpected Health Connect sync guardrail reason: " + reason);
         }
     }
 

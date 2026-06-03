@@ -561,9 +561,14 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                         reportStatus.setText(truncateForDisplay(summary));
                         return;
                     }
-                    if (report.optInt("planned_write_count", 0) == 0) {
-                        reportStatus.setText(truncateForDisplay(summary
-                                + "\n\nHealth Connect sync\nNo planned writes. Capture and decode Goose-owned metrics first."));
+                    String blockReason = healthConnectSyncBlockReason(report);
+                    if (blockReason != null) {
+                        reportStatus.setText(truncateForDisplay(summary + "\n\nHealth Connect sync blocked\n" + blockReason));
+                        if (!report.optBoolean("permissions_ready", false)
+                                && report.optInt("planned_write_count", 0) > 0) {
+                            healthConnectSupport.requestPermissions(this);
+                            refreshHealthConnectStatus();
+                        }
                         return;
                     }
                     reportStatus.setText(truncateForDisplay(summary + "\n\nWriting Health Connect records..."));
@@ -574,6 +579,21 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                             }));
                 })
         );
+    }
+
+    static String healthConnectSyncBlockReason(JSONObject report) {
+        if (report.optInt("planned_write_count", 0) == 0) {
+            return "No planned writes. Capture and decode Goose-owned metrics first.";
+        }
+        if (!report.optBoolean("permissions_ready", false)) {
+            return "Grant Health Connect write permissions, then tap Sync again.";
+        }
+        if (!report.optBoolean("pass", false)
+                || !report.optBoolean("all_records_ready", false)
+                || report.optInt("blocked_count", 0) > 0) {
+            return "Dry run is not ready. Run Health Gate and resolve the reported issues.";
+        }
+        return null;
     }
 
     private void runStorageMutation(ReportRunner runner) {

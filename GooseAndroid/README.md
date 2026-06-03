@@ -246,7 +246,9 @@ These files are build artifacts and are ignored by git.
   families, exposes permission/status actions, feeds granted
   permissions into the Rust `health_sync.dry_run` gate, and routes approved
   Android 14+ planned writes through the platform `HealthConnectManager`
-  adapter for steps, heart rate, and active calories. Android builds
+  adapter for steps, heart rate, and active calories. The app blocks `Sync`
+  until the dry run has planned writes, write permissions are ready, all records
+  are ready, and there are no dry-run blockers. Android builds
   Health Connect heart-rate candidates from trusted Goose-decoded heart-rate
   feature rows plus step and active-calorie candidates from existing daily
   activity metrics before syncing.
