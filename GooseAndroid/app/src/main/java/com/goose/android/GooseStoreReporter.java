@@ -304,7 +304,7 @@ final class GooseStoreReporter {
     private JSONArray healthConnectCandidates() throws Exception {
         JSONArray candidates = new JSONArray();
         appendHeartRateHealthConnectCandidates(candidates);
-        appendStepHealthConnectCandidates(candidates);
+        appendDailyActivityHealthConnectCandidates(candidates);
         return candidates;
     }
 
@@ -357,7 +357,7 @@ final class GooseStoreReporter {
         }
     }
 
-    private void appendStepHealthConnectCandidates(JSONArray candidates) throws Exception {
+    private void appendDailyActivityHealthConnectCandidates(JSONArray candidates) throws Exception {
         JSONObject args = new JSONObject()
                 .put("database_path", databasePath)
                 .put("start_time_unix_ms", 0L)
@@ -369,17 +369,10 @@ final class GooseStoreReporter {
         }
         for (int index = 0; index < metrics.length(); index += 1) {
             JSONObject metric = metrics.optJSONObject(index);
-            if (metric == null || metric.isNull("steps")) {
-                continue;
-            }
-            long steps = metric.optLong("steps", 0L);
-            if (steps <= 0L) {
+            if (metric == null) {
                 continue;
             }
             String sourceKind = metric.optString("source_kind", "");
-            if (!"device_counter".equals(sourceKind)) {
-                continue;
-            }
             long startTimeUnixMs = metric.optLong("start_time_unix_ms", -1L);
             long endTimeUnixMs = metric.optLong("end_time_unix_ms", -1L);
             if (startTimeUnixMs < 0L || endTimeUnixMs <= startTimeUnixMs) {
@@ -389,26 +382,81 @@ final class GooseStoreReporter {
             if (metricId.isEmpty()) {
                 continue;
             }
-            candidates.put(new JSONObject()
-                    .put("record_id", "android-steps-" + metricId)
-                    .put("metric_family", "activity")
-                    .put("semantic", "steps")
-                    .put("source_kind", "local_derived")
-                    .put("start_time", iso8601(startTimeUnixMs))
-                    .put("end_time", iso8601(endTimeUnixMs))
-                    .put("value", steps)
-                    .put("unit", "count")
-                    .put("algorithm_id", "goose.steps.device_counter.v0")
-                    .put("algorithm_version", "0.1.0")
-                    .put("approved_by_user", true)
-                    .put("provenance", new JSONObject()
-                            .put("input_source", "metrics.daily_activity_metrics")
-                            .put("daily_metric_id", metricId)
-                            .put("date_key", metric.optString("date_key", ""))
-                            .put("timezone", metric.optString("timezone", ""))
-                            .put("daily_metric_source_kind", sourceKind)
-                            .put("confidence", metric.optDouble("confidence", 0.0))));
+            appendStepHealthConnectCandidate(candidates, metric, metricId, sourceKind,
+                    startTimeUnixMs, endTimeUnixMs);
+            appendActiveEnergyHealthConnectCandidate(candidates, metric, metricId, sourceKind,
+                    startTimeUnixMs, endTimeUnixMs);
         }
+    }
+
+    private void appendStepHealthConnectCandidate(
+            JSONArray candidates,
+            JSONObject metric,
+            String metricId,
+            String sourceKind,
+            long startTimeUnixMs,
+            long endTimeUnixMs
+    ) throws Exception {
+        if (metric.isNull("steps") || !"device_counter".equals(sourceKind)) {
+            return;
+        }
+        long steps = metric.optLong("steps", 0L);
+        if (steps <= 0L) {
+            return;
+        }
+        candidates.put(dailyActivityCandidate(metric, metricId, sourceKind, startTimeUnixMs, endTimeUnixMs)
+                .put("record_id", "android-steps-" + metricId)
+                .put("semantic", "steps")
+                .put("value", steps)
+                .put("unit", "count")
+                .put("algorithm_id", "goose.steps.device_counter.v0")
+                .put("algorithm_version", "0.1.0"));
+    }
+
+    private void appendActiveEnergyHealthConnectCandidate(
+            JSONArray candidates,
+            JSONObject metric,
+            String metricId,
+            String sourceKind,
+            long startTimeUnixMs,
+            long endTimeUnixMs
+    ) throws Exception {
+        if (metric.isNull("active_kcal") || !"local_estimate".equals(sourceKind)) {
+            return;
+        }
+        double activeKcal = metric.optDouble("active_kcal", Double.NaN);
+        if (!Double.isFinite(activeKcal) || activeKcal <= 0.0) {
+            return;
+        }
+        candidates.put(dailyActivityCandidate(metric, metricId, sourceKind, startTimeUnixMs, endTimeUnixMs)
+                .put("record_id", "android-active-energy-" + metricId)
+                .put("semantic", "active_energy")
+                .put("value", activeKcal)
+                .put("unit", "kcal")
+                .put("algorithm_id", "goose.energy.local_estimate.v0")
+                .put("algorithm_version", "0.1.0"));
+    }
+
+    private JSONObject dailyActivityCandidate(
+            JSONObject metric,
+            String metricId,
+            String sourceKind,
+            long startTimeUnixMs,
+            long endTimeUnixMs
+    ) throws Exception {
+        return new JSONObject()
+                .put("metric_family", "activity")
+                .put("source_kind", "local_derived")
+                .put("start_time", iso8601(startTimeUnixMs))
+                .put("end_time", iso8601(endTimeUnixMs))
+                .put("approved_by_user", true)
+                .put("provenance", new JSONObject()
+                        .put("input_source", "metrics.daily_activity_metrics")
+                        .put("daily_metric_id", metricId)
+                        .put("date_key", metric.optString("date_key", ""))
+                        .put("timezone", metric.optString("timezone", ""))
+                        .put("daily_metric_source_kind", sourceKind)
+                        .put("confidence", metric.optDouble("confidence", 0.0)));
     }
 
     private String[] candidateWindow(JSONArray candidates) {
