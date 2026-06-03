@@ -432,6 +432,13 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         opsActions.addView(healthConnectSyncButton, weightWrap());
         opsSection.addView(opsActions);
 
+        LinearLayout evidenceActions = new LinearLayout(this);
+        evidenceActions.setOrientation(LinearLayout.HORIZONTAL);
+        Button evidenceButton = secondaryButton("Evidence");
+        evidenceButton.setOnClickListener(view -> runReport(storeReporter::evidenceReadiness));
+        evidenceActions.addView(evidenceButton, weightWrap());
+        opsSection.addView(evidenceActions);
+
         LinearLayout storageActions = new LinearLayout(this);
         storageActions.setOrientation(LinearLayout.HORIZONTAL);
         Button exportsButton = secondaryButton("Exports");

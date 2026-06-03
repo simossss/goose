@@ -70,6 +70,10 @@ final class GooseStoreReporter {
         executor.execute(() -> callback.onReport(runStoragePrivacy()));
     }
 
+    void evidenceReadiness(Callback callback) {
+        executor.execute(() -> callback.onReport(runEvidenceReadiness()));
+    }
+
     void healthConnectDryRun(List<String> permissionGrants, Callback callback) {
         executor.execute(() -> callback.onReport(runHealthConnectDryRun(permissionGrants)));
     }
@@ -272,6 +276,34 @@ final class GooseStoreReporter {
             }
         }
         return builder.toString();
+    }
+
+    private String runEvidenceReadiness() {
+        SQLiteDatabase database = null;
+        try {
+            database = SQLiteDatabase.openDatabase(databasePath, null, SQLiteDatabase.OPEN_READONLY);
+            int rawRows = countRows(database, "raw_evidence");
+            int captureSessions = countRows(database, "capture_sessions");
+            int decodedFrames = countRows(database, "decoded_frames");
+            int stepSamples = countRows(database, "step_counter_samples");
+            String latestCapture = latestValue(database, "raw_evidence", "captured_at");
+            boolean strictReady = rawRows > 0 && captureSessions > 0;
+            return "Android evidence readiness\n"
+                    + "status: " + (strictReady ? "PASS" : "WAIT") + "\n"
+                    + "database: " + databasePath + "\n"
+                    + "raw evidence: " + rawRows + "\n"
+                    + "capture sessions: " + captureSessions + "\n"
+                    + "decoded frames: " + decodedFrames + "\n"
+                    + "step samples: " + stepSamples + "\n"
+                    + "latest capture: " + latestCapture + "\n"
+                    + "health sync audit bytes: " + healthSyncAuditFile.length();
+        } catch (Exception error) {
+            return "Android evidence readiness\nstatus: FAIL\n" + error;
+        } finally {
+            if (database != null) {
+                database.close();
+            }
+        }
     }
 
     private String runHealthConnectDryRun(List<String> permissionGrants) {

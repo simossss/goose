@@ -383,6 +383,7 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             throw new AssertionError("capture session did not finish with frame count: " + finish);
         }
         assertRawEvidenceTagged(databaseFile, sessionId);
+        assertEvidenceReadinessReportPasses(context, databaseFile);
     }
 
     private void assertRawEvidenceTagged(File databaseFile, String sessionId) {
@@ -413,6 +414,29 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 cursor.close();
             }
             database.close();
+        }
+    }
+
+    private void assertEvidenceReadinessReportPasses(Context context, File databaseFile) throws Exception {
+        GooseStoreReporter reporter = new GooseStoreReporter(context, databaseFile.getAbsolutePath());
+        CountDownLatch latch = new CountDownLatch(1);
+        List<String> reports = new ArrayList<>();
+        try {
+            reporter.evidenceReadiness(report -> {
+                reports.add(report);
+                latch.countDown();
+            });
+            if (!latch.await(5, TimeUnit.SECONDS)) {
+                throw new AssertionError("evidence readiness report did not callback");
+            }
+        } finally {
+            reporter.close();
+        }
+        String report = reports.isEmpty() ? "" : reports.get(0);
+        if (!report.contains("status: PASS")
+                || !report.contains("raw evidence: 1")
+                || !report.contains("capture sessions: 1")) {
+            throw new AssertionError("evidence readiness report did not pass after capture smoke: " + report);
         }
     }
 

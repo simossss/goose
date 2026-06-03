@@ -140,6 +140,9 @@ These files are build artifacts and are ignored by git.
   visually separated.
 - Exposes Android storage/privacy controls for export inventory, export cache
   clearing, and two-tap local SQLite data deletion.
+- Exposes a compact Android evidence readiness report for phone handoff checks:
+  raw evidence rows, capture-session rows, decoded/step counts, latest capture,
+  Health Connect audit bytes, and strict PASS/WAIT status.
 - Runs Rust-backed operational reports:
   - `metrics.input_readiness`
   - `capture.timeline`
