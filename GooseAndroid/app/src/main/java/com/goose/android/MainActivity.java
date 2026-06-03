@@ -812,10 +812,17 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             reportStatus.setText("Manual steps must be a number");
             return;
         }
-        reportStatus.setText("Running step validation...");
         String captureSessionId = activeCaptureSessionId != null
                 ? activeCaptureSessionId
                 : lastFinishedCaptureSessionId;
+        if (captureSessionId == null) {
+            reportStatus.setText("Running step validation...\n"
+                    + "capture session: none\n"
+                    + "Final phone evidence needs an active or recently finished capture session.");
+        } else {
+            reportStatus.setText("Running step validation...\n"
+                    + "capture session: " + captureSessionId);
+        }
         storeReporter.stepValidation(validationStart, validationEnd, manualSteps, captureSessionId,
                 report -> runOnUiThreadIfAlive(() -> reportStatus.setText(truncateForDisplay(report))));
     }

@@ -223,19 +223,23 @@ These files are build artifacts and are ignored by git.
    BLE scanning.
 3. Press `Scan`, then tap the WHOOP candidate when it appears.
 4. Wait for `Ready; subscribed ...; hello sent`.
-5. Optional but recommended for owned captures: press `Start` in the capture
-   session row before a controlled test and `Finish` afterwards.
+5. For final owned captures, press `Start` in the capture session row before a
+   controlled test and `Finish` afterwards.
 6. Press `Range` to prepare a command write, review the frame/preflight text,
    then press `Range` again within 15 seconds to send. Use the same two-tap
    flow for `History` and `Abort`.
-7. Use `Heart`, `Sensors`, `Steps`, `Blocked`, and `Sessions` for compact
+7. For counted-step validation, press `Start` in the validation row before the
+   counted walk, press `End` afterwards, enter the manual count, then press
+   `Validate`. The report should name the active or most recently finished
+   capture session.
+8. Use `Heart`, `Sensors`, `Steps`, `Blocked`, and `Sessions` for compact
    summaries instead of dumping large raw JSON in the UI.
-8. Pull and inspect the debug store:
+9. Pull and inspect the debug store:
    `Scripts/pull_android_database.sh tmp/goose-phone.sqlite`, then
    `Scripts/inspect_android_capture.sh tmp/goose-phone.sqlite`.
-9. For a PR/phone-session artifact, run
+10. For a PR/phone-session artifact, run
    `Scripts/collect_android_phone_evidence.sh`.
-10. After final evidence collection, run
+11. After final evidence collection, run
     `Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-...` for the
     PR checklist summary.
 
