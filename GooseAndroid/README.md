@@ -13,9 +13,9 @@ From the repository root:
 Scripts/validate_android.sh
 ```
 
-That builds the Rust Android libraries, assembles the debug app and
-instrumentation APK, and runs the smoke harness when an adb device or emulator
-is online.
+That builds the Rust Android libraries, assembles the debug app, release app,
+and instrumentation APK, and runs the smoke harness when an adb device or
+emulator is online.
 
 Manual build:
 

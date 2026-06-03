@@ -25,8 +25,8 @@ fi
 echo "==> Building Android Rust libraries"
 "$APP_DIR/Scripts/build_android_rust.sh"
 
-echo "==> Building Android debug app and instrumentation APK"
-(cd "$ANDROID_DIR" && "$GRADLEW" :app:assembleDebug :app:assembleDebugAndroidTest)
+echo "==> Building Android debug, release, and instrumentation APKs"
+(cd "$ANDROID_DIR" && "$GRADLEW" :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest)
 
 if [[ "${GOOSE_ANDROID_SKIP_INSTRUMENTATION:-0}" == "1" ]]; then
   echo "==> Skipping Android instrumentation because GOOSE_ANDROID_SKIP_INSTRUMENTATION=1"

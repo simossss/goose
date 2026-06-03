@@ -230,8 +230,8 @@ Run the Android validation gate from the repository root:
 Scripts/validate_android.sh
 ```
 
-The script builds the Rust Android libraries, assembles the debug APK and
-instrumentation APK, and runs the bridge/storage/protocol/Health Connect/privacy
+The script builds the Rust Android libraries, assembles the debug, release, and
+instrumentation APKs, and runs the bridge/storage/protocol/Health Connect/privacy
 smoke harness when an emulator or device is online. Set
 `GOOSE_ANDROID_SKIP_INSTRUMENTATION=1` to skip the adb install/smoke step.
 
