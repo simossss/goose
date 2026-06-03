@@ -59,6 +59,60 @@ else
   echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
 fi
 
+summary_value() {
+  local key="$1"
+  awk -F': ' -v key="$key" '$1 == key { print $2; exit }' "$OUTPUT_DIR/inspect-android-capture.txt"
+}
+
+first_line() {
+  local file="$1"
+  if [[ -f "$file" ]]; then
+    sed -n '1p' "$file" | tr -d '\r'
+  fi
+}
+
+port_commit="$(summary_value "commit")"
+if [[ -z "$port_commit" ]]; then
+  port_commit="$(awk -F': ' '$1 == "commit" { print $2; exit }' "$OUTPUT_DIR/android-port-status.txt")"
+fi
+inspection_result="$(summary_value "RESULT")"
+if [[ -z "$inspection_result" ]]; then
+  inspection_result="$(awk -F': ' '$1 == "RESULT" { print $2; exit }' "$OUTPUT_DIR/evidence-result.txt")"
+fi
+
+cat > "$OUTPUT_DIR/phone-handoff-summary.md" <<SUMMARY
+# Goose Android Phone Evidence
+
+Generated at: $STAMP
+Device serial: $device_serial
+Device: $(first_line "$OUTPUT_DIR/device-manufacturer.txt") $(first_line "$OUTPUT_DIR/device-model.txt")
+Android: $(first_line "$OUTPUT_DIR/android-version.txt") (SDK $(first_line "$OUTPUT_DIR/android-sdk.txt"))
+Commit: ${port_commit:-unknown}
+Result: ${inspection_result:-unknown}
+
+## Capture
+
+- Raw evidence rows: $(summary_value "raw evidence")
+- Decoded frame rows: $(summary_value "decoded frames")
+- Capture sessions: $(summary_value "capture sessions")
+- Step samples: $(summary_value "step samples")
+- Daily activity metrics: $(summary_value "daily activity metrics")
+- Latest raw capture: $(summary_value "latest raw capture")
+
+## Health Connect
+
+- Audit log: $(summary_value "health sync audit")
+- Audit bytes: $(summary_value "health sync audit bytes")
+
+## Evidence Files
+
+- android-port-status.txt
+- inspect-android-capture.txt
+- goose-phone.sqlite
+- goose-phone-health-connect-sync-log.jsonl, when present
+- logcat-goose-brief.txt
+SUMMARY
+
 cat > "$OUTPUT_DIR/README.txt" <<README
 Goose Android phone evidence bundle
 
@@ -73,6 +127,7 @@ Key files:
 - goose-phone.sqlite plus -wal/-shm: pulled debug app database files when present.
 - goose-phone-health-connect-sync-log.jsonl: Health Connect sync audit log when present.
 - inspect-android-capture.txt: read-only SQLite capture summary.
+- phone-handoff-summary.md: concise PR and phone-session summary.
 - pull-android-database.txt: pull helper output.
 - evidence-result.txt: PASS/FAIL for the capture inspection gate.
 
