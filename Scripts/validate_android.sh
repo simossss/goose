@@ -24,6 +24,25 @@ fi
 
 IFS=' ' read -r -a GOOSE_ANDROID_ABIS <<< "${ANDROID_ABIS:-arm64-v8a armeabi-v7a x86_64}"
 
+TMP_FILES=()
+cleanup_tmp_files() {
+  for file in "${TMP_FILES[@]}"; do
+    rm -f "$file"
+  done
+}
+trap cleanup_tmp_files EXIT
+
+assert_file_contains() {
+  local file="$1"
+  local needle="$2"
+  local label="$3"
+
+  if ! grep -Fq "$needle" "$file"; then
+    echo "$label missing expected output: $needle" >&2
+    exit 1
+  fi
+}
+
 echo "==> Checking Android helper shell syntax"
 bash -n "$SCRIPT_DIR/android_final_phone_checklist.sh"
 bash -n "$SCRIPT_DIR/android_port_status.sh"
@@ -35,6 +54,19 @@ bash -n "$SCRIPT_DIR/install_android_debug.sh"
 bash -n "$SCRIPT_DIR/inspect_android_capture.sh"
 bash -n "$SCRIPT_DIR/pull_android_database.sh"
 bash -n "$SCRIPT_DIR/validate_android.sh"
+
+echo "==> Checking Android handoff helper output"
+checklist_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-checklist.XXXXXX")"
+readiness_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness.XXXXXX")"
+TMP_FILES+=("$checklist_output" "$readiness_output")
+"$SCRIPT_DIR/android_final_phone_checklist.sh" > "$checklist_output"
+"$SCRIPT_DIR/android_pr_readiness.sh" > "$readiness_output"
+assert_file_contains "$checklist_output" "Goose Android Final Phone Checklist" "final phone checklist"
+assert_file_contains "$checklist_output" "Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation" "final phone checklist"
+assert_file_contains "$checklist_output" "Step validation passed events: at least 1." "final phone checklist"
+assert_file_contains "$readiness_output" "Goose Android PR Readiness" "PR readiness"
+assert_file_contains "$readiness_output" "No phone evidence directory supplied." "PR readiness"
+assert_file_contains "$readiness_output" "Remaining Phone-Bound Acceptance" "PR readiness"
 
 find_build_tool() {
   local tool="$1"
