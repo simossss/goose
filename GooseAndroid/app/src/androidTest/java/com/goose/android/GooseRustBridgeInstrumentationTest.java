@@ -26,6 +26,7 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -189,6 +190,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertHealthConnectSyncAudit(context);
         Log.i(TAG, "checking Android BLE session audit log");
         assertBleSessionAudit(context);
+        Log.i(TAG, "checking local data clear removes Android audit logs");
+        assertClearLocalDataRemovesAuditLogs(context);
         Log.i(TAG, "checking Android Health Connect ready-plan audit path");
         assertHealthConnectReadyPlanAudit(context);
 
@@ -633,6 +636,52 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         }
     }
 
+    private void assertClearLocalDataRemovesAuditLogs(Context context) throws Exception {
+        File databaseFile = new File(context.getCacheDir(), "goose-clear-local-data-smoke.sqlite");
+        deleteDatabaseFiles(databaseFile);
+        File bleAudit = BleSessionAudit.auditFileFor(context);
+        File healthAudit = HealthConnectSupport.syncAuditFileFor(context);
+        File healthDatabaseAudit = new File(databaseFile.getParentFile(), "health-connect-sync-log.jsonl");
+        File stepAudit = new File(databaseFile.getParentFile(), "step-validation-log.jsonl");
+        File[] auditFiles = new File[] {
+                bleAudit,
+                new File(bleAudit.getAbsolutePath() + ".old"),
+                healthAudit,
+                new File(healthAudit.getAbsolutePath() + ".old"),
+                healthDatabaseAudit,
+                new File(healthDatabaseAudit.getAbsolutePath() + ".old"),
+                stepAudit,
+                new File(stepAudit.getAbsolutePath() + ".old")
+        };
+        for (File auditFile : auditFiles) {
+            writeFile(auditFile, "stale audit row\n");
+        }
+
+        GooseStoreReporter reporter = new GooseStoreReporter(context, databaseFile.getAbsolutePath());
+        CountDownLatch latch = new CountDownLatch(1);
+        List<String> reports = new ArrayList<>();
+        try {
+            reporter.clearLocalData(report -> {
+                reports.add(report);
+                latch.countDown();
+            });
+            if (!latch.await(5, TimeUnit.SECONDS)) {
+                throw new AssertionError("clear local data report did not callback");
+            }
+        } finally {
+            reporter.close();
+        }
+        String report = reports.isEmpty() ? "" : reports.get(0);
+        if (!report.contains("Clear local data")) {
+            throw new AssertionError("clear local data report missing header: " + report);
+        }
+        for (File auditFile : auditFiles) {
+            if (auditFile.exists()) {
+                throw new AssertionError("clear local data left stale audit file: " + auditFile);
+            }
+        }
+    }
+
     private String readFile(File file) throws Exception {
         if (!file.isFile()) {
             throw new AssertionError("expected file missing: " + file);
@@ -648,6 +697,19 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             reader.close();
         }
         return builder.toString();
+    }
+
+    private void writeFile(File file, String contents) throws Exception {
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists() && !parent.mkdirs()) {
+            throw new AssertionError("could not create parent directory for " + file);
+        }
+        FileWriter writer = new FileWriter(file);
+        try {
+            writer.write(contents);
+        } finally {
+            writer.close();
+        }
     }
 
     private JSONObject plannedWrite(

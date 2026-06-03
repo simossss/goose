@@ -32,6 +32,7 @@ final class GooseStoreReporter {
     private final File exportDirectory;
     private final File bleSessionAuditFile;
     private final File healthSyncAuditFile;
+    private final File healthSyncDatabaseAuditFile;
     private final File stepValidationAuditFile;
     private final String databasePath;
 
@@ -39,7 +40,8 @@ final class GooseStoreReporter {
         this.databasePath = databasePath;
         File databaseDirectory = new File(databasePath).getParentFile();
         bleSessionAuditFile = BleSessionAudit.auditFileFor(context);
-        healthSyncAuditFile = new File(databaseDirectory != null ? databaseDirectory : context.getFilesDir(),
+        healthSyncAuditFile = HealthConnectSupport.syncAuditFileFor(context);
+        healthSyncDatabaseAuditFile = new File(databaseDirectory != null ? databaseDirectory : context.getFilesDir(),
                 "health-connect-sync-log.jsonl");
         stepValidationAuditFile = new File(databaseDirectory != null ? databaseDirectory : context.getFilesDir(),
                 "step-validation-log.jsonl");
@@ -713,6 +715,14 @@ final class GooseStoreReporter {
         deleteFile(new File(databasePath + "-wal"), stats);
         deleteFile(new File(databasePath + "-shm"), stats);
         deleteFile(new File(databasePath + "-journal"), stats);
+        deleteFile(bleSessionAuditFile, stats);
+        deleteFile(new File(bleSessionAuditFile.getAbsolutePath() + ".old"), stats);
+        deleteFile(healthSyncAuditFile, stats);
+        deleteFile(new File(healthSyncAuditFile.getAbsolutePath() + ".old"), stats);
+        deleteFile(healthSyncDatabaseAuditFile, stats);
+        deleteFile(new File(healthSyncDatabaseAuditFile.getAbsolutePath() + ".old"), stats);
+        deleteFile(stepValidationAuditFile, stats);
+        deleteFile(new File(stepValidationAuditFile.getAbsolutePath() + ".old"), stats);
         if (parent != null && !parent.exists()) {
             parent.mkdirs();
         }

@@ -221,7 +221,7 @@ These files are build artifacts and are ignored by git.
 - Keeps the capture activity alive across orientation and screen-size changes
   so a controlled BLE capture is not torn down by accidental rotation.
 - Exposes Android storage/privacy controls for export inventory, export cache
-  clearing, and two-tap local SQLite data deletion.
+  clearing, and two-tap local SQLite plus evidence-log deletion.
 - Exposes an Android evidence readiness report for phone handoff checks:
   raw/session/live-notification evidence rows, finished capture sessions,
   decoded/step counts, BLE ready/hello/command-ready audit counts,
