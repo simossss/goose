@@ -43,6 +43,8 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private static final int COLOR_BORDER = Color.rgb(203, 213, 225);
     private static final int COLOR_PRIMARY = Color.rgb(37, 99, 235);
     private static final int COLOR_DANGER = Color.rgb(185, 28, 28);
+    private static final String UNSET_VALIDATION_START = "0000";
+    private static final String UNSET_VALIDATION_END = "9999";
 
     private final GooseRustBridge bridge = new GooseRustBridge();
     private final Deque<String> notificationLogRows = new ArrayDeque<>();
@@ -73,8 +75,8 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private LinearLayout logSection;
     private final List<Button> modeButtons = new ArrayList<>();
     private EditText manualStepsInput;
-    private String validationStart = "0000";
-    private String validationEnd = "9999";
+    private String validationStart = UNSET_VALIDATION_START;
+    private String validationEnd = UNSET_VALIDATION_END;
     private volatile String activeCaptureSessionId;
     private volatile String lastFinishedCaptureSessionId;
     private PendingCommand pendingCommand;
@@ -614,6 +616,8 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         clearLocalDataConfirmUntilMillis = 0L;
         packetIngestor.clearCaptureSession();
         activeCaptureSessionId = null;
+        lastFinishedCaptureSessionId = null;
+        resetValidationWindow();
         sessionStatus.setText("Capture session: none");
         runStorageMutation(storeReporter::clearLocalData);
     }
@@ -745,6 +749,8 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 .replace(".", "")
                 .replace("-", "")
                 + "-" + UUID.randomUUID().toString().substring(0, 8);
+        lastFinishedCaptureSessionId = null;
+        resetValidationWindow();
         long startedAt = System.currentTimeMillis();
         sessionStatus.setText("Starting capture session\n" + sessionId);
         sessionExecutor.execute(() -> {
@@ -818,6 +824,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     private void markValidationStart() {
         validationStart = iso8601(System.currentTimeMillis());
+        validationEnd = UNSET_VALIDATION_END;
         reportStatus.setText("Step validation start\n" + validationStart);
     }
 
@@ -858,10 +865,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         if (manualSteps <= 0) {
             return "Manual steps must be greater than zero.";
         }
-        if (start == null || start.trim().isEmpty() || "0000".equals(start)) {
+        if (start == null || start.trim().isEmpty() || UNSET_VALIDATION_START.equals(start)) {
             return "Tap Step validation Start before the counted walk.";
         }
-        if (end == null || end.trim().isEmpty() || "9999".equals(end)) {
+        if (end == null || end.trim().isEmpty() || UNSET_VALIDATION_END.equals(end)) {
             return "Tap Step validation End after the counted walk.";
         }
         if (end.compareTo(start) <= 0) {
@@ -871,6 +878,11 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             return "Start or finish a capture session before running final step validation.";
         }
         return null;
+    }
+
+    private void resetValidationWindow() {
+        validationStart = UNSET_VALIDATION_START;
+        validationEnd = UNSET_VALIDATION_END;
     }
 
     private void appendNotificationLog(String stamp, String characteristicUuid, String frameHex) {
