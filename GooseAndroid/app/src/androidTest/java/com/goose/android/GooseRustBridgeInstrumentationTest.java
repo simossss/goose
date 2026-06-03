@@ -53,6 +53,21 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         if (version.length() == 0) {
             throw new AssertionError("core.version returned an empty object");
         }
+        JSONObject directVersion = new JSONObject(bridge.versionJson());
+        if (!version.optString("schema").equals(directVersion.optString("schema"))
+                || !version.optString("version").equals(directVersion.optString("version"))) {
+            throw new AssertionError("nativeVersionJson disagrees with core.version: " + directVersion);
+        }
+
+        Log.i(TAG, "checking structured bridge errors");
+        try {
+            bridge.request("android.smoke.unknown_method");
+            throw new AssertionError("unknown bridge method unexpectedly succeeded");
+        } catch (Exception error) {
+            if (error.getMessage() == null || !error.getMessage().contains("unsupported bridge method")) {
+                throw new AssertionError("unknown method did not surface structured bridge error", error);
+            }
+        }
 
         Log.i(TAG, "calling storage.check");
         File databaseFile = new File(context.getCacheDir(), "goose-smoke.sqlite");

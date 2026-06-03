@@ -24,6 +24,9 @@ final class GooseRustBridge {
                 .put("args", args);
 
         String rawResponse = nativeHandleJson(payload.toString());
+        if (rawResponse == null || rawResponse.isEmpty()) {
+            throw new JSONException("Rust bridge returned an empty response");
+        }
         JSONObject response = new JSONObject(rawResponse);
         if (!response.optBoolean("ok", false)) {
             JSONObject error = response.optJSONObject("error");
