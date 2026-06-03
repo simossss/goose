@@ -99,11 +99,12 @@ when the final phone session should prove a passing step-validation audit row.
 
 Set `ANDROID_SERIAL` when more than one adb device is online. The helper uses
 `run-as com.goose.android`, so it expects the debug APK. It also pulls the
-bounded Health Connect sync audit log when present and snapshots the installed
-`com.goose.android` package metadata. The inspector prints table presence, row
-counts, recent raw evidence, recent capture sessions, step sample rows when
-available, and recent Health Connect audit rows. For a stricter post-capture
-gate, set `GOOSE_ANDROID_MIN_RAW_EVIDENCE=1`,
+bounded Health Connect sync audit log when present, snapshots the installed
+`com.goose.android` package metadata, and writes `evidence-gates.txt` with the
+effective gate configuration. The inspector prints table presence, row counts,
+recent raw evidence, recent capture sessions, step sample rows when available,
+and recent Health Connect audit rows. For a stricter post-capture gate, set
+`GOOSE_ANDROID_MIN_RAW_EVIDENCE=1`,
 `GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1`,
 `GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=1`,
 `GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1`, or

@@ -56,6 +56,20 @@ if [[ "${GOOSE_ANDROID_STRICT_EVIDENCE:-0}" == "1" ]]; then
   export GOOSE_ANDROID_MIN_CAPTURE_SESSIONS="${GOOSE_ANDROID_MIN_CAPTURE_SESSIONS:-1}"
 fi
 
+cat > "$OUTPUT_DIR/evidence-gates.txt" <<GATES
+GOOSE_ANDROID_STRICT_EVIDENCE=${GOOSE_ANDROID_STRICT_EVIDENCE:-0}
+GOOSE_ANDROID_MIN_RAW_EVIDENCE=${GOOSE_ANDROID_MIN_RAW_EVIDENCE:-0}
+GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=${GOOSE_ANDROID_MIN_CAPTURE_SESSIONS:-0}
+GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=${GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE:-0}
+GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=${GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS:-0}
+GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}
+GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT:-0}
+GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}
+GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT=${GOOSE_ANDROID_REQUIRE_HEALTH_AUDIT:-0}
+GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT:-0}
+GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS:-0}
+GATES
+
 inspection_status=0
 if "$SCRIPT_DIR/inspect_android_capture.sh" "$OUTPUT_DIR/goose-phone.sqlite" \
   > "$OUTPUT_DIR/inspect-android-capture.txt" 2>&1; then
@@ -108,6 +122,15 @@ Android: $(first_line "$OUTPUT_DIR/android-version.txt") (SDK $(first_line "$OUT
 Commit: ${port_commit:-unknown}
 Result: ${inspection_result:-unknown}
 
+## Gate Configuration
+
+- Gate snapshot: evidence-gates.txt
+- Strict evidence: ${GOOSE_ANDROID_STRICT_EVIDENCE:-0}
+- Require installed package: ${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}
+- Require step validation pass: ${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}
+- Require Health Connect write attempt: ${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT:-0}
+- Require Health Connect write success: ${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS:-0}
+
 ## Installed App
 
 - Result: $package_result
@@ -146,6 +169,7 @@ Result: ${inspection_result:-unknown}
 ## Evidence Files
 
 - android-port-status.txt
+- evidence-gates.txt
 - goose-package-path.txt
 - goose-package-summary.txt
 - goose-package-dumpsys.txt
@@ -164,6 +188,7 @@ Device serial: $device_serial
 
 Key files:
 - android-port-status.txt: branch, commit, APK metadata, generated artifact status.
+- evidence-gates.txt: strict gate environment used for this bundle.
 - adb-devices.txt: adb device list at collection time.
 - goose-package-path.txt: installed com.goose.android package path from the device.
 - goose-package-summary.txt: focused package version, install time, flags, and user state.
