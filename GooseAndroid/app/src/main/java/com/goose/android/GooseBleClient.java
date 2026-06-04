@@ -294,6 +294,7 @@ final class GooseBleClient {
             return;
         }
         devices.clear();
+        publishQueued = false;
         publishDevicesNow();
         startScanner(scanner, true);
     }
@@ -309,6 +310,7 @@ final class GooseBleClient {
         }
         scanning = false;
         filteredScan = false;
+        publishQueued = false;
         listener.onStateChanged("Scan stopped");
         emitConnectionProgress("scan_stopped", null);
     }
@@ -431,7 +433,7 @@ final class GooseBleClient {
     private final ScanCallback scanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
-            if (closed) {
+            if (closed || !scanning) {
                 return;
             }
             BluetoothDevice device = result.getDevice();
@@ -542,10 +544,10 @@ final class GooseBleClient {
         }
         publishQueued = true;
         mainHandler.postDelayed(() -> {
-            if (closed) {
+            publishQueued = false;
+            if (closed || !scanning) {
                 return;
             }
-            publishQueued = false;
             publishDevicesNow();
         }, DEVICE_PUBLISH_INTERVAL_MS);
     }

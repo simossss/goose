@@ -1038,6 +1038,8 @@ assert_file_contains "$ANDROID_DIR/README.md" "must be present in" "Android READ
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "health sync ready write succeeded events" "Android evidence report"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "health sync planned write succeeded events" "Android evidence report"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "health sync records inserted events" "Android evidence report"
+assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseBleClient.java" "if (closed || !scanning)" "BLE scan callback lifecycle"
+assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseBleClient.java" "publishQueued = false;" "BLE scan publish lifecycle"
 assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "Focused AndroidRuntime logcat has no com.goose.android crash lines." "Android port status"
 assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "Final PR evidence gate:" "Android port status"
 assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "Lower-level diagnostic phone evidence gate:" "Android port status"
