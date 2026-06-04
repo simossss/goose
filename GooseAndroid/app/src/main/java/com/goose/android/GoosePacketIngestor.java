@@ -16,6 +16,7 @@ import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 
 final class GoosePacketIngestor {
     interface Callback {
@@ -77,6 +78,7 @@ final class GoosePacketIngestor {
     private int frameCounter;
     private String activeCaptureSessionId;
     private int activeCaptureSessionFrameCount;
+    private volatile boolean closed;
 
     GoosePacketIngestor(Context context) {
         File directory = new File(context.getFilesDir(), "goose");
@@ -91,12 +93,15 @@ final class GoosePacketIngestor {
     }
 
     void ingest(GooseBleClient.GooseNotification notification, Callback callback) {
+        if (closed) {
+            return;
+        }
         byte[] value = notification.value.clone();
         String serviceUuid = notification.serviceUuid;
         String characteristicUuid = notification.characteristicUuid;
         long capturedAtMillis = notification.capturedAtMillis;
         String captureSessionId = currentCaptureSessionIdForNotification();
-        executor.execute(() -> callback.onIngested(ingestNow(
+        executeIfOpen(() -> callback.onIngested(ingestNow(
                 value,
                 serviceUuid,
                 characteristicUuid,
@@ -133,7 +138,22 @@ final class GoosePacketIngestor {
     }
 
     void close() {
+        closed = true;
         executor.shutdownNow();
+    }
+
+    private void executeIfOpen(Runnable task) {
+        if (closed) {
+            return;
+        }
+        try {
+            executor.execute(() -> {
+                if (!closed) {
+                    task.run();
+                }
+            });
+        } catch (RejectedExecutionException ignored) {
+        }
     }
 
     private synchronized String currentCaptureSessionIdForNotification() {

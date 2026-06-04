@@ -225,6 +225,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertHealthConnectWriterDryRunGuardrails();
         Log.i(TAG, "checking Health Connect sync duplicate-tap guardrail");
         assertHealthConnectSyncInProgressGuardrail();
+        Log.i(TAG, "checking closed executor submission guardrails");
+        assertClosedExecutorSubmissionGuardrails(context);
         Log.i(TAG, "checking installed app privacy flags");
         assertApplicationPrivacyFlags(context);
         Log.i(TAG, "checking installed app launch and hardware manifest");
@@ -1197,6 +1199,42 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         }
         if (MainActivity.healthConnectSyncInProgressBlockReason(false) != null) {
             throw new AssertionError("idle Health Connect sync should not be blocked");
+        }
+    }
+
+    private void assertClosedExecutorSubmissionGuardrails(Context context) {
+        GooseCommandBuilder commandBuilder = new GooseCommandBuilder();
+        commandBuilder.close();
+        final int[] commandCallbacks = {0};
+        commandBuilder.build("get_data_range", result -> commandCallbacks[0] += 1);
+        if (commandCallbacks[0] != 0) {
+            throw new AssertionError("closed command builder should ignore late submissions");
+        }
+
+        GoosePacketIngestor ingestor = new GoosePacketIngestor(context);
+        ingestor.startCaptureSession("android-closed-ingestor");
+        ingestor.close();
+        final int[] ingestCallbacks = {0};
+        ingestor.ingest(new GooseBleClient.GooseNotification(
+                "0000180d-0000-1000-8000-00805f9b34fb",
+                "00002a37-0000-1000-8000-00805f9b34fb",
+                new byte[] {0, 44},
+                System.currentTimeMillis()
+        ), result -> ingestCallbacks[0] += 1);
+        if (ingestCallbacks[0] != 0) {
+            throw new AssertionError("closed packet ingestor should ignore late submissions");
+        }
+        if (ingestor.activeCaptureSessionFrameCount() != 0) {
+            throw new AssertionError("closed packet ingestor should not count late notifications");
+        }
+
+        GooseStoreReporter reporter = new GooseStoreReporter(context, ingestor.databasePath());
+        reporter.close();
+        final int[] reportCallbacks = {0};
+        reporter.readiness(report -> reportCallbacks[0] += 1);
+        reporter.healthConnectDryRunPlan(new ArrayList<>(), (report, summary) -> reportCallbacks[0] += 1);
+        if (reportCallbacks[0] != 0) {
+            throw new AssertionError("closed store reporter should ignore late submissions");
         }
     }
 

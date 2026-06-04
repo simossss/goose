@@ -14,6 +14,7 @@ import java.io.FileWriter;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.regex.Pattern;
 
 final class GooseStoreReporter {
@@ -35,6 +36,7 @@ final class GooseStoreReporter {
     private final File healthSyncDatabaseAuditFile;
     private final File stepValidationAuditFile;
     private final String databasePath;
+    private volatile boolean closed;
 
     GooseStoreReporter(Context context, String databasePath) {
         this.databasePath = databasePath;
@@ -52,47 +54,47 @@ final class GooseStoreReporter {
     }
 
     void readiness(Callback callback) {
-        executor.execute(() -> callback.onReport(runReadiness()));
+        executeIfOpen(() -> callback.onReport(runReadiness()));
     }
 
     void captureTimeline(Callback callback) {
-        executor.execute(() -> callback.onReport(runCaptureTimeline()));
+        executeIfOpen(() -> callback.onReport(runCaptureTimeline()));
     }
 
     void commandDefinitions(Callback callback) {
-        executor.execute(() -> callback.onReport(runCommandDefinitions()));
+        executeIfOpen(() -> callback.onReport(runCommandDefinitions()));
     }
 
     void commandGate(Callback callback) {
-        executor.execute(() -> callback.onReport(runCommandGate()));
+        executeIfOpen(() -> callback.onReport(runCommandGate()));
     }
 
     void commandPreflight(Callback callback) {
-        executor.execute(() -> callback.onReport(runCommandPreflight()));
+        executeIfOpen(() -> callback.onReport(runCommandPreflight()));
     }
 
     void commandValidationRecords(Callback callback) {
-        executor.execute(() -> callback.onReport(runCommandValidationRecords()));
+        executeIfOpen(() -> callback.onReport(runCommandValidationRecords()));
     }
 
     void rawExport(Callback callback) {
-        executor.execute(() -> callback.onReport(runRawExport()));
+        executeIfOpen(() -> callback.onReport(runRawExport()));
     }
 
     void storagePrivacy(Callback callback) {
-        executor.execute(() -> callback.onReport(runStoragePrivacy()));
+        executeIfOpen(() -> callback.onReport(runStoragePrivacy()));
     }
 
     void evidenceReadiness(Callback callback) {
-        executor.execute(() -> callback.onReport(runEvidenceReadiness()));
+        executeIfOpen(() -> callback.onReport(runEvidenceReadiness()));
     }
 
     void healthConnectDryRun(List<String> permissionGrants, Callback callback) {
-        executor.execute(() -> callback.onReport(runHealthConnectDryRun(permissionGrants)));
+        executeIfOpen(() -> callback.onReport(runHealthConnectDryRun(permissionGrants)));
     }
 
     void healthConnectDryRunPlan(List<String> permissionGrants, HealthConnectPlanCallback callback) {
-        executor.execute(() -> {
+        executeIfOpen(() -> {
             try {
                 JSONObject report = healthConnectDryRunReport(permissionGrants);
                 callback.onReport(report, healthConnectDryRunSummary(report, permissionGrants, false));
@@ -103,31 +105,31 @@ final class GooseStoreReporter {
     }
 
     void exportPrivacyLint(Callback callback) {
-        executor.execute(() -> callback.onReport(runExportPrivacyLint()));
+        executeIfOpen(() -> callback.onReport(runExportPrivacyLint()));
     }
 
     void exportInventory(Callback callback) {
-        executor.execute(() -> callback.onReport(runExportInventory()));
+        executeIfOpen(() -> callback.onReport(runExportInventory()));
     }
 
     void clearExports(Callback callback) {
-        executor.execute(() -> callback.onReport(runClearExports()));
+        executeIfOpen(() -> callback.onReport(runClearExports()));
     }
 
     void clearLocalData(Callback callback) {
-        executor.execute(() -> callback.onReport(runClearLocalData()));
+        executeIfOpen(() -> callback.onReport(runClearLocalData()));
     }
 
     void decodeBackfill(Callback callback) {
-        executor.execute(() -> callback.onReport(runDecodeBackfill()));
+        executeIfOpen(() -> callback.onReport(runDecodeBackfill()));
     }
 
     void heartRateFeatures(Callback callback) {
-        executor.execute(() -> callback.onReport(runHeartRateFeatures()));
+        executeIfOpen(() -> callback.onReport(runHeartRateFeatures()));
     }
 
     void stepDiscovery(Callback callback) {
-        executor.execute(() -> callback.onReport(runStepDiscovery()));
+        executeIfOpen(() -> callback.onReport(runStepDiscovery()));
     }
 
     void stepValidation(
@@ -137,7 +139,7 @@ final class GooseStoreReporter {
             String captureSessionId,
             Callback callback
     ) {
-        executor.execute(() -> callback.onReport(runStepValidation(
+        executeIfOpen(() -> callback.onReport(runStepValidation(
                 start,
                 end,
                 manualStepDelta,
@@ -145,15 +147,30 @@ final class GooseStoreReporter {
     }
 
     void recoverySensors(Callback callback) {
-        executor.execute(() -> callback.onReport(runRecoverySensors()));
+        executeIfOpen(() -> callback.onReport(runRecoverySensors()));
     }
 
     void unavailableStatuses(Callback callback) {
-        executor.execute(() -> callback.onReport(runUnavailableStatuses()));
+        executeIfOpen(() -> callback.onReport(runUnavailableStatuses()));
     }
 
     void close() {
+        closed = true;
         executor.shutdownNow();
+    }
+
+    private void executeIfOpen(Runnable task) {
+        if (closed) {
+            return;
+        }
+        try {
+            executor.execute(() -> {
+                if (!closed) {
+                    task.run();
+                }
+            });
+        } catch (RejectedExecutionException ignored) {
+        }
     }
 
     private String runReadiness() {

@@ -4,6 +4,7 @@ import org.json.JSONObject;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 
 final class GooseCommandBuilder {
     interface Callback {
@@ -27,17 +28,33 @@ final class GooseCommandBuilder {
     private final GooseRustBridge bridge = new GooseRustBridge();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private int sequence = 2;
+    private volatile boolean closed;
 
     void build(String command, Callback callback) {
         build(command, "", callback);
     }
 
     void build(String command, String payloadHex, Callback callback) {
-        executor.execute(() -> callback.onBuilt(buildNow(command, payloadHex)));
+        executeIfOpen(() -> callback.onBuilt(buildNow(command, payloadHex)));
     }
 
     void close() {
+        closed = true;
         executor.shutdownNow();
+    }
+
+    private void executeIfOpen(Runnable task) {
+        if (closed) {
+            return;
+        }
+        try {
+            executor.execute(() -> {
+                if (!closed) {
+                    task.run();
+                }
+            });
+        } catch (RejectedExecutionException ignored) {
+        }
     }
 
     private synchronized int nextSequence() {
