@@ -277,9 +277,12 @@ final class GooseStoreReporter {
                 .append("database: ").append(databasePath).append('\n')
                 .append("database bytes: ").append(new File(databasePath).length()).append('\n')
                 .append("health sync audit: ").append(healthSyncAuditFile.getAbsolutePath()).append('\n')
-                .append("health sync audit bytes: ").append(healthSyncAuditFile.length()).append('\n')
+                .append("health sync audit bytes: ").append(auditBytesWithRotated(healthSyncAuditFile)).append('\n')
+                .append("health sync audit rotated bytes: ").append(rotatedAuditBytes(healthSyncAuditFile)).append('\n')
                 .append("step validation audit: ").append(stepValidationAuditFile.getAbsolutePath()).append('\n')
-                .append("step validation audit bytes: ").append(stepValidationAuditFile.length()).append('\n')
+                .append("step validation audit bytes: ").append(auditBytesWithRotated(stepValidationAuditFile)).append('\n')
+                .append("step validation audit rotated bytes: ")
+                .append(rotatedAuditBytes(stepValidationAuditFile)).append('\n')
                 .append("export directory: ").append(exportDirectory.getAbsolutePath()).append('\n')
                 .append("export files: ").append(exportFileCount()).append('\n');
         SQLiteDatabase database = null;
@@ -399,7 +402,8 @@ final class GooseStoreReporter {
                     + "decoded frames: " + decodedFrames + "\n"
                     + "step samples: " + stepSamples + "\n"
                     + "latest capture: " + latestCapture + "\n"
-                    + "ble session audit bytes: " + bleSessionAuditFile.length() + "\n"
+                    + "ble session audit bytes: " + auditBytesWithRotated(bleSessionAuditFile) + "\n"
+                    + "ble session audit rotated bytes: " + rotatedAuditBytes(bleSessionAuditFile) + "\n"
                     + "ble session ready events: " + bleReadyEvents + "\n"
                     + "ble session hello sent events: " + bleHelloSentEvents + "\n"
                     + "ble session client hello completed events: " + bleClientHelloCompletedEvents + "\n"
@@ -408,7 +412,8 @@ final class GooseStoreReporter {
                     + "ble session command ready events: " + bleCommandReadyEvents + "\n"
                     + "ble session ready hello command-ready events: "
                     + bleReadyHelloCommandReadyEvents + "\n"
-                    + "health sync audit bytes: " + healthSyncAuditFile.length() + "\n"
+                    + "health sync audit bytes: " + auditBytesWithRotated(healthSyncAuditFile) + "\n"
+                    + "health sync audit rotated bytes: " + rotatedAuditBytes(healthSyncAuditFile) + "\n"
                     + "health sync write started events: " + healthWriteStartedEvents + "\n"
                     + "health sync ready write started events: " + healthReadyWriteStartedEvents + "\n"
                     + "health sync planned write started events: " + healthPlannedWriteStartedEvents + "\n"
@@ -418,7 +423,8 @@ final class GooseStoreReporter {
                     + "health sync ready write succeeded events: " + healthReadyWriteSucceededEvents + "\n"
                     + "health sync planned write succeeded events: " + healthPlannedWriteSucceededEvents + "\n"
                     + "health sync records inserted events: " + healthRecordsInsertedEvents + "\n"
-                    + "step validation audit bytes: " + stepValidationAuditFile.length() + "\n"
+                    + "step validation audit bytes: " + auditBytesWithRotated(stepValidationAuditFile) + "\n"
+                    + "step validation audit rotated bytes: " + rotatedAuditBytes(stepValidationAuditFile) + "\n"
                     + "step validation completed events: " + stepValidationCompletedEvents + "\n"
                     + "step validation passed events: " + stepValidationPassedEvents + "\n"
                     + "step validation session-bound events: " + stepValidationSessionBoundEvents + "\n"
@@ -907,6 +913,15 @@ final class GooseStoreReporter {
     }
 
     private int countFileRowsMatching(File file, LineMatcher matcher) {
+        int rows = countRowsInSingleFile(file, matcher);
+        File rotated = rotatedAuditFile(file);
+        if (rotated != null) {
+            rows += countRowsInSingleFile(rotated, matcher);
+        }
+        return rows;
+    }
+
+    private int countRowsInSingleFile(File file, LineMatcher matcher) {
         if (!file.isFile()) {
             return 0;
         }
@@ -922,6 +937,28 @@ final class GooseStoreReporter {
             return 0;
         }
         return rows;
+    }
+
+    private long auditBytesWithRotated(File file) {
+        long bytes = file.isFile() ? file.length() : 0L;
+        File rotated = rotatedAuditFile(file);
+        if (rotated != null && rotated.isFile()) {
+            bytes += rotated.length();
+        }
+        return bytes;
+    }
+
+    private long rotatedAuditBytes(File file) {
+        File rotated = rotatedAuditFile(file);
+        return rotated != null && rotated.isFile() ? rotated.length() : 0L;
+    }
+
+    private File rotatedAuditFile(File file) {
+        File parent = file.getParentFile();
+        if (parent == null) {
+            return null;
+        }
+        return new File(parent, file.getName() + ".old");
     }
 
     private interface LineMatcher {
