@@ -27,6 +27,7 @@ import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 
 public final class MainActivity extends Activity implements GooseBleClient.Listener {
     private static final int PERMISSION_REQUEST_BLE = 1001;
@@ -125,6 +126,17 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         });
     }
 
+    private void runSessionTask(Runnable action) {
+        if (destroyed || sessionExecutor.isShutdown()) {
+            return;
+        }
+        try {
+            sessionExecutor.execute(action);
+        } catch (RejectedExecutionException ignored) {
+            // Activity teardown can race with late BLE/UI callbacks.
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -212,7 +224,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     private void refreshStoreStatus() {
         storeStatus.setText("Checking local store...");
-        sessionExecutor.execute(() -> {
+        runSessionTask(() -> {
             try {
                 JSONObject args = new JSONObject()
                         .put("database_path", packetIngestor.databasePath())
@@ -516,7 +528,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     private void refreshBridgeStatus() {
         bridgeStatus.setText("Checking Rust bridge...");
-        sessionExecutor.execute(() -> {
+        runSessionTask(() -> {
             try {
                 JSONObject version = bridge.request("core.version");
                 String summary = "Rust bridge ready\n" + version.toString(2);
@@ -717,7 +729,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 + (COMMAND_CONFIRM_WINDOW_MS / 1000) + "s to send."
                 + "\n" + result.frameHex
                 + "\nPreflight pending");
-        sessionExecutor.execute(() -> {
+        runSessionTask(() -> {
             String summary = commandPreflightSummary(result.command, result.frameHex, now, expiresAt);
             PendingCommand updatedCommand = new PendingCommand(
                     result.command,
@@ -809,7 +821,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         resetValidationWindow();
         long startedAt = System.currentTimeMillis();
         sessionStatus.setText("Starting capture session\n" + sessionId);
-        sessionExecutor.execute(() -> {
+        runSessionTask(() -> {
             try {
                 JSONObject args = new JSONObject()
                         .put("database_path", packetIngestor.databasePath())
@@ -889,7 +901,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         pendingFinishCaptureFrameCount = frameCount;
         long endedAt = System.currentTimeMillis();
         sessionStatus.setText("Finishing capture session\n" + sessionId);
-        sessionExecutor.execute(() -> {
+        runSessionTask(() -> {
             try {
                 JSONObject args = new JSONObject()
                         .put("database_path", packetIngestor.databasePath())
@@ -922,7 +934,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     private void listCaptureSessions() {
         reportStatus.setText("Loading capture sessions...");
-        sessionExecutor.execute(() -> {
+        runSessionTask(() -> {
             try {
                 JSONObject args = new JSONObject()
                         .put("database_path", packetIngestor.databasePath())
