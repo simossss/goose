@@ -32,16 +32,22 @@ passing step-validation audit.
 
 1. Keep Goose connected long enough for live notification packets to appear.
 2. Confirm the packet area shows notifications increasing.
-3. Tap capture-session \`Finish\`.
-4. Tap \`Evidence\` and confirm raw/session/live-notification counts are nonzero if visible.
+3. If you counted a short window and want activity candidates before explicit
+   device-counter rows are confirmed, mark validation \`Start\`/\`End\`, enter
+   the manual count, then tap \`Motion\`.
+4. Tap capture-session \`Finish\`.
+5. Tap \`Evidence\` and confirm raw/session/live-notification counts are nonzero if visible.
 
 ## Health Connect
 
-1. Tap \`Health Gate\`.
-2. If planned writes are available, grant Android Health Connect write permissions when prompted.
-3. Tap \`Sync\`.
-4. The partial gate requires a permissions-ready planned-write attempt.
-5. Use \`--require-health-success\` only when this run should prove a successful platform write.
+1. Tap \`Evidence\` and check whether daily activity rows exist. A Motion-backed
+   run should show \`Daily local estimate metrics\` above zero; an explicit
+   counter-backed run should show \`Daily device counter metrics\` above zero.
+2. Tap \`Health Gate\`.
+3. If planned writes are available, grant Android Health Connect write permissions when prompted.
+4. Tap \`Sync\`.
+5. The partial gate requires a permissions-ready planned-write attempt.
+6. Use \`--require-health-success\` only when this run should prove a successful platform write.
 
 ## Pull Partial Evidence
 
@@ -85,6 +91,9 @@ Scripts/android_pr_readiness.sh tmp/android-phone-partial-diagnostic-gate-real
 - Session live notification raw evidence rows: at least 1.
 - Session decoded frame rows: at least 1.
 - Finished nonempty capture sessions: at least 1.
+- Daily activity metrics: at least 1 when Health Connect planned writes include activity rows.
+- Daily local estimate metrics: at least 1 after a passing \`Motion\` run.
+- Daily device counter metrics: at least 1 only after explicit WHOOP step-counter rows are confirmed.
 - Health Connect write started events: at least 1.
 - Health Connect ready write started events: at least 1.
 - Health Connect planned write started events: at least 1.

@@ -33,14 +33,20 @@ Commit: $commit
 4. Tap capture-session \`Finish\`.
 5. Tap \`Validate\`.
 6. Confirm the validation report names the most recently finished capture session.
+7. Tap \`Motion\` with the same marked window and manual count if Health Connect
+   needs validated local-estimate step rows before explicit device-counter rows
+   are confirmed.
 
 ## Health Connect
 
-1. Tap \`Health Gate\`.
-2. If planned writes are available, grant Android Health Connect write permissions when prompted.
-3. Tap \`Sync\`.
-4. For final completion, the pulled evidence must include at least a write attempt.
-5. Use \`--require-health-success\` only when this run should prove a successful platform write.
+1. Tap \`Evidence\` and check whether daily activity rows exist. A Motion-backed
+   run should show \`Daily local estimate metrics\` above zero; an explicit
+   counter-backed run should show \`Daily device counter metrics\` above zero.
+2. Tap \`Health Gate\`.
+3. If planned writes are available, grant Android Health Connect write permissions when prompted.
+4. Tap \`Sync\`.
+5. For final completion, the pulled evidence must include at least a write attempt.
+6. Use \`--require-health-success\` only when this run should prove a successful platform write.
 
 ## Pull Final Evidence
 
@@ -100,6 +106,9 @@ Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
 - Session live notification raw evidence rows: at least 1.
 - Session decoded frame rows: at least 1.
 - Finished nonempty capture sessions: at least 1.
+- Daily activity metrics: at least 1 when Health Connect planned writes include activity rows.
+- Daily local estimate metrics: at least 1 after a passing \`Motion\` run.
+- Daily device counter metrics: at least 1 only after explicit WHOOP step-counter rows are confirmed.
 - Step validation completed events: at least 1.
 - Step validation passed events: at least 1.
 - Step validation session-bound events: at least 1.
