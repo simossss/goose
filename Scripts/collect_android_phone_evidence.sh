@@ -85,8 +85,15 @@ if [[ "$device_serial" == emulator-* ]] \
 fi
 echo "$device_kind" > "$OUTPUT_DIR/android-device-kind.txt"
 
-ANDROID_SERIAL="$device_serial" "$SCRIPT_DIR/pull_android_database.sh" "$OUTPUT_DIR/goose-phone.sqlite" \
-  > "$OUTPUT_DIR/pull-android-database.txt" 2>&1
+pull_status=0
+if ANDROID_SERIAL="$device_serial" "$SCRIPT_DIR/pull_android_database.sh" "$OUTPUT_DIR/goose-phone.sqlite" \
+  > "$OUTPUT_DIR/pull-android-database.txt" 2>&1; then
+  echo "RESULT: PASS" > "$OUTPUT_DIR/pull-android-database-result.txt"
+else
+  pull_status=$?
+  echo "RESULT: FAIL" > "$OUTPUT_DIR/pull-android-database-result.txt"
+  echo "FAIL: Android database pull failed with exit status $pull_status" >> "$OUTPUT_DIR/collect-error.txt"
+fi
 
 if [[ "${GOOSE_ANDROID_STRICT_EVIDENCE:-0}" == "1" ]]; then
   export GOOSE_ANDROID_MIN_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_RAW_EVIDENCE:-1}"
@@ -279,6 +286,7 @@ Result: ${inspection_result:-unknown}
 
 ## Capture
 
+- Database pull result: $(summary_value "RESULT" "$OUTPUT_DIR/pull-android-database-result.txt")
 - Raw evidence rows: $(summary_value "raw evidence")
 - Decoded frame rows: $(summary_value "decoded frames")
 - Capture sessions: $(summary_value "capture sessions")
@@ -340,6 +348,7 @@ $(summary_section "Capture session evidence detail")
 - goose-local-debug-apk-sha256.txt
 - goose-installed-apk-sha256.txt
 - inspect-android-capture.txt
+- pull-android-database-result.txt
 - goose-phone.sqlite
 - goose-phone-ble-session-log.jsonl, required when BLE hello gates are enabled
 - goose-phone-health-connect-sync-log.jsonl, required when Health Connect write gates are enabled
@@ -368,6 +377,7 @@ Key files:
 - logcat-threadtime.txt: full device logcat snapshot.
 - logcat-goose-brief.txt: focused AndroidRuntime/Goose instrumentation logcat.
 - goose-phone.sqlite plus -wal/-shm: pulled debug app database files when present.
+- pull-android-database-result.txt: PASS/FAIL for the database pull helper.
 - goose-phone-ble-session-log.jsonl: BLE scan/connect/session audit log; required when BLE hello gates are enabled.
 - goose-phone-health-connect-sync-log.jsonl: Health Connect sync audit log; required when Health Connect write gates are enabled.
 - goose-phone-step-validation-log.jsonl: counted-step validation audit log; required when step-validation gates are enabled.
