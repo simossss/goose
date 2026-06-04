@@ -1434,6 +1434,8 @@ assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStor
 assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "daily-activity-raw-motion-steps" "Android raw-motion step Health Connect candidate"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "rawMotionStepEstimateBlockReason" "Android raw-motion step estimate guardrail"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "secondaryButton(\"Motion\")" "Android raw-motion step estimate button"
+assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "raw_motion_step_estimator" "Android capture session raw-motion provenance"
+assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "explicit_device_counter_status" "Android capture session explicit counter provenance"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "metricActionsSecondary" "Android report metric action layout"
 assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "assertRawMotionStepEstimateUiGuardrails" "Android raw-motion step estimate guardrail"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseBleClient.java" "if (closed || !scanning)" "BLE scan callback lifecycle"

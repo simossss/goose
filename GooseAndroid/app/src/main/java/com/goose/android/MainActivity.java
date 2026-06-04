@@ -820,7 +820,8 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                         .put("provenance", new JSONObject()
                                 .put("capture_app", "goose_android")
                                 .put("capture_kind", "manual_android_session")
-                                .put("step_decoding_status", "parked"));
+                                .put("explicit_device_counter_status", "pending")
+                                .put("raw_motion_step_estimator", "available"));
                 bridge.request("capture.start_session", args);
                 packetIngestor.startCaptureSession(sessionId);
                 activeCaptureSessionId = sessionId;
