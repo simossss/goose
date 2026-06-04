@@ -422,13 +422,17 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         Button motionStepsButton = secondaryButton("Motion");
         motionStepsButton.setOnClickListener(view -> runRawMotionStepEstimate());
         metricActions.addView(motionStepsButton, weightWrap());
+        reportsSection.addView(metricActions);
+
+        LinearLayout metricActionsSecondary = new LinearLayout(this);
+        metricActionsSecondary.setOrientation(LinearLayout.HORIZONTAL);
         Button sensorsButton = secondaryButton("Sensors");
         sensorsButton.setOnClickListener(view -> runReport(storeReporter::recoverySensors));
-        metricActions.addView(sensorsButton, weightWrap());
+        metricActionsSecondary.addView(sensorsButton, weightWrap());
         Button blockedButton = secondaryButton("Blocked");
         blockedButton.setOnClickListener(view -> runReport(storeReporter::unavailableStatuses));
-        metricActions.addView(blockedButton, weightWrap());
-        reportsSection.addView(metricActions);
+        metricActionsSecondary.addView(blockedButton, weightWrap());
+        reportsSection.addView(metricActionsSecondary);
 
         opsSection.addView(sectionText("More"));
 
