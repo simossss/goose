@@ -232,6 +232,7 @@ installed_package_verified=0
 no_android_runtime_crash_verified=0
 evidence_manifest_verified=0
 evidence_result_verified=0
+evidence_capture_inspection_verified=0
 evidence_commit_verified=0
 evidence_device_serial_verified=0
 evidence_device_kind_verified=0
@@ -247,6 +248,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
   summary="$PHONE_EVIDENCE_DIR/phone-handoff-summary.md"
   gates="$PHONE_EVIDENCE_DIR/evidence-gates.txt"
   manifest="$PHONE_EVIDENCE_DIR/evidence-files-manifest.txt"
+  inspection_file="$PHONE_EVIDENCE_DIR/inspect-android-capture.txt"
   evidence_result_file="$PHONE_EVIDENCE_DIR/evidence-result.txt"
   focused_logcat_file="$PHONE_EVIDENCE_DIR/logcat-goose-brief.txt"
   port_status="$PHONE_EVIDENCE_DIR/android-port-status.txt"
@@ -357,6 +359,20 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     session_raw_rows="$(summary_bullet_value "Session raw evidence rows" "$summary")"
     session_live_notification_raw_rows="$(summary_bullet_value "Session live notification raw evidence rows" "$summary")"
     finished_sessions="$(summary_bullet_value "Finished nonempty capture sessions" "$summary")"
+    inspection_result=""
+    inspection_raw_rows=""
+    inspection_capture_sessions=""
+    inspection_session_raw_rows=""
+    inspection_session_live_notification_raw_rows=""
+    inspection_finished_sessions=""
+    if [[ -f "$inspection_file" ]]; then
+      inspection_result="$(status_value "RESULT" "$inspection_file")"
+      inspection_raw_rows="$(status_value "raw evidence" "$inspection_file")"
+      inspection_capture_sessions="$(status_value "capture sessions" "$inspection_file")"
+      inspection_session_raw_rows="$(status_value "session raw evidence" "$inspection_file")"
+      inspection_session_live_notification_raw_rows="$(status_value "session live notification raw evidence" "$inspection_file")"
+      inspection_finished_sessions="$(status_value "finished nonempty capture sessions" "$inspection_file")"
+    fi
     ble_ready_events="$(summary_bullet_value "Ready events" "$summary")"
     ble_hello_sent_events="$(summary_bullet_value "Hello sent events" "$summary")"
     ble_command_ready_events="$(summary_bullet_value "Command ready events" "$summary")"
@@ -384,17 +400,6 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       require_health_ready_plan="$(gate_value "GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN" "$gates")"
       require_health_success="$(gate_value "GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS" "$gates")"
     fi
-    if [[ "$phone_result" == "PASS" ]] \
-      && is_positive_int "$raw_rows" \
-      && is_positive_int "$capture_sessions" \
-      && is_positive_int "$session_raw_rows" \
-      && is_positive_int "$session_live_notification_raw_rows" \
-      && is_positive_int "$finished_sessions"; then
-      capture_verified=1
-    fi
-    if [[ "$capture_verified" == "1" && "$device_kind" == "physical" ]]; then
-      physical_capture_verified=1
-    fi
     if [[ "$phone_result" == "PASS" ]] && verify_evidence_manifest "$PHONE_EVIDENCE_DIR" "$manifest"; then
       evidence_manifest_verified=1
     fi
@@ -402,6 +407,24 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$phone_result" == "PASS" \
       && "$evidence_result" == "PASS" ]]; then
       evidence_result_verified=1
+    fi
+    if [[ "$evidence_result_verified" == "1" \
+      && "$inspection_result" == "PASS" \
+      && "$raw_rows" == "$inspection_raw_rows" \
+      && "$capture_sessions" == "$inspection_capture_sessions" \
+      && "$session_raw_rows" == "$inspection_session_raw_rows" \
+      && "$session_live_notification_raw_rows" == "$inspection_session_live_notification_raw_rows" \
+      && "$finished_sessions" == "$inspection_finished_sessions" ]] \
+      && is_positive_int "$raw_rows" \
+      && is_positive_int "$capture_sessions" \
+      && is_positive_int "$session_raw_rows" \
+      && is_positive_int "$session_live_notification_raw_rows" \
+      && is_positive_int "$finished_sessions"; then
+      evidence_capture_inspection_verified=1
+      capture_verified=1
+    fi
+    if [[ "$capture_verified" == "1" && "$device_kind" == "physical" ]]; then
+      physical_capture_verified=1
     fi
     if [[ "$evidence_result_verified" == "1" \
       && "$android_runtime_crash_lines" =~ ^[0-9]+$ \
@@ -531,10 +554,15 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo
     echo "Capture evidence:"
     echo "- Raw evidence rows: $raw_rows"
+    echo "- Inspect raw evidence rows: $inspection_raw_rows"
     echo "- Capture sessions: $capture_sessions"
+    echo "- Inspect capture sessions: $inspection_capture_sessions"
     echo "- Session raw evidence rows: $session_raw_rows"
+    echo "- Inspect session raw evidence rows: $inspection_session_raw_rows"
     echo "- Session live notification raw evidence rows: $session_live_notification_raw_rows"
+    echo "- Inspect session live notification raw evidence rows: $inspection_session_live_notification_raw_rows"
     echo "- Finished nonempty capture sessions: $finished_sessions"
+    echo "- Inspect finished nonempty capture sessions: $inspection_finished_sessions"
     echo "- Step samples: $(summary_bullet_value "Step samples" "$summary")"
     echo "- Daily activity metrics: $(summary_bullet_value "Daily activity metrics" "$summary")"
     echo
@@ -620,6 +648,10 @@ if [[ "$evidence_result_verified" == "1" ]]; then
   echo "- Phone handoff summary result matches evidence-result.txt."
   verified_any=1
 fi
+if [[ "$evidence_capture_inspection_verified" == "1" ]]; then
+  echo "- Phone handoff capture counts match inspect-android-capture.txt."
+  verified_any=1
+fi
 if [[ "$evidence_commit_verified" == "1" ]]; then
   echo "- Phone handoff summary commit matches the Android port status snapshot."
   verified_any=1
@@ -693,6 +725,10 @@ if [[ "$evidence_manifest_verified" != "1" ]]; then
 fi
 if [[ "$evidence_result_verified" != "1" ]]; then
   echo "- Phone handoff summary result must match evidence-result.txt."
+  remaining_any=1
+fi
+if [[ "$evidence_capture_inspection_verified" != "1" ]]; then
+  echo "- Phone handoff capture counts must match inspect-android-capture.txt."
   remaining_any=1
 fi
 if [[ "$evidence_commit_verified" != "1" ]]; then

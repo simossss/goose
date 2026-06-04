@@ -123,7 +123,18 @@ write_required_evidence_artifacts() {
   printf 'Package [com.goose.android] synthetic dumpsys placeholder\n' > "$dir/goose-package-dumpsys.txt"
   printf '1111111111111111111111111111111111111111111111111111111111111111\n' > "$dir/goose-local-debug-apk-sha256.txt"
   printf '1111111111111111111111111111111111111111111111111111111111111111\n' > "$dir/goose-installed-apk-sha256.txt"
-  printf 'capture inspection placeholder\nRESULT: PASS\n' > "$dir/inspect-android-capture.txt"
+  {
+    printf 'Android capture inspection\n'
+    printf 'raw evidence: 2\n'
+    printf 'decoded frames: 1\n'
+    printf 'capture sessions: 1\n'
+    printf 'session raw evidence: 1\n'
+    printf 'session live notification raw evidence: 1\n'
+    printf 'finished nonempty capture sessions: 1\n'
+    printf 'step samples: 1\n'
+    printf 'daily activity metrics: 1\n'
+    printf 'RESULT: PASS\n'
+  } > "$dir/inspect-android-capture.txt"
   printf 'focused AndroidRuntime logcat placeholder\n' > "$dir/logcat-goose-brief.txt"
 }
 
@@ -533,6 +544,9 @@ assert_file_contains "$readiness_strict_pass_output" "Bundle profile: final PR e
 assert_file_contains "$readiness_strict_pass_output" "required counted-step validation gates enabled" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Evidence result file: PASS" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff summary result matches evidence-result.txt." "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect raw evidence rows: 2" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect session live notification raw evidence rows: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Phone handoff capture counts match inspect-android-capture.txt." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Summary commit: synthetic" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Status snapshot commit: synthetic" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff summary commit matches the Android port status snapshot." "PR readiness strict"
@@ -597,6 +611,7 @@ assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "device-manufacturer.
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "android-sdk.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary commit must match android-port-status.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary result must match evidence-result.txt." "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff capture counts must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary device serial must match android-serial.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary device kind must match android-device-kind.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary device identity must match device-manufacturer.txt and device-model.txt." "PR readiness"
