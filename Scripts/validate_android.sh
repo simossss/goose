@@ -1048,6 +1048,8 @@ assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStor
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "health sync records inserted events" "Android evidence report"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseBleClient.java" "if (closed || !scanning)" "BLE scan callback lifecycle"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseBleClient.java" "publishQueued = false;" "BLE scan publish lifecycle"
+assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseBleClient.java" "isCurrentGattCallback" "BLE stale GATT callback guardrail"
+assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "assertBleStaleGattCallbackGuardrails" "BLE stale GATT callback guardrail"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "stepValidationStartBlockReason" "Android step-validation start guardrail"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "Start a capture session before Step validation Start." "Android step-validation start guardrail"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "stepValidationEndBlockReason" "Android step-validation end guardrail"

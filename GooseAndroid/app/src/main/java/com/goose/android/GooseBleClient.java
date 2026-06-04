@@ -648,6 +648,9 @@ final class GooseBleClient {
         @Override
         @SuppressLint("MissingPermission")
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+            if (!isCurrentGattCallback(gatt, GooseBleClient.this.gatt)) {
+                return;
+            }
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 listener.onStateChanged("Connected; discovering services");
                 clientHelloSent = false;
@@ -669,6 +672,9 @@ final class GooseBleClient {
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            if (!isCurrentGattCallback(gatt, GooseBleClient.this.gatt)) {
+                return;
+            }
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 listener.onStateChanged("Service discovery failed: " + status);
                 emitConnectionProgress("service_discovery_failed", "status " + status);
@@ -703,6 +709,9 @@ final class GooseBleClient {
 
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
+            if (!isCurrentGattCallback(gatt, GooseBleClient.this.gatt)) {
+                return;
+            }
             listener.onNotification(new GooseNotification(
                     characteristic.getService().getUuid().toString(),
                     characteristic.getUuid().toString(),
@@ -714,6 +723,9 @@ final class GooseBleClient {
         @Override
         @SuppressWarnings("deprecation")
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            if (!isCurrentGattCallback(gatt, GooseBleClient.this.gatt)) {
+                return;
+            }
             byte[] value = characteristic.getValue();
             if (value != null) {
                 onCharacteristicChanged(gatt, characteristic, value);
@@ -722,16 +734,25 @@ final class GooseBleClient {
 
         @Override
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+            if (!isCurrentGattCallback(gatt, GooseBleClient.this.gatt)) {
+                return;
+            }
             finishActiveOperation(gatt, status == BluetoothGatt.GATT_SUCCESS ? null : "Descriptor write failed: " + status);
         }
 
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            if (!isCurrentGattCallback(gatt, GooseBleClient.this.gatt)) {
+                return;
+            }
             finishActiveOperation(gatt, status == BluetoothGatt.GATT_SUCCESS ? null : "Characteristic write failed: " + status);
         }
 
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value, int status) {
+            if (!isCurrentGattCallback(gatt, GooseBleClient.this.gatt)) {
+                return;
+            }
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 handleReadValue(characteristic, value);
             }
@@ -741,10 +762,17 @@ final class GooseBleClient {
         @Override
         @SuppressWarnings("deprecation")
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            if (!isCurrentGattCallback(gatt, GooseBleClient.this.gatt)) {
+                return;
+            }
             byte[] value = characteristic.getValue();
             onCharacteristicRead(gatt, characteristic, value != null ? value : new byte[0], status);
         }
     };
+
+    static boolean isCurrentGattCallback(Object callbackGatt, Object currentGatt) {
+        return callbackGatt != null && callbackGatt == currentGatt;
+    }
 
     private void enqueueSubscribe(BluetoothGattCharacteristic characteristic) {
         int properties = characteristic.getProperties();

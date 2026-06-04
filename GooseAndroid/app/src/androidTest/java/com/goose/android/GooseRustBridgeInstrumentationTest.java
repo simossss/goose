@@ -205,6 +205,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertBluetoothRuntimePermissionScope(context);
         Log.i(TAG, "checking BLE device row display contract");
         assertBleDeviceRowDisplayContract();
+        Log.i(TAG, "checking BLE stale GATT callback guardrails");
+        assertBleStaleGattCallbackGuardrails();
         Log.i(TAG, "checking step validation UI guardrails");
         assertStepValidationUiGuardrails();
         Log.i(TAG, "checking step validation start UI guardrails");
@@ -978,6 +980,23 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                     false));
         }
         return rows;
+    }
+
+    private void assertBleStaleGattCallbackGuardrails() {
+        Object currentGatt = new Object();
+        Object staleGatt = new Object();
+        if (!GooseBleClient.isCurrentGattCallback(currentGatt, currentGatt)) {
+            throw new AssertionError("current GATT callback should be accepted");
+        }
+        if (GooseBleClient.isCurrentGattCallback(staleGatt, currentGatt)) {
+            throw new AssertionError("stale GATT callback should be ignored");
+        }
+        if (GooseBleClient.isCurrentGattCallback(null, currentGatt)) {
+            throw new AssertionError("null GATT callback should be ignored");
+        }
+        if (GooseBleClient.isCurrentGattCallback(currentGatt, null)) {
+            throw new AssertionError("GATT callback should be ignored after active GATT is cleared");
+        }
     }
 
     private void assertStepValidationUiGuardrails() {
