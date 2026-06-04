@@ -79,12 +79,15 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private String validationEnd = UNSET_VALIDATION_END;
     private volatile String activeCaptureSessionId;
     private volatile String lastFinishedCaptureSessionId;
+    private volatile String pendingFinishCaptureSessionId;
+    private volatile int pendingFinishCaptureFrameCount;
     private PendingCommand pendingCommand;
     private int commandBuildGeneration;
     private long clearLocalDataConfirmUntilMillis;
     private int notificationCount;
     private boolean destroyed;
     private boolean captureSessionStartInProgress;
+    private boolean captureSessionFinishInProgress;
     private boolean healthConnectSyncInProgress;
 
     @Override
@@ -636,7 +639,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         packetIngestor.clearCaptureSession();
         activeCaptureSessionId = null;
         lastFinishedCaptureSessionId = null;
+        pendingFinishCaptureSessionId = null;
+        pendingFinishCaptureFrameCount = 0;
         captureSessionStartInProgress = false;
+        captureSessionFinishInProgress = false;
         resetValidationWindow();
         sessionStatus.setText("Capture session: none");
         runStorageMutation(storeReporter::clearLocalData);
@@ -769,7 +775,11 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     }
 
     private void startCaptureSession() {
-        String startBlockReason = captureSessionStartBlockReason(captureSessionStartInProgress, activeCaptureSessionId);
+        String startBlockReason = captureSessionStartBlockReason(
+                captureSessionStartInProgress,
+                captureSessionFinishInProgress,
+                activeCaptureSessionId,
+                pendingFinishCaptureSessionId);
         if (startBlockReason != null) {
             sessionStatus.setText(startBlockReason);
             return;
@@ -817,8 +827,23 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     }
 
     static String captureSessionStartBlockReason(boolean startInProgress, String activeSessionId) {
+        return captureSessionStartBlockReason(startInProgress, false, activeSessionId, null);
+    }
+
+    static String captureSessionStartBlockReason(
+            boolean startInProgress,
+            boolean finishInProgress,
+            String activeSessionId,
+            String pendingFinishSessionId
+    ) {
         if (startInProgress) {
             return "Capture session start already running.";
+        }
+        if (finishInProgress) {
+            return "Capture session finish already running.";
+        }
+        if (pendingFinishSessionId != null && !pendingFinishSessionId.trim().isEmpty()) {
+            return "Finish pending capture session before starting a new one\n" + pendingFinishSessionId;
         }
         if (activeSessionId != null && !activeSessionId.trim().isEmpty()) {
             return "Capture session active\n" + activeSessionId;
@@ -827,15 +852,29 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     }
 
     private void finishCaptureSession() {
-        String sessionId = activeCaptureSessionId != null
-                ? activeCaptureSessionId
-                : packetIngestor.activeCaptureSessionId();
+        String finishBlockReason = captureSessionFinishBlockReason(captureSessionFinishInProgress);
+        if (finishBlockReason != null) {
+            sessionStatus.setText(finishBlockReason);
+            return;
+        }
+        boolean retryPendingFinish = pendingFinishCaptureSessionId != null
+                && !pendingFinishCaptureSessionId.trim().isEmpty();
+        String sessionId = retryPendingFinish
+                ? pendingFinishCaptureSessionId
+                : activeCaptureSessionId != null
+                        ? activeCaptureSessionId
+                        : packetIngestor.activeCaptureSessionId();
         if (sessionId == null) {
             sessionStatus.setText("Capture session: none");
             return;
         }
-        int frameCount = packetIngestor.finishCaptureSession(sessionId);
+        captureSessionFinishInProgress = true;
+        int frameCount = retryPendingFinish
+                ? pendingFinishCaptureFrameCount
+                : packetIngestor.finishCaptureSession(sessionId);
         activeCaptureSessionId = null;
+        pendingFinishCaptureSessionId = sessionId;
+        pendingFinishCaptureFrameCount = frameCount;
         long endedAt = System.currentTimeMillis();
         sessionStatus.setText("Finishing capture session\n" + sessionId);
         sessionExecutor.execute(() -> {
@@ -847,14 +886,25 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                         .put("frame_count", frameCount);
                 JSONObject report = bridge.request("capture.finish_session", args);
                 lastFinishedCaptureSessionId = sessionId;
+                pendingFinishCaptureSessionId = null;
+                pendingFinishCaptureFrameCount = 0;
                 runOnUiThreadIfAlive(() -> sessionStatus.setText("Capture session finished\n"
                         + sessionId
                         + "\nframes: " + frameCount
                         + "\n" + summarizeSession(report.optJSONObject("session"))));
             } catch (Exception error) {
-                runOnUiThreadIfAlive(() -> sessionStatus.setText("Capture session finish failed\n" + error));
+                runOnUiThreadIfAlive(() -> sessionStatus.setText("Capture session finish failed\n"
+                        + sessionId
+                        + "\nTap End again to retry.\n"
+                        + error));
+            } finally {
+                runOnUiThreadIfAlive(() -> captureSessionFinishInProgress = false);
             }
         });
+    }
+
+    static String captureSessionFinishBlockReason(boolean finishInProgress) {
+        return finishInProgress ? "Capture session finish already running." : null;
     }
 
     private void listCaptureSessions() {

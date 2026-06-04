@@ -209,6 +209,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertStepValidationUiGuardrails();
         Log.i(TAG, "checking capture session start UI guardrails");
         assertCaptureSessionStartGuardrails();
+        Log.i(TAG, "checking capture session finish UI guardrails");
+        assertCaptureSessionFinishGuardrails();
         Log.i(TAG, "checking command build generation guardrail");
         assertCommandBuildGenerationGuardrail();
         Log.i(TAG, "checking Health Connect sync UI guardrails");
@@ -970,12 +972,41 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         }
         assertCaptureSessionStartBlocked(true, null, "already running");
         assertCaptureSessionStartBlocked(false, "android-smoke-session", "Capture session active");
+        assertCaptureSessionStartBlocked(false, true, null, null, "finish already running");
+        assertCaptureSessionStartBlocked(false, false, null, "android-pending-finish", "Finish pending");
     }
 
     private void assertCaptureSessionStartBlocked(boolean startInProgress, String activeSessionId, String expected) {
         String reason = MainActivity.captureSessionStartBlockReason(startInProgress, activeSessionId);
         if (reason == null || !reason.contains(expected)) {
             throw new AssertionError("unexpected capture session start guardrail reason: " + reason);
+        }
+    }
+
+    private void assertCaptureSessionStartBlocked(
+            boolean startInProgress,
+            boolean finishInProgress,
+            String activeSessionId,
+            String pendingFinishSessionId,
+            String expected
+    ) {
+        String reason = MainActivity.captureSessionStartBlockReason(
+                startInProgress,
+                finishInProgress,
+                activeSessionId,
+                pendingFinishSessionId);
+        if (reason == null || !reason.contains(expected)) {
+            throw new AssertionError("unexpected capture session start guardrail reason: " + reason);
+        }
+    }
+
+    private void assertCaptureSessionFinishGuardrails() {
+        if (MainActivity.captureSessionFinishBlockReason(false) != null) {
+            throw new AssertionError("idle capture session finish should not be blocked");
+        }
+        String reason = MainActivity.captureSessionFinishBlockReason(true);
+        if (reason == null || !reason.contains("already running")) {
+            throw new AssertionError("unexpected capture session finish guardrail reason: " + reason);
         }
     }
 
