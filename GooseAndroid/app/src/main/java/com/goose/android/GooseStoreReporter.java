@@ -395,6 +395,8 @@ final class GooseStoreReporter {
                     Pattern.compile(".*\"event\":\"write_started\".*\"candidate_count\":[1-9][0-9]*.*"));
             int healthRecordsAttemptedEvents = countFileRowsMatching(healthSyncAuditFile,
                     Pattern.compile(".*\"event\":\"write_started\".*\"records_attempted\":[1-9][0-9]*.*"));
+            int healthRecordSummaryWriteStartedEvents = countFileRowsMatching(healthSyncAuditFile,
+                    Pattern.compile(".*\"event\":\"write_started\".*\"record_summary\":\\{.*"));
             int healthWriteSucceededEvents = countFileRowsContainingAll(healthSyncAuditFile,
                     "\"schema\":\"goose.android.health-connect-sync-audit.v1\"",
                     "\"event\":\"write_succeeded\"");
@@ -460,6 +462,8 @@ final class GooseStoreReporter {
                     + "health sync planned write started events: " + healthPlannedWriteStartedEvents + "\n"
                     + "health sync candidate write started events: " + healthCandidateWriteStartedEvents + "\n"
                     + "health sync records attempted events: " + healthRecordsAttemptedEvents + "\n"
+                    + "health sync record-summary write started events: "
+                    + healthRecordSummaryWriteStartedEvents + "\n"
                     + "health sync write succeeded events: " + healthWriteSucceededEvents + "\n"
                     + "health sync ready write succeeded events: " + healthReadyWriteSucceededEvents + "\n"
                     + "health sync planned write succeeded events: " + healthPlannedWriteSucceededEvents + "\n"

@@ -499,6 +499,7 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 || !report.contains("health sync audit rotated bytes:")
                 || !report.contains("health sync ready write started events:")
                 || !report.contains("health sync records attempted events:")
+                || !report.contains("health sync record-summary write started events:")
                 || !report.contains("step validation audit bytes:")
                 || !report.contains("step validation audit rotated bytes:")
                 || !report.contains("step validation session-bound events:")

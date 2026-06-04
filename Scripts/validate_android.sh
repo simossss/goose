@@ -1482,6 +1482,8 @@ assert_file_contains "$ANDROID_DIR/README.md" "GOOSE_ANDROID_INSTRUMENTATION_TIM
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "health sync ready write succeeded events" "Android evidence report"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "health sync planned write succeeded events" "Android evidence report"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "health sync records inserted events" "Android evidence report"
+assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "health sync record-summary write started events" "Android evidence report"
+assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "health sync record-summary write started events" "Android evidence report"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "daily local estimate metrics" "Android evidence report"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "daily device counter metrics" "Android evidence report"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "motion health guidance" "Android evidence report"
