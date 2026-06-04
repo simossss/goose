@@ -90,6 +90,55 @@ file_sha256_or_missing() {
   fi
 }
 
+audit_files_for() {
+  local file="$1"
+  [[ -f "$file" ]] && printf '%s\n' "$file"
+  [[ -f "$file.old" ]] && printf '%s\n' "$file.old"
+}
+
+audit_total_bytes() {
+  local total=0
+  local file
+  for file in "$@"; do
+    [[ -f "$file" ]] || continue
+    total=$((total + $(file_bytes_or_zero "$file")))
+  done
+  printf '%s' "$total"
+}
+
+audit_rotated_bytes() {
+  local file="$1"
+  file_bytes_or_zero "$file.old"
+}
+
+count_fixed_in_files() {
+  local pattern="$1"
+  shift
+  local total=0
+  local file
+  local count
+  for file in "$@"; do
+    [[ -f "$file" ]] || continue
+    count="$(grep -F -c "$pattern" "$file" || true)"
+    total=$((total + count))
+  done
+  printf '%s' "$total"
+}
+
+count_regex_in_files() {
+  local pattern="$1"
+  shift
+  local total=0
+  local file
+  local count
+  for file in "$@"; do
+    [[ -f "$file" ]] || continue
+    count="$(grep -E -c "$pattern" "$file" || true)"
+    total=$((total + count))
+  done
+  printf '%s' "$total"
+}
+
 if [[ ! -f "$DATABASE" ]]; then
   echo "Android database not found: $DATABASE" >&2
   echo "Pull it first with Scripts/pull_android_database.sh $DATABASE" >&2
@@ -151,7 +200,20 @@ fi
 finished_session_count="$(table_scalar_or_missing capture_sessions "SELECT COUNT(*) FROM capture_sessions WHERE status = 'finished' AND frame_count > 0;")"
 step_count="$(table_count step_counter_samples)"
 activity_metric_count="$(table_count daily_activity_metrics)"
+health_audit_files=()
+while IFS= read -r audit_file; do
+  health_audit_files+=("$audit_file")
+done < <(audit_files_for "$HEALTH_AUDIT_LOG")
+ble_session_files=()
+while IFS= read -r audit_file; do
+  ble_session_files+=("$audit_file")
+done < <(audit_files_for "$BLE_SESSION_LOG")
+step_validation_files=()
+while IFS= read -r audit_file; do
+  step_validation_files+=("$audit_file")
+done < <(audit_files_for "$STEP_VALIDATION_LOG")
 health_audit_bytes=0
+health_audit_rotated_bytes=0
 health_audit_blocked=0
 health_audit_write_started=0
 health_audit_ready_write_started=0
@@ -164,6 +226,7 @@ health_audit_planned_write_succeeded=0
 health_audit_records_inserted=0
 health_audit_write_failed=0
 ble_session_bytes=0
+ble_session_rotated_bytes=0
 ble_session_ready=0
 ble_session_hello_sent=0
 ble_session_client_hello_completed=0
@@ -171,6 +234,7 @@ ble_session_client_hello_command_ready_completed=0
 ble_session_command_ready=0
 ble_session_ready_hello_command_ready=0
 step_validation_bytes=0
+step_validation_rotated_bytes=0
 step_validation_completed=0
 step_validation_passed=0
 step_validation_failed=0
@@ -178,38 +242,41 @@ step_validation_session_bound=0
 step_validation_session_decoded=0
 step_validation_selected_delta=0
 step_validation_passing_session_selected_delta=0
-if [[ -f "$HEALTH_AUDIT_LOG" ]]; then
-  health_audit_bytes="$(wc -c < "$HEALTH_AUDIT_LOG" | tr -d ' ')"
-  health_audit_blocked="$(grep -c '"event":"blocked"' "$HEALTH_AUDIT_LOG" || true)"
-  health_audit_write_started="$(grep -c '"event":"write_started"' "$HEALTH_AUDIT_LOG" || true)"
-  health_audit_ready_write_started="$(grep -Ec '"event":"write_started".*"permissions_ready":true' "$HEALTH_AUDIT_LOG" || true)"
-  health_audit_planned_write_started="$(grep -Ec '"event":"write_started".*"planned_write_count":[1-9][0-9]*' "$HEALTH_AUDIT_LOG" || true)"
-  health_audit_candidate_write_started="$(grep -Ec '"event":"write_started".*"candidate_count":[1-9][0-9]*' "$HEALTH_AUDIT_LOG" || true)"
-  health_audit_records_attempted="$(grep -Ec '"event":"write_started".*"records_attempted":[1-9][0-9]*' "$HEALTH_AUDIT_LOG" || true)"
-  health_audit_write_succeeded="$(grep -c '"event":"write_succeeded"' "$HEALTH_AUDIT_LOG" || true)"
-  health_audit_ready_write_succeeded="$(grep -Ec '"event":"write_succeeded".*"permissions_ready":true' "$HEALTH_AUDIT_LOG" || true)"
-  health_audit_planned_write_succeeded="$(grep -Ec '"event":"write_succeeded".*"planned_write_count":[1-9][0-9]*' "$HEALTH_AUDIT_LOG" || true)"
-  health_audit_records_inserted="$(grep -Ec '"event":"write_succeeded".*"records_inserted":[1-9][0-9]*' "$HEALTH_AUDIT_LOG" || true)"
-  health_audit_write_failed="$(grep -c '"event":"write_failed"' "$HEALTH_AUDIT_LOG" || true)"
+if [[ "${#health_audit_files[@]}" -gt 0 ]]; then
+  health_audit_bytes="$(audit_total_bytes "${health_audit_files[@]}")"
+  health_audit_rotated_bytes="$(audit_rotated_bytes "$HEALTH_AUDIT_LOG")"
+  health_audit_blocked="$(count_fixed_in_files '"event":"blocked"' "${health_audit_files[@]}")"
+  health_audit_write_started="$(count_fixed_in_files '"event":"write_started"' "${health_audit_files[@]}")"
+  health_audit_ready_write_started="$(count_regex_in_files '"event":"write_started".*"permissions_ready":true' "${health_audit_files[@]}")"
+  health_audit_planned_write_started="$(count_regex_in_files '"event":"write_started".*"planned_write_count":[1-9][0-9]*' "${health_audit_files[@]}")"
+  health_audit_candidate_write_started="$(count_regex_in_files '"event":"write_started".*"candidate_count":[1-9][0-9]*' "${health_audit_files[@]}")"
+  health_audit_records_attempted="$(count_regex_in_files '"event":"write_started".*"records_attempted":[1-9][0-9]*' "${health_audit_files[@]}")"
+  health_audit_write_succeeded="$(count_fixed_in_files '"event":"write_succeeded"' "${health_audit_files[@]}")"
+  health_audit_ready_write_succeeded="$(count_regex_in_files '"event":"write_succeeded".*"permissions_ready":true' "${health_audit_files[@]}")"
+  health_audit_planned_write_succeeded="$(count_regex_in_files '"event":"write_succeeded".*"planned_write_count":[1-9][0-9]*' "${health_audit_files[@]}")"
+  health_audit_records_inserted="$(count_regex_in_files '"event":"write_succeeded".*"records_inserted":[1-9][0-9]*' "${health_audit_files[@]}")"
+  health_audit_write_failed="$(count_fixed_in_files '"event":"write_failed"' "${health_audit_files[@]}")"
 fi
-if [[ -f "$BLE_SESSION_LOG" ]]; then
-  ble_session_bytes="$(wc -c < "$BLE_SESSION_LOG" | tr -d ' ')"
-  ble_session_ready="$(grep -c '"phase":"ready"' "$BLE_SESSION_LOG" || true)"
-  ble_session_hello_sent="$(grep -c '"hello_sent":true' "$BLE_SESSION_LOG" || true)"
-  ble_session_client_hello_completed="$(grep -Ec '"phase":"operation_complete".*"active_operation_label":"client hello".*"hello_sent":true' "$BLE_SESSION_LOG" || true)"
-  ble_session_client_hello_command_ready_completed="$(grep -Ec '"phase":"operation_complete".*"active_operation_label":"client hello".*"command_ready":true.*"hello_sent":true' "$BLE_SESSION_LOG" || true)"
-  ble_session_command_ready="$(grep -c '"command_ready":true' "$BLE_SESSION_LOG" || true)"
-  ble_session_ready_hello_command_ready="$(grep -Ec '"phase":"ready".*"command_ready":true.*"hello_sent":true' "$BLE_SESSION_LOG" || true)"
+if [[ "${#ble_session_files[@]}" -gt 0 ]]; then
+  ble_session_bytes="$(audit_total_bytes "${ble_session_files[@]}")"
+  ble_session_rotated_bytes="$(audit_rotated_bytes "$BLE_SESSION_LOG")"
+  ble_session_ready="$(count_fixed_in_files '"phase":"ready"' "${ble_session_files[@]}")"
+  ble_session_hello_sent="$(count_fixed_in_files '"hello_sent":true' "${ble_session_files[@]}")"
+  ble_session_client_hello_completed="$(count_regex_in_files '"phase":"operation_complete".*"active_operation_label":"client hello".*"hello_sent":true' "${ble_session_files[@]}")"
+  ble_session_client_hello_command_ready_completed="$(count_regex_in_files '"phase":"operation_complete".*"active_operation_label":"client hello".*"command_ready":true.*"hello_sent":true' "${ble_session_files[@]}")"
+  ble_session_command_ready="$(count_fixed_in_files '"command_ready":true' "${ble_session_files[@]}")"
+  ble_session_ready_hello_command_ready="$(count_regex_in_files '"phase":"ready".*"command_ready":true.*"hello_sent":true' "${ble_session_files[@]}")"
 fi
-if [[ -f "$STEP_VALIDATION_LOG" ]]; then
-  step_validation_bytes="$(wc -c < "$STEP_VALIDATION_LOG" | tr -d ' ')"
-  step_validation_completed="$(grep -c '"event":"completed"' "$STEP_VALIDATION_LOG" || true)"
-  step_validation_passed="$(grep -c '"pass":true' "$STEP_VALIDATION_LOG" || true)"
-  step_validation_failed="$(grep -c '"event":"failed"' "$STEP_VALIDATION_LOG" || true)"
-  step_validation_session_bound="$(grep -Ec '"capture_session_id":"[^"]+"' "$STEP_VALIDATION_LOG" || true)"
-  step_validation_session_decoded="$(grep -Ec '"capture_session_decoded_frame_count":[1-9][0-9]*' "$STEP_VALIDATION_LOG" || true)"
-  step_validation_selected_delta="$(grep -Ec '"selected_delta":-?[0-9]+' "$STEP_VALIDATION_LOG" || true)"
-  step_validation_passing_session_selected_delta="$(grep -Ec '"event":"completed".*"pass":true.*"capture_session_id":"[^"]+".*"capture_session_decoded_frame_count":[1-9][0-9]*.*"selected_delta":-?[1-9][0-9]*' "$STEP_VALIDATION_LOG" || true)"
+if [[ "${#step_validation_files[@]}" -gt 0 ]]; then
+  step_validation_bytes="$(audit_total_bytes "${step_validation_files[@]}")"
+  step_validation_rotated_bytes="$(audit_rotated_bytes "$STEP_VALIDATION_LOG")"
+  step_validation_completed="$(count_fixed_in_files '"event":"completed"' "${step_validation_files[@]}")"
+  step_validation_passed="$(count_fixed_in_files '"pass":true' "${step_validation_files[@]}")"
+  step_validation_failed="$(count_fixed_in_files '"event":"failed"' "${step_validation_files[@]}")"
+  step_validation_session_bound="$(count_regex_in_files '"capture_session_id":"[^"]+"' "${step_validation_files[@]}")"
+  step_validation_session_decoded="$(count_regex_in_files '"capture_session_decoded_frame_count":[1-9][0-9]*' "${step_validation_files[@]}")"
+  step_validation_selected_delta="$(count_regex_in_files '"selected_delta":-?[0-9]+' "${step_validation_files[@]}")"
+  step_validation_passing_session_selected_delta="$(count_regex_in_files '"event":"completed".*"pass":true.*"capture_session_id":"[^"]+".*"capture_session_decoded_frame_count":[1-9][0-9]*.*"selected_delta":-?[1-9][0-9]*' "${step_validation_files[@]}")"
 fi
 
 echo "Android capture inspection"
@@ -232,6 +299,7 @@ echo "daily activity metrics: $activity_metric_count"
 echo "latest raw capture: $(latest_value raw_evidence captured_at)"
 echo "health sync audit: $HEALTH_AUDIT_LOG"
 echo "health sync audit bytes: $health_audit_bytes"
+echo "health sync audit rotated bytes: $health_audit_rotated_bytes"
 echo "health sync blocked events: $health_audit_blocked"
 echo "health sync write started events: $health_audit_write_started"
 echo "health sync ready write started events: $health_audit_ready_write_started"
@@ -245,6 +313,7 @@ echo "health sync records inserted events: $health_audit_records_inserted"
 echo "health sync write failed events: $health_audit_write_failed"
 echo "ble session audit: $BLE_SESSION_LOG"
 echo "ble session audit bytes: $ble_session_bytes"
+echo "ble session audit rotated bytes: $ble_session_rotated_bytes"
 echo "ble session ready events: $ble_session_ready"
 echo "ble session hello sent events: $ble_session_hello_sent"
 echo "ble session client hello completed events: $ble_session_client_hello_completed"
@@ -253,6 +322,7 @@ echo "ble session command ready events: $ble_session_command_ready"
 echo "ble session ready hello command-ready events: $ble_session_ready_hello_command_ready"
 echo "step validation audit: $STEP_VALIDATION_LOG"
 echo "step validation audit bytes: $step_validation_bytes"
+echo "step validation audit rotated bytes: $step_validation_rotated_bytes"
 echo "step validation completed events: $step_validation_completed"
 echo "step validation passed events: $step_validation_passed"
 echo "step validation failed events: $step_validation_failed"
@@ -375,22 +445,22 @@ if table_exists step_counter_samples; then
   fi
 fi
 
-if [[ -f "$HEALTH_AUDIT_LOG" ]]; then
+if [[ "${#health_audit_files[@]}" -gt 0 ]]; then
   echo
   echo "Recent Health Connect audit rows"
-  tail -n 5 "$HEALTH_AUDIT_LOG"
+  tail -n 5 "${health_audit_files[@]}"
 fi
 
-if [[ -f "$BLE_SESSION_LOG" ]]; then
+if [[ "${#ble_session_files[@]}" -gt 0 ]]; then
   echo
   echo "Recent BLE session audit rows"
-  tail -n 8 "$BLE_SESSION_LOG"
+  tail -n 8 "${ble_session_files[@]}"
 fi
 
-if [[ -f "$STEP_VALIDATION_LOG" ]]; then
+if [[ "${#step_validation_files[@]}" -gt 0 ]]; then
   echo
   echo "Recent step validation audit rows"
-  tail -n 5 "$STEP_VALIDATION_LOG"
+  tail -n 5 "${step_validation_files[@]}"
 fi
 
 failures=0

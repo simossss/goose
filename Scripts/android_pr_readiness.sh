@@ -248,6 +248,19 @@ verify_manifest_file() {
   return 1
 }
 
+verify_any_manifest_file() {
+  local dir="$1"
+  local manifest="$2"
+  shift 2
+  local required_path
+  for required_path in "$@"; do
+    if verify_manifest_file "$dir" "$manifest" "$required_path"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 latest_commit="$(git -C "$APP_DIR" rev-parse --short HEAD) $(git -C "$APP_DIR" log -1 --pretty=%s)"
 branch="$(git -C "$APP_DIR" rev-parse --abbrev-ref HEAD)"
 dirty_tracked="$(git -C "$APP_DIR" status --short --untracked-files=no | wc -l | tr -d ' ')"
@@ -695,15 +708,21 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       evidence_step_inspection_verified=1
     fi
     if [[ "$evidence_manifest_verified" == "1" ]] \
-      && verify_manifest_file "$PHONE_EVIDENCE_DIR" "$manifest" "goose-phone-ble-session-log.jsonl"; then
+      && verify_any_manifest_file "$PHONE_EVIDENCE_DIR" "$manifest" \
+        "goose-phone-ble-session-log.jsonl" \
+        "goose-phone-ble-session-log.jsonl.old"; then
       evidence_ble_audit_manifest_verified=1
     fi
     if [[ "$evidence_manifest_verified" == "1" ]] \
-      && verify_manifest_file "$PHONE_EVIDENCE_DIR" "$manifest" "goose-phone-health-connect-sync-log.jsonl"; then
+      && verify_any_manifest_file "$PHONE_EVIDENCE_DIR" "$manifest" \
+        "goose-phone-health-connect-sync-log.jsonl" \
+        "goose-phone-health-connect-sync-log.jsonl.old"; then
       evidence_health_audit_manifest_verified=1
     fi
     if [[ "$evidence_manifest_verified" == "1" ]] \
-      && verify_manifest_file "$PHONE_EVIDENCE_DIR" "$manifest" "goose-phone-step-validation-log.jsonl"; then
+      && verify_any_manifest_file "$PHONE_EVIDENCE_DIR" "$manifest" \
+        "goose-phone-step-validation-log.jsonl" \
+        "goose-phone-step-validation-log.jsonl.old"; then
       evidence_step_audit_manifest_verified=1
     fi
     if [[ "$capture_verified" == "1" && "$device_kind" == "physical" ]]; then
@@ -1076,15 +1095,15 @@ if [[ "$evidence_step_inspection_verified" == "1" ]]; then
   verified_any=1
 fi
 if [[ "$evidence_ble_audit_manifest_verified" == "1" ]]; then
-  echo "- BLE session audit log is included in the evidence byte/hash manifest."
+  echo "- BLE session audit log, current or rotated, is included in the evidence byte/hash manifest."
   verified_any=1
 fi
 if [[ "$evidence_health_audit_manifest_verified" == "1" ]]; then
-  echo "- Health Connect audit log is included in the evidence byte/hash manifest."
+  echo "- Health Connect audit log, current or rotated, is included in the evidence byte/hash manifest."
   verified_any=1
 fi
 if [[ "$evidence_step_audit_manifest_verified" == "1" ]]; then
-  echo "- Step-validation audit log is included in the evidence byte/hash manifest."
+  echo "- Step-validation audit log, current or rotated, is included in the evidence byte/hash manifest."
   verified_any=1
 fi
 if [[ "$evidence_commit_verified" == "1" ]]; then
@@ -1167,7 +1186,7 @@ if [[ "$ble_hello_verified" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$require_ble_hello" == "1" && "$evidence_ble_audit_manifest_verified" != "1" ]]; then
-  echo "- BLE session audit log must be included in the evidence byte/hash manifest."
+  echo "- BLE session audit log, current or rotated, must be included in the evidence byte/hash manifest."
   remaining_any=1
 fi
 if [[ "$no_android_runtime_crash_verified" != "1" ]]; then
@@ -1259,7 +1278,7 @@ if [[ "$step_validation_verified" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$require_step_pass" == "1" && "$evidence_step_audit_manifest_verified" != "1" ]]; then
-  echo "- Step-validation audit log must be included in the evidence byte/hash manifest."
+  echo "- Step-validation audit log, current or rotated, must be included in the evidence byte/hash manifest."
   remaining_any=1
 fi
 if [[ "$health_attempt_verified" != "1" ]]; then
@@ -1267,7 +1286,7 @@ if [[ "$health_attempt_verified" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$require_health_attempt" == "1" && "$evidence_health_audit_manifest_verified" != "1" ]]; then
-  echo "- Health Connect audit log must be included in the evidence byte/hash manifest."
+  echo "- Health Connect audit log, current or rotated, must be included in the evidence byte/hash manifest."
   remaining_any=1
 fi
 if [[ "$require_health_success" == "1" && "$health_success_verified" != "1" ]]; then

@@ -359,6 +359,7 @@ $(summary_section "Capture session evidence detail")
 
 - Audit log: $(summary_value "ble session audit")
 - Audit bytes: $(summary_value "ble session audit bytes")
+- Audit rotated bytes: $(summary_value "ble session audit rotated bytes")
 - Ready events: $(summary_value "ble session ready events")
 - Hello sent events: $(summary_value "ble session hello sent events")
 - Client hello completed events: $(summary_value "ble session client hello completed events")
@@ -370,6 +371,7 @@ $(summary_section "Capture session evidence detail")
 
 - Audit log: $(summary_value "health sync audit")
 - Audit bytes: $(summary_value "health sync audit bytes")
+- Audit rotated bytes: $(summary_value "health sync audit rotated bytes")
 - Blocked events: $(summary_value "health sync blocked events")
 - Write started events: $(summary_value "health sync write started events")
 - Ready write started events: $(summary_value "health sync ready write started events")
@@ -386,6 +388,7 @@ $(summary_section "Capture session evidence detail")
 
 - Audit log: $(summary_value "step validation audit")
 - Audit bytes: $(summary_value "step validation audit bytes")
+- Audit rotated bytes: $(summary_value "step validation audit rotated bytes")
 - Completed events: $(summary_value "step validation completed events")
 - Passed events: $(summary_value "step validation passed events")
 - Failed events: $(summary_value "step validation failed events")
@@ -408,9 +411,9 @@ $(summary_section "Capture session evidence detail")
 - inspect-android-capture.txt
 - pull-android-database-result.txt
 - goose-phone.sqlite
-- goose-phone-ble-session-log.jsonl, required when BLE hello gates are enabled
-- goose-phone-health-connect-sync-log.jsonl, required when Health Connect write gates are enabled
-- goose-phone-step-validation-log.jsonl, required when step-validation gates are enabled
+- goose-phone-ble-session-log.jsonl or goose-phone-ble-session-log.jsonl.old, required when BLE hello gates are enabled
+- goose-phone-health-connect-sync-log.jsonl or goose-phone-health-connect-sync-log.jsonl.old, required when Health Connect write gates are enabled
+- goose-phone-step-validation-log.jsonl or goose-phone-step-validation-log.jsonl.old, required when step-validation gates are enabled
 - logcat-goose-brief.txt
 - logcat-start-marker.txt
 - evidence-files-manifest.txt
@@ -439,9 +442,9 @@ Key files:
 - logcat-start-marker.txt: marker written by Scripts/prepare_android_phone_evidence.sh before the controlled run.
 - goose-phone.sqlite plus -wal/-shm: pulled debug app database files when present.
 - pull-android-database-result.txt: PASS/FAIL for the database pull helper.
-- goose-phone-ble-session-log.jsonl: BLE scan/connect/session audit log; required when BLE hello gates are enabled.
-- goose-phone-health-connect-sync-log.jsonl: Health Connect sync audit log; required when Health Connect write gates are enabled.
-- goose-phone-step-validation-log.jsonl: counted-step validation audit log; required when step-validation gates are enabled.
+- goose-phone-ble-session-log.jsonl and optional .old: BLE scan/connect/session audit log; current or rotated log is required when BLE hello gates are enabled.
+- goose-phone-health-connect-sync-log.jsonl and optional .old: Health Connect sync audit log; current or rotated log is required when Health Connect write gates are enabled.
+- goose-phone-step-validation-log.jsonl and optional .old: counted-step validation audit log; current or rotated log is required when step-validation gates are enabled.
 - inspect-android-capture.txt: read-only SQLite capture summary.
 - phone-handoff-summary.md: concise PR and phone-session summary.
 - evidence-files-manifest.txt: pulled evidence files with byte counts and SHA-256 hashes.
