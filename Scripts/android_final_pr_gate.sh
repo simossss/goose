@@ -32,7 +32,7 @@ Use --allow-dirty only for local debugging evidence that will not be used for
 PR acceptance.
 Use --require-health-success only when the final phone run must prove a
 successful Health Connect platform write with inserted records, not just a
-ready write attempt.
+ready write-attempt record summary.
 Use --dry-run to print the command sequence without building, using adb, or
 collecting evidence.
 USAGE

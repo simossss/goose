@@ -25,8 +25,8 @@ Collects the final Android phone evidence bundle with strict pass/fail gates:
 - at least one session-tagged decoded_frames row
 - at least one finished capture session with frame_count > 0
 - installed com.goose.android package metadata and APK hash match
-- Health Connect audit log and permissions-ready planned write_started event,
-  unless --skip-health is set
+- Health Connect audit log and permissions-ready planned write_started event
+  with record-summary provenance, unless --skip-health is set
 - logcat start marker from Scripts/prepare_android_phone_evidence.sh
 
 Use --require-health-success only after granting Health Connect permissions and
@@ -88,7 +88,7 @@ if [[ "$REQUIRE_STEP_VALIDATION" == "1" ]]; then
   echo "Step validation audit/pass: required"
 fi
 if [[ "$REQUIRE_HEALTH" == "1" ]]; then
-  echo "Health Connect audit/permissions-ready planned write attempt: required"
+  echo "Health Connect audit/permissions-ready planned write attempt with record-summary provenance: required"
   if [[ "$REQUIRE_HEALTH_SUCCESS" == "1" ]]; then
     echo "Health Connect write success with inserted records: required"
   fi

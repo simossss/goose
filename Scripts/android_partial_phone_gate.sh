@@ -21,7 +21,8 @@ Runs the Android phone evidence gate without requiring counted-step validation:
 3. Scripts/android_pr_readiness.sh [output-dir].
 
 Use this while step-counter validation is parked to prove physical-phone BLE,
-capture-session, installed-package, and Health Connect write-attempt evidence.
+capture-session, installed-package, and Health Connect write-attempt
+record-summary evidence.
 It intentionally does not run strict PR readiness, because the full PR gate still
 requires counted-step validation.
 
@@ -37,8 +38,8 @@ Run Scripts/prepare_android_phone_evidence.sh immediately before the controlled
 phone capture so logcat evidence has a start marker.
 
 Use --require-health-success only when this partial run must prove a successful
-Health Connect platform write with inserted records, not just a ready write
-attempt.
+Health Connect platform write with inserted records, not just a ready
+write-attempt record summary.
 Use --dry-run to print the command sequence without building, using adb, or
 collecting evidence.
 USAGE

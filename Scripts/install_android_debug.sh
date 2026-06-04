@@ -181,5 +181,5 @@ Phone test checklist:
 Still phone-bound: physical WHOOP command-ready BLE hello evidence,
 session-tagged live-notification raw capture provenance after the logcat marker,
 counted-step decoder confirmation, and Health Connect ready write-attempt
-evidence from a real Android phone.
+record-summary evidence from a real Android phone.
 NEXT_STEPS
