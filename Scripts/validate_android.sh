@@ -1047,6 +1047,8 @@ assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStor
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "health sync records inserted events" "Android evidence report"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseBleClient.java" "if (closed || !scanning)" "BLE scan callback lifecycle"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseBleClient.java" "publishQueued = false;" "BLE scan publish lifecycle"
+assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "step validation audit missing selected_delta" "Android step-validation audit smoke"
+assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "step validation audit missing capture_session_decoded_frame_count" "Android step-validation audit smoke"
 assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "Focused AndroidRuntime logcat has no com.goose.android crash lines." "Android port status"
 assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "Installed com.goose.android package metadata and APK hash match" "Android port status"
 assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "Latest raw capture timestamp is at or after the controlled-run logcat start marker." "Android port status"

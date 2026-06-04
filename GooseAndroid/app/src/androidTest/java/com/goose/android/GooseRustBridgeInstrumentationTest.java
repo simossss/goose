@@ -516,6 +516,21 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         if (!audit.contains("\"capture_session_id\":\"" + sessionId + "\"")) {
             throw new AssertionError("step validation audit missing capture session: " + audit);
         }
+        if (!audit.contains("\"manual_step_delta\":40")) {
+            throw new AssertionError("step validation audit missing manual_step_delta: " + audit);
+        }
+        if (!audit.contains("\"decoded_frame_count\":")) {
+            throw new AssertionError("step validation audit missing decoded_frame_count: " + audit);
+        }
+        if (!audit.contains("\"capture_session_decoded_frame_count\":")) {
+            throw new AssertionError("step validation audit missing capture_session_decoded_frame_count: " + audit);
+        }
+        if (!audit.contains("\"counter_delta_candidate_count\":")) {
+            throw new AssertionError("step validation audit missing counter_delta_candidate_count: " + audit);
+        }
+        if (!audit.contains("\"selected_delta\":")) {
+            throw new AssertionError("step validation audit missing selected_delta: " + audit);
+        }
     }
 
     private void deleteDatabaseFiles(File databaseFile) {
