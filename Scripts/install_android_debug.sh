@@ -165,10 +165,11 @@ Phone test checklist:
 2. Grant Bluetooth permissions.
 3. Press Scan, tap the WHOOP candidate, then wait for "Ready; subscribed ...; hello sent".
 4. Start a capture session and validation window before the counted walk.
-5. Finish the capture session, press Validate, run Health Gate/Sync, then pull:
+5. Finish the capture session, press Validate, run Health Gate/Sync, then collect final PR evidence:
    Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real --skip-validate
-   Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation
-6. Generate PR evidence:
+6. If you only need a diagnostic bundle without strict PR readiness, run:
+   Scripts/android_phone_final_gate.sh tmp/android-phone-diagnostic-gate-real --require-step-validation
+7. Reprint PR readiness from an existing bundle:
    Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-real
    Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
 
