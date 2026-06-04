@@ -73,9 +73,13 @@ fi
 device_serial="${ANDROID_SERIAL:-}"
 if [[ -z "$device_serial" ]]; then
   devices=()
+  adb_devices_output="$(run_with_timeout \
+    "Android adb devices" \
+    "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+    "$ADB" devices)"
   while IFS= read -r serial; do
     devices+=("$serial")
-  done < <("$ADB" devices | awk 'NR > 1 && $2 == "device" { print $1 }')
+  done < <(printf '%s\n' "$adb_devices_output" | awk 'NR > 1 && $2 == "device" { print $1 }')
   if [[ "${#devices[@]}" -eq 1 ]]; then
     device_serial="${devices[0]}"
   elif [[ "${#devices[@]}" -eq 0 ]]; then
