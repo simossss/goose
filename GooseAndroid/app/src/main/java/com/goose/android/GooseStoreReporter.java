@@ -362,6 +362,8 @@ final class GooseStoreReporter {
                     Pattern.compile(".*\"event\":\"completed\".*\"capture_session_decoded_frame_count\":[1-9][0-9]*.*"));
             int stepValidationSelectedDeltaEvents = countFileRowsMatching(stepValidationAuditFile,
                     Pattern.compile(".*\"event\":\"completed\".*\"selected_delta\":-?[0-9]+.*"));
+            int stepValidationPassingSessionSelectedDeltaEvents = countFileRowsMatching(stepValidationAuditFile,
+                    Pattern.compile(".*\"event\":\"completed\".*\"pass\":true.*\"capture_session_id\":\"[^\"]+\".*\"capture_session_decoded_frame_count\":[1-9][0-9]*.*\"selected_delta\":-?[1-9][0-9]*.*"));
             boolean strictReady = rawRows > 0
                     && captureSessions > 0
                     && sessionRawRows > 0
@@ -395,7 +397,9 @@ final class GooseStoreReporter {
                     + "step validation passed events: " + stepValidationPassedEvents + "\n"
                     + "step validation session-bound events: " + stepValidationSessionBoundEvents + "\n"
                     + "step validation session decoded events: " + stepValidationSessionDecodedEvents + "\n"
-                    + "step validation selected delta events: " + stepValidationSelectedDeltaEvents;
+                    + "step validation selected delta events: " + stepValidationSelectedDeltaEvents + "\n"
+                    + "step validation passing session selected-delta events: "
+                    + stepValidationPassingSessionSelectedDeltaEvents;
         } catch (Exception error) {
             return "Android evidence readiness\nstatus: FAIL\n" + error;
         } finally {

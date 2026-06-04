@@ -158,6 +158,7 @@ write_required_evidence_artifacts() {
     printf 'step validation session-bound events: 1\n'
     printf 'step validation session decoded events: 1\n'
     printf 'step validation selected delta events: 1\n'
+    printf 'step validation passing session selected-delta events: 1\n'
     printf 'RESULT: PASS\n'
   } > "$dir/inspect-android-capture.txt"
   printf 'focused AndroidRuntime logcat placeholder\n' > "$dir/logcat-goose-brief.txt"
@@ -388,6 +389,7 @@ Result: PASS
 - Session-bound events: 1
 - Session decoded events: 1
 - Selected delta events: 1
+- Passing session selected-delta events: 1
 SUMMARY
 cat > "$synthetic_evidence_dir/evidence-gates.txt" <<'GATES'
 GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1
@@ -612,6 +614,7 @@ Result: PASS
 - Session-bound events: 0
 - Session decoded events: 0
 - Selected delta events: 0
+- Passing session selected-delta events: 0
 SUMMARY
 cat > "$synthetic_partial_evidence_dir/evidence-gates.txt" <<'GATES'
 GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1

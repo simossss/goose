@@ -361,7 +361,7 @@ only for development smoke tests; PR acceptance still needs physical-phone
 evidence.
 Add `--require-step-validation` after running the in-app counted-step validation
 when the final session should require a passing step-validation audit row bound
-to a decoded capture session with a selected counter delta.
+to a decoded capture session with a nonzero selected counter delta.
 For that validation, start a capture session before the counted walk, finish it
 afterwards, then press `Validate`; the app reports the active or most recently
 finished capture session used for the check.

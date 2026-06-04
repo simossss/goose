@@ -137,6 +137,7 @@ step_validation_failed=0
 step_validation_session_bound=0
 step_validation_session_decoded=0
 step_validation_selected_delta=0
+step_validation_passing_session_selected_delta=0
 if [[ -f "$HEALTH_AUDIT_LOG" ]]; then
   health_audit_bytes="$(wc -c < "$HEALTH_AUDIT_LOG" | tr -d ' ')"
   health_audit_blocked="$(grep -c '"event":"blocked"' "$HEALTH_AUDIT_LOG" || true)"
@@ -163,6 +164,7 @@ if [[ -f "$STEP_VALIDATION_LOG" ]]; then
   step_validation_session_bound="$(grep -Ec '"capture_session_id":"[^"]+"' "$STEP_VALIDATION_LOG" || true)"
   step_validation_session_decoded="$(grep -Ec '"capture_session_decoded_frame_count":[1-9][0-9]*' "$STEP_VALIDATION_LOG" || true)"
   step_validation_selected_delta="$(grep -Ec '"selected_delta":-?[0-9]+' "$STEP_VALIDATION_LOG" || true)"
+  step_validation_passing_session_selected_delta="$(grep -Ec '"event":"completed".*"pass":true.*"capture_session_id":"[^"]+".*"capture_session_decoded_frame_count":[1-9][0-9]*.*"selected_delta":-?[1-9][0-9]*' "$STEP_VALIDATION_LOG" || true)"
 fi
 
 echo "Android capture inspection"
@@ -201,6 +203,7 @@ echo "step validation failed events: $step_validation_failed"
 echo "step validation session-bound events: $step_validation_session_bound"
 echo "step validation session decoded events: $step_validation_session_decoded"
 echo "step validation selected delta events: $step_validation_selected_delta"
+echo "step validation passing session selected-delta events: $step_validation_passing_session_selected_delta"
 
 if table_exists raw_evidence; then
   echo
@@ -422,6 +425,11 @@ fi
 
 if [[ "$REQUIRE_STEP_VALIDATION_SESSION" == "1" && "$step_validation_selected_delta" -le 0 ]]; then
   echo "FAIL: step validation audit has no selected counter delta" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_STEP_VALIDATION_SESSION" == "1" && "$step_validation_passing_session_selected_delta" -le 0 ]]; then
+  echo "FAIL: step validation audit has no passing session row with decoded frames and nonzero selected counter delta" >&2
   failures=$((failures + 1))
 fi
 

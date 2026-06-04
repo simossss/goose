@@ -327,6 +327,7 @@ $(summary_section "Capture session evidence detail")
 - Session-bound events: $(summary_value "step validation session-bound events")
 - Session decoded events: $(summary_value "step validation session decoded events")
 - Selected delta events: $(summary_value "step validation selected delta events")
+- Passing session selected-delta events: $(summary_value "step validation passing session selected-delta events")
 
 ## Evidence Files
 

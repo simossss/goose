@@ -467,7 +467,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 || !report.contains("step validation audit bytes:")
                 || !report.contains("step validation session-bound events:")
                 || !report.contains("step validation session decoded events:")
-                || !report.contains("step validation selected delta events:")) {
+                || !report.contains("step validation selected delta events:")
+                || !report.contains("step validation passing session selected-delta events:")) {
             throw new AssertionError("evidence readiness report did not pass after capture smoke: " + report);
         }
     }

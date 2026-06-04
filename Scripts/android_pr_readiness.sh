@@ -461,12 +461,14 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     step_session_bound="$(summary_bullet_value "Session-bound events" "$summary")"
     step_session_decoded="$(summary_bullet_value "Session decoded events" "$summary")"
     step_selected_delta="$(summary_bullet_value "Selected delta events" "$summary")"
+    step_passing_session_selected_delta="$(summary_bullet_value "Passing session selected-delta events" "$summary")"
     inspection_step_completed=""
     inspection_step_passed=""
     inspection_step_failed=""
     inspection_step_session_bound=""
     inspection_step_session_decoded=""
     inspection_step_selected_delta=""
+    inspection_step_passing_session_selected_delta=""
     if [[ -f "$inspection_file" ]]; then
       inspection_step_completed="$(status_value "step validation completed events" "$inspection_file")"
       inspection_step_passed="$(status_value "step validation passed events" "$inspection_file")"
@@ -474,6 +476,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       inspection_step_session_bound="$(status_value "step validation session-bound events" "$inspection_file")"
       inspection_step_session_decoded="$(status_value "step validation session decoded events" "$inspection_file")"
       inspection_step_selected_delta="$(status_value "step validation selected delta events" "$inspection_file")"
+      inspection_step_passing_session_selected_delta="$(status_value "step validation passing session selected-delta events" "$inspection_file")"
     fi
     require_step_pass=0
     require_step_session=0
@@ -533,7 +536,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$step_failed" == "$inspection_step_failed" \
       && "$step_session_bound" == "$inspection_step_session_bound" \
       && "$step_session_decoded" == "$inspection_step_session_decoded" \
-      && "$step_selected_delta" == "$inspection_step_selected_delta" ]]; then
+      && "$step_selected_delta" == "$inspection_step_selected_delta" \
+      && "$step_passing_session_selected_delta" == "$inspection_step_passing_session_selected_delta" ]]; then
       evidence_step_inspection_verified=1
     fi
     if [[ "$evidence_manifest_verified" == "1" ]] \
@@ -637,7 +641,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && { [[ "$require_step_session" != "1" ]] \
         || { is_positive_int "$step_session_bound" \
           && is_positive_int "$step_session_decoded" \
-          && is_positive_int "$step_selected_delta"; }; }; then
+          && is_positive_int "$step_selected_delta" \
+          && is_positive_int "$step_passing_session_selected_delta"; }; }; then
       step_validation_verified=1
     fi
     if [[ "$evidence_health_inspection_verified" == "1" \
@@ -756,6 +761,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Inspect session decoded events: $inspection_step_session_decoded"
     echo "- Selected delta events: $step_selected_delta"
     echo "- Inspect selected delta events: $inspection_step_selected_delta"
+    echo "- Passing session selected-delta events: $step_passing_session_selected_delta"
+    echo "- Inspect passing session selected-delta events: $inspection_step_passing_session_selected_delta"
     echo
     echo "Gate configuration:"
     if [[ -f "$gates" ]]; then
@@ -882,7 +889,7 @@ if [[ "$ble_hello_verified" == "1" ]]; then
   verified_any=1
 fi
 if [[ "$step_validation_verified" == "1" ]]; then
-  echo "- Counted-step validation passed under the required final gate with capture-session-bound decoded frames."
+  echo "- Counted-step validation passed under the required final gate with capture-session-bound decoded frames and a nonzero selected counter delta in the same audit row."
   verified_any=1
 fi
 if [[ "$health_attempt_verified" == "1" ]]; then
@@ -981,7 +988,7 @@ if [[ "$evidence_adb_device_verified" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$step_validation_verified" != "1" ]]; then
-  echo "- Step-counter decoder confirmation from real counted-step evidence with \`--require-step-validation\`, capture-session binding, decoded session frames, and selected counter delta."
+  echo "- Step-counter decoder confirmation from real counted-step evidence with \`--require-step-validation\`, capture-session binding, decoded session frames, and a nonzero selected counter delta in the same audit row."
   remaining_any=1
 fi
 if [[ "$require_step_pass" == "1" && "$evidence_step_audit_manifest_verified" != "1" ]]; then
