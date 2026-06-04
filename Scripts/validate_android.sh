@@ -10,6 +10,8 @@ if [[ -z "${ADB:-}" && -x "$HOME/Library/Android/sdk/platform-tools/adb" ]]; the
   ADB="$HOME/Library/Android/sdk/platform-tools/adb"
 fi
 ADB="${ADB:-adb}"
+GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS="${GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS:-60}"
+GOOSE_ANDROID_INSTRUMENTATION_TIMEOUT_SECONDS="${GOOSE_ANDROID_INSTRUMENTATION_TIMEOUT_SECONDS:-120}"
 
 export ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
 export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
@@ -46,6 +48,39 @@ assert_file_contains() {
     echo "$label missing expected output: $needle" >&2
     exit 1
   fi
+}
+
+run_with_timeout() {
+  local label="$1"
+  local timeout_seconds="$2"
+  shift 2
+  local output_file
+  local pid
+  local elapsed=0
+  local status=0
+  output_file="$(mktemp "${TMPDIR:-/tmp}/goose-android-command.XXXXXX")"
+  TMP_FILES+=("$output_file")
+
+  "$@" > "$output_file" 2>&1 &
+  pid="$!"
+  while kill -0 "$pid" 2>/dev/null; do
+    if [[ "$elapsed" -ge "$timeout_seconds" ]]; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+      cat "$output_file"
+      echo "$label timed out after ${timeout_seconds}s" >&2
+      return 124
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
+  set +e
+  wait "$pid"
+  status="$?"
+  set -e
+  cat "$output_file"
+  return "$status"
 }
 
 select_adb_target() {
@@ -1103,6 +1138,11 @@ assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Multiple a
 assert_file_contains "$SCRIPT_DIR/pull_android_database.sh" "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" "database pull"
 assert_file_contains "$SCRIPT_DIR/pull_android_database.sh" 'rm -f "$output_path"' "database pull optional stale cleanup"
 assert_file_contains "$SCRIPT_DIR/validate_android.sh" "Multiple adb devices are online. Set ANDROID_SERIAL to one of:" "Android validation"
+assert_file_contains "$SCRIPT_DIR/validate_android.sh" "GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" "Android validation adb timeout"
+assert_file_contains "$SCRIPT_DIR/validate_android.sh" "GOOSE_ANDROID_INSTRUMENTATION_TIMEOUT_SECONDS" "Android validation adb timeout"
+assert_file_contains "$SCRIPT_DIR/validate_android.sh" "run_with_timeout" "Android validation adb timeout"
+assert_file_contains "$SCRIPT_DIR/validate_android.sh" "Android test APK install" "Android validation adb timeout"
+assert_file_contains "$SCRIPT_DIR/validate_android.sh" "Android bridge instrumentation" "Android validation adb timeout"
 
 find_build_tool() {
   local tool="$1"
@@ -1250,13 +1290,21 @@ if [[ -z "$device_serial" ]]; then
 fi
 
 echo "==> Installing debug APKs on $device_serial"
-"$ADB" -s "$device_serial" install -r "$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk"
-"$ADB" -s "$device_serial" install -r "$ANDROID_DIR/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+run_with_timeout "Android debug APK install" "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" install -r "$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk"
+run_with_timeout "Android test APK install" "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" install -r "$ANDROID_DIR/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
 
-"$ADB" -s "$device_serial" logcat -c || true
+run_with_timeout "Android logcat clear" "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" logcat -c || true
 
 echo "==> Launching Goose Android app on $device_serial"
-launch_output="$("$ADB" -s "$device_serial" shell am start -W -n com.goose.android/.MainActivity 2>&1)"
+if ! launch_output="$(run_with_timeout "Android app launch" "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" shell am start -W -n com.goose.android/.MainActivity)"; then
+  printf '%s\n' "$launch_output"
+  echo "Android app launch failed" >&2
+  exit 1
+fi
 printf '%s\n' "$launch_output"
 
 if grep -qE "Error:|Exception" <<<"$launch_output"; then
@@ -1269,7 +1317,8 @@ if [[ -n "$launch_status" && "$launch_status" != "ok" ]]; then
   exit 1
 fi
 sleep 2
-launch_crash_log="$("$ADB" -s "$device_serial" logcat -d -v brief AndroidRuntime:E '*:S' 2>/dev/null || true)"
+launch_crash_log="$(run_with_timeout "Android launch crash logcat" "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" logcat -d -v brief AndroidRuntime:E '*:S' || true)"
 if grep -q "com.goose.android" <<<"$launch_crash_log"; then
   printf '%s\n' "$launch_crash_log" >&2
   echo "Android app logged a fatal exception after launch" >&2
@@ -1277,8 +1326,13 @@ if grep -q "com.goose.android" <<<"$launch_crash_log"; then
 fi
 
 echo "==> Running Goose Android bridge instrumentation on $device_serial"
-instrumentation_output="$("$ADB" -s "$device_serial" shell am instrument -w \
-  com.goose.android.test/com.goose.android.GooseRustBridgeInstrumentationTest 2>&1)"
+if ! instrumentation_output="$(run_with_timeout "Android bridge instrumentation" "$GOOSE_ANDROID_INSTRUMENTATION_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" shell am instrument -w \
+  com.goose.android.test/com.goose.android.GooseRustBridgeInstrumentationTest)"; then
+  printf '%s\n' "$instrumentation_output"
+  echo "Android instrumentation command failed" >&2
+  exit 1
+fi
 printf '%s\n' "$instrumentation_output"
 
 if ! grep -q "INSTRUMENTATION_RESULT: result=passed" <<<"$instrumentation_output"; then
