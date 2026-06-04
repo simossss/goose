@@ -119,6 +119,7 @@ Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
 - Health Connect planned write started events: at least 1.
 - Health Connect candidate write started events: at least 1.
 - Health Connect records attempted events: at least 1.
+- Health Connect record-summary write started events: at least 1.
 - Health Connect write succeeded events: at least 1 only when \`--require-health-success\` is used.
 
 ## Files To Keep For PR Review
