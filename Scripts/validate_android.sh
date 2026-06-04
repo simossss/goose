@@ -305,6 +305,7 @@ readiness_duplicate_manifest_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-andr
 readiness_audit_manifest_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-audit-manifest-strict.XXXXXX")"
 readiness_health_audit_manifest_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-health-audit-manifest-strict.XXXXXX")"
 readiness_step_counts_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-step-counts-strict.XXXXXX")"
+readiness_step_required_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-step-required-strict.XXXXXX")"
 readiness_step_audit_manifest_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-step-audit-manifest-strict.XXXXXX")"
 readiness_rotated_audit_manifest_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-rotated-audit-manifest-strict.XXXXXX")"
 readiness_stale_commit_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-stale-commit-strict.XXXXXX")"
@@ -324,7 +325,7 @@ final_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-final-gate-dr
 partial_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-partial-gate-dry-run.XXXXXX")"
 inspect_session_detail_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-inspect-session-detail.XXXXXX")"
 synthetic_session_db="$(mktemp "${TMPDIR:-/tmp}/goose-android-session-detail.XXXXXX.sqlite")"
-TMP_FILES+=("$checklist_output" "$partial_checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$readiness_crash_strict_output" "$readiness_logcat_marker_strict_output" "$readiness_stale_capture_marker_strict_output" "$readiness_package_strict_output" "$readiness_capture_counts_strict_output" "$readiness_ble_counts_strict_output" "$readiness_ble_command_ready_strict_output" "$readiness_health_attempt_strict_output" "$readiness_health_counts_strict_output" "$readiness_health_success_strict_output" "$readiness_manifest_strict_output" "$readiness_stale_manifest_strict_output" "$readiness_incomplete_manifest_strict_output" "$readiness_duplicate_manifest_strict_output" "$readiness_audit_manifest_strict_output" "$readiness_health_audit_manifest_strict_output" "$readiness_step_counts_strict_output" "$readiness_step_audit_manifest_strict_output" "$readiness_rotated_audit_manifest_strict_output" "$readiness_stale_commit_strict_output" "$readiness_stale_debug_apk_strict_output" "$readiness_dirty_status_strict_output" "$readiness_device_serial_strict_output" "$readiness_device_kind_strict_output" "$readiness_device_identity_strict_output" "$readiness_android_version_strict_output" "$readiness_adb_devices_strict_output" "$readiness_final_adb_state_strict_output" "$readiness_database_artifact_strict_output" "$readiness_evidence_result_fail_strict_output" "$readiness_pull_result_fail_strict_output" "$readiness_collect_error_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output" "$inspect_session_detail_output" "$synthetic_session_db")
+TMP_FILES+=("$checklist_output" "$partial_checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$readiness_crash_strict_output" "$readiness_logcat_marker_strict_output" "$readiness_stale_capture_marker_strict_output" "$readiness_package_strict_output" "$readiness_capture_counts_strict_output" "$readiness_ble_counts_strict_output" "$readiness_ble_command_ready_strict_output" "$readiness_health_attempt_strict_output" "$readiness_health_counts_strict_output" "$readiness_health_success_strict_output" "$readiness_manifest_strict_output" "$readiness_stale_manifest_strict_output" "$readiness_incomplete_manifest_strict_output" "$readiness_duplicate_manifest_strict_output" "$readiness_audit_manifest_strict_output" "$readiness_health_audit_manifest_strict_output" "$readiness_step_counts_strict_output" "$readiness_step_required_strict_output" "$readiness_step_audit_manifest_strict_output" "$readiness_rotated_audit_manifest_strict_output" "$readiness_stale_commit_strict_output" "$readiness_stale_debug_apk_strict_output" "$readiness_dirty_status_strict_output" "$readiness_device_serial_strict_output" "$readiness_device_kind_strict_output" "$readiness_device_identity_strict_output" "$readiness_android_version_strict_output" "$readiness_adb_devices_strict_output" "$readiness_final_adb_state_strict_output" "$readiness_database_artifact_strict_output" "$readiness_evidence_result_fail_strict_output" "$readiness_pull_result_fail_strict_output" "$readiness_collect_error_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output" "$inspect_session_detail_output" "$synthetic_session_db")
 synthetic_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-final-evidence.XXXXXX")"
 synthetic_partial_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-partial-evidence.XXXXXX")"
 synthetic_crash_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-crash-evidence.XXXXXX")"
@@ -344,6 +345,7 @@ synthetic_duplicate_manifest_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-an
 synthetic_audit_manifest_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-audit-manifest-evidence.XXXXXX")"
 synthetic_health_audit_manifest_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-health-audit-manifest-evidence.XXXXXX")"
 synthetic_step_counts_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-step-counts-evidence.XXXXXX")"
+synthetic_step_required_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-step-required-evidence.XXXXXX")"
 synthetic_step_audit_manifest_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-step-audit-manifest-evidence.XXXXXX")"
 synthetic_rotated_audit_manifest_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-rotated-audit-manifest-evidence.XXXXXX")"
 synthetic_stale_commit_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-stale-commit-evidence.XXXXXX")"
@@ -359,7 +361,7 @@ synthetic_database_artifact_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-and
 synthetic_evidence_result_fail_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-evidence-result-fail-evidence.XXXXXX")"
 synthetic_pull_result_fail_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-pull-result-fail-evidence.XXXXXX")"
 synthetic_collect_error_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-collect-error-evidence.XXXXXX")"
-TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir" "$synthetic_crash_evidence_dir" "$synthetic_logcat_marker_evidence_dir" "$synthetic_stale_capture_marker_evidence_dir" "$synthetic_package_evidence_dir" "$synthetic_capture_counts_evidence_dir" "$synthetic_ble_counts_evidence_dir" "$synthetic_ble_command_ready_evidence_dir" "$synthetic_health_attempt_evidence_dir" "$synthetic_health_counts_evidence_dir" "$synthetic_health_success_evidence_dir" "$synthetic_manifest_evidence_dir" "$synthetic_stale_manifest_evidence_dir" "$synthetic_incomplete_manifest_evidence_dir" "$synthetic_duplicate_manifest_evidence_dir" "$synthetic_audit_manifest_evidence_dir" "$synthetic_health_audit_manifest_evidence_dir" "$synthetic_step_counts_evidence_dir" "$synthetic_step_audit_manifest_evidence_dir" "$synthetic_rotated_audit_manifest_evidence_dir" "$synthetic_stale_commit_evidence_dir" "$synthetic_stale_debug_apk_evidence_dir" "$synthetic_dirty_status_evidence_dir" "$synthetic_device_serial_evidence_dir" "$synthetic_device_kind_evidence_dir" "$synthetic_device_identity_evidence_dir" "$synthetic_android_version_evidence_dir" "$synthetic_adb_devices_evidence_dir" "$synthetic_final_adb_state_evidence_dir" "$synthetic_database_artifact_evidence_dir" "$synthetic_evidence_result_fail_evidence_dir" "$synthetic_pull_result_fail_evidence_dir" "$synthetic_collect_error_evidence_dir")
+TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir" "$synthetic_crash_evidence_dir" "$synthetic_logcat_marker_evidence_dir" "$synthetic_stale_capture_marker_evidence_dir" "$synthetic_package_evidence_dir" "$synthetic_capture_counts_evidence_dir" "$synthetic_ble_counts_evidence_dir" "$synthetic_ble_command_ready_evidence_dir" "$synthetic_health_attempt_evidence_dir" "$synthetic_health_counts_evidence_dir" "$synthetic_health_success_evidence_dir" "$synthetic_manifest_evidence_dir" "$synthetic_stale_manifest_evidence_dir" "$synthetic_incomplete_manifest_evidence_dir" "$synthetic_duplicate_manifest_evidence_dir" "$synthetic_audit_manifest_evidence_dir" "$synthetic_health_audit_manifest_evidence_dir" "$synthetic_step_counts_evidence_dir" "$synthetic_step_required_evidence_dir" "$synthetic_step_audit_manifest_evidence_dir" "$synthetic_rotated_audit_manifest_evidence_dir" "$synthetic_stale_commit_evidence_dir" "$synthetic_stale_debug_apk_evidence_dir" "$synthetic_dirty_status_evidence_dir" "$synthetic_device_serial_evidence_dir" "$synthetic_device_kind_evidence_dir" "$synthetic_device_identity_evidence_dir" "$synthetic_android_version_evidence_dir" "$synthetic_adb_devices_evidence_dir" "$synthetic_final_adb_state_evidence_dir" "$synthetic_database_artifact_evidence_dir" "$synthetic_evidence_result_fail_evidence_dir" "$synthetic_pull_result_fail_evidence_dir" "$synthetic_collect_error_evidence_dir")
 "$SCRIPT_DIR/android_final_phone_checklist.sh" > "$checklist_output"
 "$SCRIPT_DIR/android_partial_phone_checklist.sh" > "$partial_checklist_output"
 "$SCRIPT_DIR/android_final_pr_gate.sh" tmp/android-phone-final-gate-real --skip-validate --require-health-success --dry-run > "$final_gate_dry_run_output"
@@ -688,6 +690,44 @@ mv "$step_counts_summary_tmp" "$synthetic_step_counts_evidence_dir/phone-handoff
 write_synthetic_manifest "$synthetic_step_counts_evidence_dir"
 if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_step_counts_evidence_dir" > "$readiness_step_counts_strict_output" 2>&1; then
   echo "PR readiness strict mode unexpectedly passed with mismatched step-validation count evidence" >&2
+  exit 1
+fi
+cp "$synthetic_evidence_dir/phone-handoff-summary.md" "$synthetic_step_required_evidence_dir/phone-handoff-summary.md"
+cp "$synthetic_evidence_dir/evidence-gates.txt" "$synthetic_step_required_evidence_dir/evidence-gates.txt"
+copy_required_evidence_artifacts "$synthetic_evidence_dir" "$synthetic_step_required_evidence_dir"
+step_required_summary_tmp="$synthetic_step_required_evidence_dir/phone-handoff-summary.md.tmp"
+awk '
+  $0 == "- Selected delta events: 1" && !selected_delta_replaced {
+    print "- Selected delta events: 0"
+    selected_delta_replaced = 1
+    next
+  }
+  $0 == "- Passing session selected-delta events: 1" && !passing_selected_delta_replaced {
+    print "- Passing session selected-delta events: 0"
+    passing_selected_delta_replaced = 1
+    next
+  }
+  { print }
+' "$synthetic_step_required_evidence_dir/phone-handoff-summary.md" > "$step_required_summary_tmp"
+mv "$step_required_summary_tmp" "$synthetic_step_required_evidence_dir/phone-handoff-summary.md"
+step_required_inspect_tmp="$synthetic_step_required_evidence_dir/inspect-android-capture.txt.tmp"
+awk '
+  $0 == "step validation selected delta events: 1" && !selected_delta_replaced {
+    print "step validation selected delta events: 0"
+    selected_delta_replaced = 1
+    next
+  }
+  $0 == "step validation passing session selected-delta events: 1" && !passing_selected_delta_replaced {
+    print "step validation passing session selected-delta events: 0"
+    passing_selected_delta_replaced = 1
+    next
+  }
+  { print }
+' "$synthetic_step_required_evidence_dir/inspect-android-capture.txt" > "$step_required_inspect_tmp"
+mv "$step_required_inspect_tmp" "$synthetic_step_required_evidence_dir/inspect-android-capture.txt"
+write_synthetic_manifest "$synthetic_step_required_evidence_dir"
+if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_step_required_evidence_dir" > "$readiness_step_required_strict_output" 2>&1; then
+  echo "PR readiness strict mode unexpectedly passed with missing required step selected-delta evidence" >&2
   exit 1
 fi
 cp "$synthetic_evidence_dir/phone-handoff-summary.md" "$synthetic_crash_evidence_dir/phone-handoff-summary.md"
@@ -1224,6 +1264,8 @@ assert_file_contains "$readiness_health_audit_manifest_strict_output" "Health Co
 assert_file_contains "$readiness_health_audit_manifest_strict_output" "Strict PR readiness: FAIL" "PR readiness health audit manifest strict"
 assert_file_contains "$readiness_step_counts_strict_output" "Phone handoff step-validation counts must match inspect-android-capture.txt." "PR readiness step counts strict"
 assert_file_contains "$readiness_step_counts_strict_output" "Strict PR readiness: FAIL" "PR readiness step counts strict"
+assert_file_contains "$readiness_step_required_strict_output" "Step-counter decoder confirmation from real counted-step evidence with \`--require-step-validation\`, capture-session binding, decoded session frames, and a nonzero selected counter delta in the same audit row." "PR readiness step required strict"
+assert_file_contains "$readiness_step_required_strict_output" "Strict PR readiness: FAIL" "PR readiness step required strict"
 assert_file_contains "$readiness_step_audit_manifest_strict_output" "Step-validation audit log, current or rotated, must be included in the evidence byte/hash manifest." "PR readiness step audit manifest strict"
 assert_file_contains "$readiness_step_audit_manifest_strict_output" "Strict PR readiness: FAIL" "PR readiness step audit manifest strict"
 assert_file_contains "$readiness_stale_commit_strict_output" "Phone evidence commit must match the current checkout commit." "PR readiness stale commit strict"
