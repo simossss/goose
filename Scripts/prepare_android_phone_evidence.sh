@@ -10,6 +10,41 @@ if [[ -z "${ADB:-}" && -x "$HOME/Library/Android/sdk/platform-tools/adb" ]]; the
   ADB="$HOME/Library/Android/sdk/platform-tools/adb"
 fi
 ADB="${ADB:-adb}"
+GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS="${GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS:-60}"
+
+run_with_timeout() {
+  local label="$1"
+  local timeout_seconds="$2"
+  shift 2
+  local output_file
+  local pid
+  local elapsed=0
+  local status=0
+  output_file="$(mktemp "${TMPDIR:-/tmp}/goose-android-prepare-command.XXXXXX")"
+
+  "$@" > "$output_file" 2>&1 &
+  pid="$!"
+  while kill -0 "$pid" 2>/dev/null; do
+    if [[ "$elapsed" -ge "$timeout_seconds" ]]; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+      cat "$output_file"
+      rm -f "$output_file"
+      echo "$label timed out after ${timeout_seconds}s" >&2
+      return 124
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
+  set +e
+  wait "$pid"
+  status="$?"
+  set -e
+  cat "$output_file"
+  rm -f "$output_file"
+  return "$status"
+}
 
 usage() {
   cat <<'USAGE'
@@ -63,9 +98,18 @@ stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 marker="goose-evidence-start $stamp $PACKAGE $device_serial"
 
 echo "==> Clearing logcat on $device_serial"
-"$ADB" -s "$device_serial" logcat -c
-printf '%s\n' "$marker" | "$ADB" -s "$device_serial" shell "cat > '$MARKER_FILE'"
-"$ADB" -s "$device_serial" shell log -t GooseEvidenceStart "$marker"
+run_with_timeout \
+  "Android logcat clear" \
+  "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" logcat -c
+printf '%s\n' "$marker" | run_with_timeout \
+  "Android evidence marker file write" \
+  "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" shell "cat > '$MARKER_FILE'"
+run_with_timeout \
+  "Android evidence marker log write" \
+  "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" shell log -t GooseEvidenceStart "$marker"
 
 cat <<NEXT_STEPS
 ==> Goose evidence start marker written
