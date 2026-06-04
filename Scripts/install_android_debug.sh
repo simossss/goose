@@ -142,7 +142,10 @@ if [[ -z "$device_serial" ]]; then
   fi
 fi
 
-device_state="$("$ADB" -s "$device_serial" get-state 2>/dev/null || true)"
+device_state="$(run_with_timeout \
+  "Android adb state" \
+  "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" get-state 2>/dev/null || true)"
 if [[ "$device_state" != "device" ]]; then
   echo "adb target is not online: $device_serial ($device_state)" >&2
   exit 1

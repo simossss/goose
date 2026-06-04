@@ -41,6 +41,40 @@ run_to_file_with_timeout() {
   return "$status"
 }
 
+run_with_timeout() {
+  local label="$1"
+  local timeout_seconds="$2"
+  shift 2
+  local output_file
+  local pid
+  local elapsed=0
+  local status=0
+  output_file="$(mktemp "${TMPDIR:-/tmp}/goose-android-pull-command.XXXXXX")"
+
+  "$@" > "$output_file" 2>&1 &
+  pid="$!"
+  while kill -0 "$pid" 2>/dev/null; do
+    if [[ "$elapsed" -ge "$timeout_seconds" ]]; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+      cat "$output_file"
+      rm -f "$output_file"
+      echo "$label timed out after ${timeout_seconds}s" >&2
+      return 124
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
+  set +e
+  wait "$pid"
+  status="$?"
+  set -e
+  cat "$output_file"
+  rm -f "$output_file"
+  return "$status"
+}
+
 if ! command -v "$ADB" >/dev/null 2>&1; then
   echo "adb not found. Set ADB or add Android platform-tools to PATH." >&2
   exit 1
@@ -64,7 +98,10 @@ if [[ -z "$device_serial" ]]; then
   fi
 fi
 
-device_state="$("$ADB" -s "$device_serial" get-state 2>/dev/null || true)"
+device_state="$(run_with_timeout \
+  "Android adb state" \
+  "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" get-state 2>/dev/null || true)"
 if [[ "$device_state" != "device" ]]; then
   echo "adb target is not online: $device_serial ($device_state)" >&2
   exit 1
