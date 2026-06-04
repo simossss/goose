@@ -959,6 +959,8 @@ assert_file_contains "$SCRIPT_DIR/android_phone_final_gate.sh" "GOOSE_ANDROID_RE
 assert_file_contains "$SCRIPT_DIR/install_android_debug.sh" "Verifying installed APK hash" "Android debug installer"
 assert_file_contains "$SCRIPT_DIR/install_android_debug.sh" "Installed APK hash mismatch" "Android debug installer"
 assert_file_contains "$SCRIPT_DIR/install_android_debug.sh" "collect final PR evidence" "Android debug installer"
+assert_file_contains "$SCRIPT_DIR/install_android_debug.sh" "latest raw capture timestamp to be at or after the logcat start marker" "Android debug installer"
+assert_file_contains "$SCRIPT_DIR/install_android_debug.sh" "android_partial_phone_gate.sh tmp/android-phone-partial-gate-real --skip-validate" "Android debug installer"
 assert_file_contains "$SCRIPT_DIR/install_android_debug.sh" "without strict PR readiness" "Android debug installer"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Focused AndroidRuntime crash lines:" "phone evidence collector"
