@@ -548,6 +548,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     session_live_notification_raw_rows="$(summary_bullet_value "Session live notification raw evidence rows" "$summary")"
     session_decoded_rows="$(summary_bullet_value "Session decoded frame rows" "$summary")"
     finished_sessions="$(summary_bullet_value "Finished nonempty capture sessions" "$summary")"
+    daily_activity_metrics="$(summary_bullet_value "Daily activity metrics" "$summary")"
+    daily_local_estimate_metrics="$(summary_bullet_value "Daily local estimate metrics" "$summary")"
+    daily_device_counter_metrics="$(summary_bullet_value "Daily device counter metrics" "$summary")"
     inspection_result=""
     inspection_raw_rows=""
     inspection_decoded_rows=""
@@ -556,6 +559,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     inspection_session_live_notification_raw_rows=""
     inspection_session_decoded_rows=""
     inspection_finished_sessions=""
+    inspection_daily_activity_metrics=""
+    inspection_daily_local_estimate_metrics=""
+    inspection_daily_device_counter_metrics=""
     inspection_latest_raw_capture=""
     inspection_database_bytes=""
     inspection_database_sha=""
@@ -578,6 +584,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       inspection_session_live_notification_raw_rows="$(status_value "session live notification raw evidence" "$inspection_file")"
       inspection_session_decoded_rows="$(status_value "session decoded frames" "$inspection_file")"
       inspection_finished_sessions="$(status_value "finished nonempty capture sessions" "$inspection_file")"
+      inspection_daily_activity_metrics="$(status_value "daily activity metrics" "$inspection_file")"
+      inspection_daily_local_estimate_metrics="$(status_value "daily local estimate metrics" "$inspection_file")"
+      inspection_daily_device_counter_metrics="$(status_value "daily device counter metrics" "$inspection_file")"
       inspection_latest_raw_capture="$(status_value "latest raw capture" "$inspection_file")"
     fi
     ble_ready_events="$(summary_bullet_value "Ready events" "$summary")"
@@ -721,7 +730,10 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$session_raw_rows" == "$inspection_session_raw_rows" \
       && "$session_live_notification_raw_rows" == "$inspection_session_live_notification_raw_rows" \
       && "$session_decoded_rows" == "$inspection_session_decoded_rows" \
-      && "$finished_sessions" == "$inspection_finished_sessions" ]] \
+      && "$finished_sessions" == "$inspection_finished_sessions" \
+      && "$daily_activity_metrics" == "$inspection_daily_activity_metrics" \
+      && "$daily_local_estimate_metrics" == "$inspection_daily_local_estimate_metrics" \
+      && "$daily_device_counter_metrics" == "$inspection_daily_device_counter_metrics" ]] \
       && is_positive_int "$raw_rows" \
       && is_positive_int "$decoded_rows" \
       && is_positive_int "$capture_sessions" \
@@ -1014,7 +1026,12 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Inspect latest raw capture: $inspection_latest_raw_capture"
     echo "- Latest raw capture after marker result: $latest_raw_capture_after_marker_result"
     echo "- Step samples: $(summary_bullet_value "Step samples" "$summary")"
-    echo "- Daily activity metrics: $(summary_bullet_value "Daily activity metrics" "$summary")"
+    echo "- Daily activity metrics: $daily_activity_metrics"
+    echo "- Inspect daily activity metrics: $inspection_daily_activity_metrics"
+    echo "- Daily local estimate metrics: $daily_local_estimate_metrics"
+    echo "- Inspect daily local estimate metrics: $inspection_daily_local_estimate_metrics"
+    echo "- Daily device counter metrics: $daily_device_counter_metrics"
+    echo "- Inspect daily device counter metrics: $inspection_daily_device_counter_metrics"
     echo
     echo "BLE session evidence:"
     echo "- Audit manifest verified: $evidence_ble_audit_manifest_verified"

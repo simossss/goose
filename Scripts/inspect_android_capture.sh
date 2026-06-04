@@ -200,6 +200,12 @@ fi
 finished_session_count="$(table_scalar_or_missing capture_sessions "SELECT COUNT(*) FROM capture_sessions WHERE status = 'finished' AND frame_count > 0;")"
 step_count="$(table_count step_counter_samples)"
 activity_metric_count="$(table_count daily_activity_metrics)"
+activity_metric_local_estimate_count="missing"
+activity_metric_device_counter_count="missing"
+if table_exists daily_activity_metrics && column_exists daily_activity_metrics source_kind; then
+  activity_metric_local_estimate_count="$(sqlite_scalar "SELECT COUNT(*) FROM daily_activity_metrics WHERE source_kind = 'local_estimate';")"
+  activity_metric_device_counter_count="$(sqlite_scalar "SELECT COUNT(*) FROM daily_activity_metrics WHERE source_kind = 'device_counter';")"
+fi
 health_audit_files=()
 while IFS= read -r audit_file; do
   health_audit_files+=("$audit_file")
@@ -296,6 +302,8 @@ echo "session decoded frames: $session_decoded_count"
 echo "finished nonempty capture sessions: $finished_session_count"
 echo "step samples: $step_count"
 echo "daily activity metrics: $activity_metric_count"
+echo "daily local estimate metrics: $activity_metric_local_estimate_count"
+echo "daily device counter metrics: $activity_metric_device_counter_count"
 echo "latest raw capture: $(latest_value raw_evidence captured_at)"
 echo "health sync audit: $HEALTH_AUDIT_LOG"
 echo "health sync audit bytes: $health_audit_bytes"
@@ -440,6 +448,26 @@ if table_exists step_counter_samples; then
       SELECT sample_time_unix_ms, counter_value, cadence_spm
       FROM step_counter_samples
       ORDER BY sample_time_unix_ms DESC
+      LIMIT 8;
+    "
+  fi
+fi
+
+if table_exists daily_activity_metrics; then
+  echo
+  echo "Recent daily activity metrics"
+  if column_exists daily_activity_metrics source_kind; then
+    sqlite3 -header -column -batch "$DATABASE" "
+      SELECT date_key, steps, active_kcal, average_cadence_spm, source_kind
+      FROM daily_activity_metrics
+      ORDER BY start_time_unix_ms DESC
+      LIMIT 8;
+    "
+  else
+    sqlite3 -header -column -batch "$DATABASE" "
+      SELECT date_key, steps, active_kcal, average_cadence_spm
+      FROM daily_activity_metrics
+      ORDER BY start_time_unix_ms DESC
       LIMIT 8;
     "
   fi

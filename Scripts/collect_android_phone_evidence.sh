@@ -421,6 +421,8 @@ Result: ${inspection_result:-unknown}
 - Finished nonempty capture sessions: $(summary_value "finished nonempty capture sessions")
 - Step samples: $(summary_value "step samples")
 - Daily activity metrics: $(summary_value "daily activity metrics")
+- Daily local estimate metrics: $(summary_value "daily local estimate metrics")
+- Daily device counter metrics: $(summary_value "daily device counter metrics")
 - Latest raw capture: $latest_raw_capture
 - Latest raw capture after marker result: $latest_raw_capture_after_marker_result
 

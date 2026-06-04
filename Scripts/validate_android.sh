@@ -187,6 +187,8 @@ write_required_evidence_artifacts() {
     printf 'finished nonempty capture sessions: 1\n'
     printf 'step samples: 1\n'
     printf 'daily activity metrics: 1\n'
+    printf 'daily local estimate metrics: 1\n'
+    printf 'daily device counter metrics: 0\n'
     printf 'latest raw capture: 2026-06-04T12:00:01.000Z\n'
     printf 'health sync write started events: 1\n'
     printf 'health sync ready write started events: 1\n'
@@ -476,6 +478,8 @@ Result: PASS
 - Finished nonempty capture sessions: 1
 - Step samples: 1
 - Daily activity metrics: 1
+- Daily local estimate metrics: 1
+- Daily device counter metrics: 0
 - Latest raw capture: 2026-06-04T12:00:01.000Z
 - Latest raw capture after marker result: PASS
 
@@ -1065,6 +1069,8 @@ Result: PASS
 - Finished nonempty capture sessions: 1
 - Step samples: 1
 - Daily activity metrics: 1
+- Daily local estimate metrics: 1
+- Daily device counter metrics: 0
 - Latest raw capture: 2026-06-04T12:00:01.000Z
 - Latest raw capture after marker result: PASS
 
@@ -1179,6 +1185,10 @@ assert_file_contains "$readiness_strict_pass_output" "Inspect decoded frame rows
 assert_file_contains "$readiness_strict_pass_output" "Inspect session live notification raw evidence rows: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect session decoded frame rows: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff capture counts match inspect-android-capture.txt." "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Daily local estimate metrics: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect daily local estimate metrics: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Daily device counter metrics: 0" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect daily device counter metrics: 0" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect hello sent events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect client hello command-ready completed events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect ready hello command-ready events: 1" "PR readiness strict"
@@ -1351,6 +1361,8 @@ assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "required w
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "required when Health Connect write gates are enabled" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "required when step-validation gates are enabled" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" 'Database pull result: $(summary_value_from "RESULT" "$OUTPUT_DIR/pull-android-database-result.txt")' "phone evidence collector"
+assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Daily local estimate metrics" "phone evidence collector"
+assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Daily device counter metrics" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Android capture inspection failed with exit status" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "goose-installed-apk-sha256.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "/AndroidRuntime/ && /com[.]goose[.]android/" "PR readiness"
@@ -1377,6 +1389,8 @@ assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "pull-android-databas
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Android database pull helper result must be present and PASS." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone evidence local debug APK hash must match android-port-status.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff capture counts, including decoded frame counts, must match inspect-android-capture.txt." "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "daily local estimate metrics" "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "daily device counter metrics" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff BLE session counts must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff Health Connect counts must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff step-validation counts must match inspect-android-capture.txt." "PR readiness"
@@ -1428,6 +1442,9 @@ assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStor
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "daily local estimate metrics" "Android evidence report"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "daily device counter metrics" "Android evidence report"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "motion health guidance" "Android evidence report"
+assert_file_contains "$SCRIPT_DIR/inspect_android_capture.sh" "Recent daily activity metrics" "Android capture inspector"
+assert_file_contains "$SCRIPT_DIR/inspect_android_capture.sh" "daily local estimate metrics" "Android capture inspector"
+assert_file_contains "$SCRIPT_DIR/inspect_android_capture.sh" "daily device counter metrics" "Android capture inspector"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "attemptedManualStepDelta" "Android step-validation failure audit"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "attemptedCaptureSessionId" "Android step-validation failure audit"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "metrics.raw_motion_step_estimate" "Android raw-motion step estimate"
