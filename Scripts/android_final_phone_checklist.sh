@@ -102,6 +102,13 @@ Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
 
 - \`phone-handoff-summary.md\`
 - \`evidence-gates.txt\`
+- \`adb-devices.txt\`
+- \`android-serial.txt\`
+- \`android-device-kind.txt\`
+- \`device-manufacturer.txt\`
+- \`device-model.txt\`
+- \`android-version.txt\`
+- \`android-sdk.txt\`
 - \`inspect-android-capture.txt\`
 - \`goose-package-path.txt\`
 - \`goose-package-summary.txt\`

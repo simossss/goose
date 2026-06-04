@@ -95,6 +95,12 @@ verify_evidence_manifest() {
   local saw_package_dumpsys=0
   local saw_local_apk_sha=0
   local saw_installed_apk_sha=0
+  local saw_adb_devices=0
+  local saw_serial=0
+  local saw_manufacturer=0
+  local saw_model=0
+  local saw_android_version=0
+  local saw_android_sdk=0
   local saw_device_kind=0
   local saw_result=0
 
@@ -137,6 +143,18 @@ verify_evidence_manifest() {
       saw_local_apk_sha=1
     elif [[ "$rel_path" == "goose-installed-apk-sha256.txt" ]]; then
       saw_installed_apk_sha=1
+    elif [[ "$rel_path" == "adb-devices.txt" ]]; then
+      saw_adb_devices=1
+    elif [[ "$rel_path" == "android-serial.txt" ]]; then
+      saw_serial=1
+    elif [[ "$rel_path" == "device-manufacturer.txt" ]]; then
+      saw_manufacturer=1
+    elif [[ "$rel_path" == "device-model.txt" ]]; then
+      saw_model=1
+    elif [[ "$rel_path" == "android-version.txt" ]]; then
+      saw_android_version=1
+    elif [[ "$rel_path" == "android-sdk.txt" ]]; then
+      saw_android_sdk=1
     elif [[ "$rel_path" == "android-device-kind.txt" ]]; then
       saw_device_kind=1
     elif [[ "$rel_path" == "evidence-result.txt" ]]; then
@@ -157,6 +175,12 @@ verify_evidence_manifest() {
     && "$saw_package_dumpsys" == "1" \
     && "$saw_local_apk_sha" == "1" \
     && "$saw_installed_apk_sha" == "1" \
+    && "$saw_adb_devices" == "1" \
+    && "$saw_serial" == "1" \
+    && "$saw_manufacturer" == "1" \
+    && "$saw_model" == "1" \
+    && "$saw_android_version" == "1" \
+    && "$saw_android_sdk" == "1" \
     && "$saw_device_kind" == "1" \
     && "$saw_result" == "1" ]]
 }
