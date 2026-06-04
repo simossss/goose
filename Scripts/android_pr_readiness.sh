@@ -145,6 +145,20 @@ capture_at_or_after_marker() {
   [[ "$capture_stamp" > "$start_stamp" || "$capture_stamp" == "$start_stamp" ]]
 }
 
+classify_device_kind() {
+  local serial="$1"
+  local manufacturer="$2"
+  local model="$3"
+  if [[ "$serial" == emulator-* ]] \
+    || [[ "$manufacturer" == "Google" && "$model" == sdk_* ]] \
+    || [[ "$model" == *"Android SDK built for"* ]] \
+    || [[ "$model" == *"sdk_gphone"* ]]; then
+    printf 'emulator'
+  else
+    printf 'physical'
+  fi
+}
+
 verify_evidence_manifest() {
   local dir="$1"
   local manifest="$2"
@@ -381,6 +395,7 @@ evidence_clean_status_verified=0
 evidence_debug_apk_status_verified=0
 evidence_device_serial_verified=0
 evidence_device_kind_verified=0
+evidence_derived_device_kind_verified=0
 evidence_device_identity_verified=0
 evidence_android_version_verified=0
 evidence_adb_device_verified=0
@@ -489,6 +504,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     if [[ -n "$evidence_device_manufacturer" || -n "$evidence_device_model" ]]; then
       evidence_device_identity="$evidence_device_manufacturer $evidence_device_model"
     fi
+    evidence_derived_device_kind="$(classify_device_kind "$evidence_device_serial" "$evidence_device_manufacturer" "$evidence_device_model")"
     android_version="$(status_value "Android" "$summary")"
     evidence_android_release=""
     evidence_android_sdk=""
@@ -831,9 +847,6 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
         "goose-phone-step-validation-log.jsonl.old"; then
       evidence_step_audit_manifest_verified=1
     fi
-    if [[ "$capture_verified" == "1" && "$device_kind" == "physical" ]]; then
-      physical_capture_verified=1
-    fi
     if [[ "$evidence_result_verified" == "1" \
       && "$android_runtime_crash_lines" =~ ^[0-9]+$ \
       && "$evidence_android_runtime_crash_lines" =~ ^[0-9]+$ \
@@ -887,8 +900,17 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     if [[ "$evidence_manifest_verified" == "1" \
       && -n "$device_kind" \
       && -n "$evidence_device_kind" \
-      && "$device_kind" == "$evidence_device_kind" ]]; then
+      && "$device_kind" == "$evidence_device_kind" \
+      && "$evidence_device_kind" == "$evidence_derived_device_kind" ]]; then
       evidence_device_kind_verified=1
+    fi
+    if [[ "$evidence_manifest_verified" == "1" \
+      && -n "$evidence_derived_device_kind" \
+      && "$evidence_device_kind" == "$evidence_derived_device_kind" ]]; then
+      evidence_derived_device_kind_verified=1
+    fi
+    if [[ "$capture_verified" == "1" && "$evidence_device_kind_verified" == "1" && "$evidence_derived_device_kind" == "physical" ]]; then
+      physical_capture_verified=1
     fi
     if [[ "$evidence_manifest_verified" == "1" \
       && -n "$device_identity" \
@@ -1000,6 +1022,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Evidence serial file: $evidence_device_serial"
     echo "Device kind: $device_kind"
     echo "Evidence device kind file: $evidence_device_kind"
+    echo "Derived device kind: $evidence_derived_device_kind"
     echo "Device: $device_identity"
     echo "Evidence device files: $evidence_device_identity"
     echo "Android: $android_version"
@@ -1270,6 +1293,10 @@ if [[ "$evidence_device_kind_verified" == "1" ]]; then
   echo "- Phone handoff summary device kind matches android-device-kind.txt."
   verified_any=1
 fi
+if [[ "$evidence_derived_device_kind_verified" == "1" ]]; then
+  echo "- Device kind matches the serial/manufacturer/model emulator check."
+  verified_any=1
+fi
 if [[ "$evidence_device_identity_verified" == "1" ]]; then
   echo "- Phone handoff summary device identity matches device-manufacturer.txt and device-model.txt."
   verified_any=1
@@ -1408,7 +1435,7 @@ if [[ "$evidence_device_serial_verified" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$evidence_device_kind_verified" != "1" ]]; then
-  echo "- Phone handoff summary device kind must match android-device-kind.txt."
+  echo "- Phone handoff summary device kind must match android-device-kind.txt and the serial/manufacturer/model emulator check."
   remaining_any=1
 fi
 if [[ "$evidence_device_identity_verified" != "1" ]]; then
