@@ -809,6 +809,11 @@ final class GooseBleClient {
             public String label() {
                 return "client hello";
             }
+
+            @Override
+            public void onComplete(String error) {
+                clientHelloSent = error == null;
+            }
         });
     }
 
@@ -843,7 +848,7 @@ final class GooseBleClient {
         if (error != null) {
             listener.onStateChanged(label + ": " + error);
         }
-        emitConnectionProgress(error == null ? "operation_complete" : "operation_failed", error);
+        emitConnectionProgress(error == null ? "operation_complete" : "operation_failed", error, label);
         drainOperationQueue(gatt);
     }
 
@@ -888,9 +893,6 @@ final class GooseBleClient {
             command.setWriteType(writeType);
             command.setValue(CLIENT_HELLO_FRAME);
             started = gatt.writeCharacteristic(command);
-        }
-        if (started) {
-            clientHelloSent = true;
         }
         return started;
     }
@@ -938,6 +940,10 @@ final class GooseBleClient {
     }
 
     private void emitConnectionProgress(String phase, String error) {
+        emitConnectionProgress(phase, error, activeOperation != null ? activeOperation.label() : "");
+    }
+
+    private void emitConnectionProgress(String phase, String error, String activeOperationLabel) {
         listener.onConnectionProgress(new ConnectionProgress(
                 phase,
                 activeDeviceId != null ? activeDeviceId : "",
@@ -949,7 +955,7 @@ final class GooseBleClient {
                 operationQueue.size() + (activeOperation != null ? 1 : 0),
                 completedOperationCount,
                 subscriptionCount,
-                activeOperation != null ? activeOperation.label() : "",
+                activeOperationLabel,
                 commandReady(),
                 clientHelloSent,
                 error,
