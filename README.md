@@ -361,11 +361,13 @@ the final gate, so AndroidRuntime crash evidence is scoped to the current run.
 Add `--require-health-success` when the final session should require a
 successful Health Connect platform write in addition to a write attempt. The
 standard write-attempt gate also requires permissions-ready dry-run context,
-planned writes, candidates, and attempted records in the audit row.
+planned writes, candidates, attempted records, and record-summary provenance
+counts in the Health Connect audit row.
 The final gate also requires session-tagged raw evidence and a finished capture
 session with `frame_count > 0`, plus installed `com.goose.android` package
 metadata and an installed APK hash match from the device, session-tagged Android
-BLE live-notification raw evidence, a logcat start marker, no focused
+BLE live-notification raw evidence, numeric daily activity provenance counts,
+a logcat start marker, no focused
 AndroidRuntime crash lines for Goose, a latest raw capture timestamp at or after
 the logcat start marker, and a BLE session audit proving completed client hello
 write in command-ready rows. The evidence bundle must also show
@@ -386,7 +388,10 @@ The Android `Motion` action uses the same marked Start/End window and manual
 step count to run the validated raw-motion step estimator. Passing estimates can
 write local `daily_activity_metrics` rows, and Health Connect planning accepts
 those validated local-estimate step rows alongside explicit device-counter step
-rows.
+rows. Strict readiness compares the pulled database's daily local-estimate and
+device-counter metric counts with `inspect-android-capture.txt`, then compares
+Health Connect write-attempt record-summary counts for steps/local-estimate/
+device-counter provenance between the handoff summary and audit inspection.
 
 Run the Android bridge/storage/protocol smoke harness on an emulator or device:
 
@@ -400,7 +405,8 @@ adb shell am instrument -w com.goose.android.test/com.goose.android.GooseRustBri
 The remaining phone-dependent work is physical WHOOP strap validation with a
 command-ready BLE hello audit, final capture-session-bound step-counter decoder
 confirmation, and Health Connect permission/write testing with real planned
-writes plus permissions-ready write-attempt evidence on a real Android device.
+writes plus permissions-ready write-attempt and record-summary evidence on a
+real Android device.
 
 ## Data And Privacy
 

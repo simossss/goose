@@ -169,7 +169,7 @@ Add `--require-health-success` after granting Health Connect permissions when
 the session should prove a successful platform write, not just a write attempt.
 The standard write-attempt gate also requires the audit row to include
 permissions-ready dry-run context, planned writes, candidate count, and attempted
-records.
+records plus Health Connect record-summary provenance counts.
 Add `--require-step-validation` after running counted-step validation in the app
 when the final phone session should prove a passing, capture-session-bound
 step-validation audit row with decoded session frames and a selected counter
@@ -187,8 +187,9 @@ must still be online after pull/hash/logcat collection. When BLE hello, Health
 Connect write, or step-validation gates are enabled, the matching audit log
 must be present in `evidence-files-manifest.txt` with valid byte counts and SHA-256 hashes. The
 inspector prints table presence, row counts, recent raw evidence, recent capture
-sessions, step sample rows when available, recent BLE session audit rows, and
-recent Health Connect audit rows. For a
+sessions, daily activity local-estimate/device-counter provenance counts, step
+sample rows when available, recent BLE session audit rows, and recent Health
+Connect audit rows with record-summary provenance counts. For a
 stricter post-capture gate, set
 `GOOSE_ANDROID_MIN_RAW_EVIDENCE=1`,
 `GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1`,
@@ -263,10 +264,12 @@ These files are build artifacts and are ignored by git.
   clearing, and two-tap local SQLite plus evidence-log deletion.
 - Exposes an Android evidence readiness report for phone handoff checks:
   raw/session/live-notification evidence rows, finished capture sessions,
-  decoded/step counts, BLE ready/hello/command-ready audit counts, same-row
-  command-ready client hello counts, Health Connect ready write-plan/write-attempt
-  counts, Health Connect inserted-record success counts, step-validation
-  session/decoded/selected-delta counts, and PASS/WAIT status.
+  decoded/step counts, daily activity local-estimate/device-counter provenance
+  counts, BLE ready/hello/command-ready audit counts, same-row command-ready
+  client hello counts, Health Connect ready write-plan/write-attempt counts,
+  Health Connect record-summary provenance counts, Health Connect
+  inserted-record success counts, step-validation session/decoded/selected-delta
+  counts, and PASS/WAIT status.
 - Records BLE scan/connect/session progress to
   `files/goose/ble-session-log.jsonl`, including ready state, command
   characteristic readiness, and same-row command-ready client-hello state for
@@ -307,8 +310,8 @@ These files are build artifacts and are ignored by git.
 - Records Health Connect sync attempts, blocked writes, successes, and failures
   to `files/goose/health-connect-sync-log.jsonl` for real-device debugging,
   including dry-run readiness, candidate count, planned write count, attempted
-  record counts on write attempts, and inserted record counts on successful
-  writes.
+  record counts and record-summary provenance on write attempts, and inserted
+  record counts on successful writes.
 - Disables Android backup and device-transfer extraction for app-local health
   data through manifest flags plus explicit backup/data-extraction rules.
 - Provides the Health Connect permissions rationale activity and Android 14+
@@ -343,7 +346,10 @@ These files are build artifacts and are ignored by git.
    compact summaries instead of dumping large raw JSON in the UI. `Motion` uses
    the marked validation window and manual step count to run the validated
    raw-motion step estimator; passing estimates can write local
-   `daily_activity_metrics` rows.
+   `daily_activity_metrics` rows. Final readiness compares daily
+   local-estimate/device-counter metric counts and Health Connect
+   record-summary provenance counts between the handoff summary and
+   `Scripts/inspect_android_capture.sh`.
 9. Pull and inspect the debug store:
    `Scripts/pull_android_database.sh tmp/goose-phone.sqlite`, then
    `Scripts/inspect_android_capture.sh tmp/goose-phone.sqlite`.
@@ -373,5 +379,7 @@ is bound to a capture session with decoded frames and a selected counter delta.
   Trusted heart-rate candidate planning is implemented; daily step candidates
   now include device-counter rows and validated raw-motion local-estimate rows,
   and active-calorie candidate planning is implemented for local-estimate rows.
+  Final evidence now also requires write-attempt record-summary provenance
+  counts to match the pulled audit inspection.
 - Optional Kotlin/Compose UI migration once the bridge and BLE behavior are
   stable.
