@@ -129,7 +129,7 @@ write_required_evidence_artifacts() {
   printf 'Package [com.goose.android] synthetic dumpsys placeholder\n' > "$dir/goose-package-dumpsys.txt"
   printf '1111111111111111111111111111111111111111111111111111111111111111\n' > "$dir/goose-local-debug-apk-sha256.txt"
   printf '1111111111111111111111111111111111111111111111111111111111111111\n' > "$dir/goose-installed-apk-sha256.txt"
-  printf '{"schema":"goose.android.ble-session-audit.v1","phase":"ready","hello_sent":true,"command_ready":true}\n' > "$dir/goose-phone-ble-session-log.jsonl"
+  printf '{"schema":"goose.android.ble-session-audit.v1","event":"connection_progress","details":{"phase":"operation_complete","active_operation_label":"client hello","hello_sent":true,"command_ready":true}}\n{"schema":"goose.android.ble-session-audit.v1","event":"connection_progress","details":{"phase":"ready","hello_sent":true,"command_ready":true}}\n' > "$dir/goose-phone-ble-session-log.jsonl"
   printf '{"schema":"goose.android.health-connect-sync-audit.v1","event":"write_started","permissions_ready":true,"planned_write_count":1,"candidate_count":1,"records_attempted":1}\n{"schema":"goose.android.health-connect-sync-audit.v1","event":"write_succeeded"}\n' > "$dir/goose-phone-health-connect-sync-log.jsonl"
   printf '{"schema":"goose.android.step-validation-audit.v1","event":"completed","pass":true,"capture_session_id":"android-session-a","capture_session_decoded_frame_count":1,"selected_delta":1}\n' > "$dir/goose-phone-step-validation-log.jsonl"
   {
@@ -150,6 +150,7 @@ write_required_evidence_artifacts() {
     printf 'health sync write succeeded events: 1\n'
     printf 'ble session ready events: 1\n'
     printf 'ble session hello sent events: 1\n'
+    printf 'ble session client hello completed events: 1\n'
     printf 'ble session command ready events: 1\n'
     printf 'step validation completed events: 1\n'
     printf 'step validation passed events: 1\n'
@@ -366,6 +367,7 @@ Result: PASS
 
 - Ready events: 1
 - Hello sent events: 1
+- Client hello completed events: 1
 - Command ready events: 1
 
 ## Health Connect
@@ -589,6 +591,7 @@ Result: PASS
 
 - Ready events: 1
 - Hello sent events: 1
+- Client hello completed events: 1
 - Command ready events: 1
 
 ## Health Connect

@@ -457,6 +457,7 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 || !report.contains("finished nonempty capture sessions: 1")
                 || !report.contains("ble session ready events:")
                 || !report.contains("ble session hello sent events:")
+                || !report.contains("ble session client hello completed events:")
                 || !report.contains("ble session command ready events:")
                 || !report.contains("health sync audit bytes:")
                 || !report.contains("health sync ready write started events:")

@@ -354,7 +354,8 @@ The final gate also requires session-tagged raw evidence and a finished capture
 session with `frame_count > 0`, plus installed `com.goose.android` package
 metadata and an installed APK hash match from the device, session-tagged Android
 BLE live-notification raw evidence, no focused AndroidRuntime crash lines for
-Goose, and a BLE session audit proving command readiness and client hello sent.
+Goose, and a BLE session audit proving command readiness plus a completed
+client hello write.
 Add `--allow-emulator`
 only for development smoke tests; PR acceptance still needs physical-phone
 evidence.

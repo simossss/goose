@@ -16,7 +16,7 @@ Usage: Scripts/android_phone_final_gate.sh [output-dir] [--require-step-validati
 
 Collects the final Android phone evidence bundle with strict pass/fail gates:
 - physical Android device, unless --allow-emulator is set
-- BLE session audit with client hello sent
+- BLE session audit with completed client hello write
 - at least one raw_evidence row
 - at least one capture_sessions row
 - at least one session-tagged raw_evidence row
@@ -78,7 +78,7 @@ if [[ "$ALLOW_EMULATOR" == "1" ]]; then
 else
   echo "Physical Android device: required"
 fi
-echo "BLE session/client hello evidence: required"
+echo "BLE session/completed client hello evidence: required"
 if [[ "$REQUIRE_STEP_VALIDATION" == "1" ]]; then
   echo "Step validation audit/pass: required"
 fi

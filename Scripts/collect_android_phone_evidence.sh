@@ -301,6 +301,7 @@ $(summary_section "Capture session evidence detail")
 - Audit bytes: $(summary_value "ble session audit bytes")
 - Ready events: $(summary_value "ble session ready events")
 - Hello sent events: $(summary_value "ble session hello sent events")
+- Client hello completed events: $(summary_value "ble session client hello completed events")
 - Command ready events: $(summary_value "ble session command ready events")
 
 ## Health Connect

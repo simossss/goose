@@ -423,13 +423,16 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     fi
     ble_ready_events="$(summary_bullet_value "Ready events" "$summary")"
     ble_hello_sent_events="$(summary_bullet_value "Hello sent events" "$summary")"
+    ble_client_hello_completed_events="$(summary_bullet_value "Client hello completed events" "$summary")"
     ble_command_ready_events="$(summary_bullet_value "Command ready events" "$summary")"
     inspection_ble_ready_events=""
     inspection_ble_hello_sent_events=""
+    inspection_ble_client_hello_completed_events=""
     inspection_ble_command_ready_events=""
     if [[ -f "$inspection_file" ]]; then
       inspection_ble_ready_events="$(status_value "ble session ready events" "$inspection_file")"
       inspection_ble_hello_sent_events="$(status_value "ble session hello sent events" "$inspection_file")"
+      inspection_ble_client_hello_completed_events="$(status_value "ble session client hello completed events" "$inspection_file")"
       inspection_ble_command_ready_events="$(status_value "ble session command ready events" "$inspection_file")"
     fi
     health_write_started="$(summary_bullet_value "Write started events" "$summary")"
@@ -511,6 +514,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     if [[ "$evidence_result_verified" == "1" \
       && "$ble_ready_events" == "$inspection_ble_ready_events" \
       && "$ble_hello_sent_events" == "$inspection_ble_hello_sent_events" \
+      && "$ble_client_hello_completed_events" == "$inspection_ble_client_hello_completed_events" \
       && "$ble_command_ready_events" == "$inspection_ble_command_ready_events" ]]; then
       evidence_ble_inspection_verified=1
     fi
@@ -620,6 +624,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$require_ble_hello" == "1" ]] \
       && is_positive_int "$ble_ready_events" \
       && is_positive_int "$ble_hello_sent_events" \
+      && is_positive_int "$ble_client_hello_completed_events" \
       && is_positive_int "$ble_command_ready_events"; then
       ble_hello_verified=1
     fi
@@ -716,6 +721,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Inspect ready events: $inspection_ble_ready_events"
     echo "- Hello sent events: $ble_hello_sent_events"
     echo "- Inspect hello sent events: $inspection_ble_hello_sent_events"
+    echo "- Client hello completed events: $ble_client_hello_completed_events"
+    echo "- Inspect client hello completed events: $inspection_ble_client_hello_completed_events"
     echo "- Command ready events: $ble_command_ready_events"
     echo "- Inspect command ready events: $inspection_ble_command_ready_events"
     echo
@@ -871,7 +878,7 @@ if [[ "$evidence_adb_device_verified" == "1" ]]; then
   verified_any=1
 fi
 if [[ "$ble_hello_verified" == "1" ]]; then
-  echo "- BLE session audit proves the app reached ready state with command characteristic ready and client hello sent."
+  echo "- BLE session audit proves the app reached ready state with command characteristic ready and completed client hello write."
   verified_any=1
 fi
 if [[ "$step_validation_verified" == "1" ]]; then
@@ -906,7 +913,7 @@ if [[ "$installed_package_verified" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$ble_hello_verified" != "1" ]]; then
-  echo "- BLE session audit from the final gate must prove command characteristic readiness and client hello sent."
+  echo "- BLE session audit from the final gate must prove command characteristic readiness and completed client hello write."
   remaining_any=1
 fi
 if [[ "$require_ble_hello" == "1" && "$evidence_ble_audit_manifest_verified" != "1" ]]; then

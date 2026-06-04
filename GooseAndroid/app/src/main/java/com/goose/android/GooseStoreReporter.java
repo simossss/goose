@@ -325,6 +325,11 @@ final class GooseStoreReporter {
             int bleHelloSentEvents = countFileRowsContainingAll(bleSessionAuditFile,
                     "\"schema\":\"goose.android.ble-session-audit.v1\"",
                     "\"hello_sent\":true");
+            int bleClientHelloCompletedEvents = countFileRowsContainingAll(bleSessionAuditFile,
+                    "\"schema\":\"goose.android.ble-session-audit.v1\"",
+                    "\"phase\":\"operation_complete\"",
+                    "\"active_operation_label\":\"client hello\"",
+                    "\"hello_sent\":true");
             int bleCommandReadyEvents = countFileRowsContainingAll(bleSessionAuditFile,
                     "\"schema\":\"goose.android.ble-session-audit.v1\"",
                     "\"command_ready\":true");
@@ -376,6 +381,7 @@ final class GooseStoreReporter {
                     + "ble session audit bytes: " + bleSessionAuditFile.length() + "\n"
                     + "ble session ready events: " + bleReadyEvents + "\n"
                     + "ble session hello sent events: " + bleHelloSentEvents + "\n"
+                    + "ble session client hello completed events: " + bleClientHelloCompletedEvents + "\n"
                     + "ble session command ready events: " + bleCommandReadyEvents + "\n"
                     + "health sync audit bytes: " + healthSyncAuditFile.length() + "\n"
                     + "health sync write started events: " + healthWriteStartedEvents + "\n"
