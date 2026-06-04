@@ -255,6 +255,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
   android_version_file="$PHONE_EVIDENCE_DIR/android-version.txt"
   android_sdk_file="$PHONE_EVIDENCE_DIR/android-sdk.txt"
   package_path_file="$PHONE_EVIDENCE_DIR/goose-package-path.txt"
+  package_summary_file="$PHONE_EVIDENCE_DIR/goose-package-summary.txt"
+  package_dumpsys_file="$PHONE_EVIDENCE_DIR/goose-package-dumpsys.txt"
   local_debug_apk_sha_file="$PHONE_EVIDENCE_DIR/goose-local-debug-apk-sha256.txt"
   installed_apk_sha_file="$PHONE_EVIDENCE_DIR/goose-installed-apk-sha256.txt"
   if [[ -f "$summary" ]]; then
@@ -321,8 +323,16 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     evidence_package_path=""
     evidence_local_debug_apk_sha=""
     evidence_installed_apk_sha=""
+    evidence_package_summary_verified=0
+    evidence_package_dumpsys_verified=0
     if [[ -f "$package_path_file" ]]; then
       evidence_package_path="$(sed -n '1p' "$package_path_file" | tr -d '\r')"
+    fi
+    if [[ -f "$package_summary_file" ]] && grep -q 'versionName=0.1.0' "$package_summary_file"; then
+      evidence_package_summary_verified=1
+    fi
+    if [[ -f "$package_dumpsys_file" ]] && grep -q 'Package \[com.goose.android\]' "$package_dumpsys_file"; then
+      evidence_package_dumpsys_verified=1
     fi
     if [[ -f "$local_debug_apk_sha_file" ]]; then
       evidence_local_debug_apk_sha="$(sed -n '1p' "$local_debug_apk_sha_file" | tr -d '\r')"
@@ -421,6 +431,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$summary_installed_apk_hash_result" == "PASS" \
       && "$installed_package_path" == package:* \
       && "$installed_package_path" == "$evidence_package_path" \
+      && "$evidence_package_summary_verified" == "1" \
+      && "$evidence_package_dumpsys_verified" == "1" \
       && "$summary_local_debug_apk_sha" =~ ^[0-9A-Fa-f]{64}$ \
       && "$summary_installed_apk_sha" =~ ^[0-9A-Fa-f]{64}$ \
       && "$evidence_local_debug_apk_sha" =~ ^[0-9A-Fa-f]{64}$ \
@@ -487,6 +499,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Result: $installed_result"
     echo "- Package path: $installed_package_path"
     echo "- Evidence package path file: $evidence_package_path"
+    echo "- Evidence package summary versionName=0.1.0: $evidence_package_summary_verified"
+    echo "- Evidence package dumpsys com.goose.android: $evidence_package_dumpsys_verified"
     echo "- Local debug APK SHA-256: $summary_local_debug_apk_sha"
     echo "- Evidence local debug APK SHA-256 file: $evidence_local_debug_apk_sha"
     echo "- Installed APK SHA-256: $summary_installed_apk_sha"
