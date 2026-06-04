@@ -169,6 +169,7 @@ verify_evidence_manifest() {
   local saw_device_kind=0
   local saw_result=0
   local saw_pull_result=0
+  local seen_paths=""
 
   [[ -f "$manifest" ]] || return 1
   while IFS=$'\t' read -r rel_path expected_bytes expected_sha extra || [[ -n "$rel_path" ]]; do
@@ -179,6 +180,10 @@ verify_evidence_manifest() {
     fi
     [[ -n "$rel_path" && -n "$expected_bytes" && -n "$expected_sha" && -z "${extra:-}" ]] || return 1
     [[ "$rel_path" != /* && "$rel_path" != *".."* && "$rel_path" != *$'\n'* ]] || return 1
+    if printf '%s' "$seen_paths" | grep -Fxq -- "$rel_path"; then
+      return 1
+    fi
+    seen_paths="${seen_paths}${rel_path}"$'\n'
     [[ "$expected_bytes" =~ ^[0-9]+$ ]] || return 1
     [[ "$expected_sha" =~ ^[0-9A-Fa-f]{64}$ ]] || return 1
     local file="$dir/$rel_path"
