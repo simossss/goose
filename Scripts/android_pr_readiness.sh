@@ -298,6 +298,7 @@ evidence_logcat_start_marker_verified=0
 evidence_manifest_verified=0
 evidence_result_verified=0
 evidence_pull_result_verified=0
+evidence_database_artifacts_verified=0
 evidence_capture_inspection_verified=0
 evidence_ble_inspection_verified=0
 evidence_health_inspection_verified=0
@@ -334,6 +335,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
   inspection_file="$PHONE_EVIDENCE_DIR/inspect-android-capture.txt"
   evidence_result_file="$PHONE_EVIDENCE_DIR/evidence-result.txt"
   pull_result_file="$PHONE_EVIDENCE_DIR/pull-android-database-result.txt"
+  database_file="$PHONE_EVIDENCE_DIR/goose-phone.sqlite"
   collect_error_file="$PHONE_EVIDENCE_DIR/collect-error.txt"
   focused_logcat_file="$PHONE_EVIDENCE_DIR/logcat-goose-brief.txt"
   full_logcat_file="$PHONE_EVIDENCE_DIR/logcat-threadtime.txt"
@@ -467,6 +469,12 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       evidence_logcat_start_marker="$(sed -n '1p' "$logcat_marker_file" | tr -d '\r')"
     fi
     raw_rows="$(summary_bullet_value "Raw evidence rows" "$summary")"
+    summary_database_bytes="$(summary_bullet_value "Database bytes" "$summary")"
+    summary_database_sha="$(summary_bullet_value "Database SHA-256" "$summary")"
+    summary_database_wal_bytes="$(summary_bullet_value "Database WAL bytes" "$summary")"
+    summary_database_wal_sha="$(summary_bullet_value "Database WAL SHA-256" "$summary")"
+    summary_database_shm_bytes="$(summary_bullet_value "Database SHM bytes" "$summary")"
+    summary_database_shm_sha="$(summary_bullet_value "Database SHM SHA-256" "$summary")"
     decoded_rows="$(summary_bullet_value "Decoded frame rows" "$summary")"
     capture_sessions="$(summary_bullet_value "Capture sessions" "$summary")"
     session_raw_rows="$(summary_bullet_value "Session raw evidence rows" "$summary")"
@@ -481,8 +489,20 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     inspection_session_live_notification_raw_rows=""
     inspection_session_decoded_rows=""
     inspection_finished_sessions=""
+    inspection_database_bytes=""
+    inspection_database_sha=""
+    inspection_database_wal_bytes=""
+    inspection_database_wal_sha=""
+    inspection_database_shm_bytes=""
+    inspection_database_shm_sha=""
     if [[ -f "$inspection_file" ]]; then
       inspection_result="$(status_value "RESULT" "$inspection_file")"
+      inspection_database_bytes="$(status_value "database bytes" "$inspection_file")"
+      inspection_database_sha="$(status_value "database sha256" "$inspection_file")"
+      inspection_database_wal_bytes="$(status_value "database wal bytes" "$inspection_file")"
+      inspection_database_wal_sha="$(status_value "database wal sha256" "$inspection_file")"
+      inspection_database_shm_bytes="$(status_value "database shm bytes" "$inspection_file")"
+      inspection_database_shm_sha="$(status_value "database shm sha256" "$inspection_file")"
       inspection_raw_rows="$(status_value "raw evidence" "$inspection_file")"
       inspection_decoded_rows="$(status_value "decoded frames" "$inspection_file")"
       inspection_capture_sessions="$(status_value "capture sessions" "$inspection_file")"
@@ -587,6 +607,39 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     fi
     if [[ "$evidence_manifest_verified" == "1" && "$pull_result" == "PASS" ]]; then
       evidence_pull_result_verified=1
+    fi
+    actual_database_bytes=""
+    actual_database_sha=""
+    actual_database_wal_bytes="0"
+    actual_database_wal_sha="missing"
+    actual_database_shm_bytes="0"
+    actual_database_shm_sha="missing"
+    if [[ -f "$database_file" ]]; then
+      actual_database_bytes="$(file_size "$database_file")"
+      actual_database_sha="$(file_sha256 "$database_file")"
+    fi
+    if [[ -f "$database_file-wal" ]]; then
+      actual_database_wal_bytes="$(file_size "$database_file-wal")"
+      actual_database_wal_sha="$(file_sha256 "$database_file-wal")"
+    fi
+    if [[ -f "$database_file-shm" ]]; then
+      actual_database_shm_bytes="$(file_size "$database_file-shm")"
+      actual_database_shm_sha="$(file_sha256 "$database_file-shm")"
+    fi
+    if [[ "$evidence_manifest_verified" == "1" \
+      && "$summary_database_bytes" == "$inspection_database_bytes" \
+      && "$summary_database_sha" == "$inspection_database_sha" \
+      && "$summary_database_wal_bytes" == "$inspection_database_wal_bytes" \
+      && "$summary_database_wal_sha" == "$inspection_database_wal_sha" \
+      && "$summary_database_shm_bytes" == "$inspection_database_shm_bytes" \
+      && "$summary_database_shm_sha" == "$inspection_database_shm_sha" \
+      && "$actual_database_bytes" == "$inspection_database_bytes" \
+      && "$actual_database_sha" == "$inspection_database_sha" \
+      && "$actual_database_wal_bytes" == "$inspection_database_wal_bytes" \
+      && "$actual_database_wal_sha" == "$inspection_database_wal_sha" \
+      && "$actual_database_shm_bytes" == "$inspection_database_shm_bytes" \
+      && "$actual_database_shm_sha" == "$inspection_database_shm_sha" ]]; then
+      evidence_database_artifacts_verified=1
     fi
     if [[ "$evidence_manifest_verified" == "1" && "$collect_error_bytes" == "0" ]]; then
       evidence_collect_error_free=1
@@ -841,6 +894,24 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Installed APK hash result: $summary_installed_apk_hash_result"
     echo
     echo "Capture evidence:"
+    echo "- Database bytes: $summary_database_bytes"
+    echo "- Inspect database bytes: $inspection_database_bytes"
+    echo "- Evidence database bytes: $actual_database_bytes"
+    echo "- Database SHA-256: $summary_database_sha"
+    echo "- Inspect database SHA-256: $inspection_database_sha"
+    echo "- Evidence database SHA-256: $actual_database_sha"
+    echo "- Database WAL bytes: $summary_database_wal_bytes"
+    echo "- Inspect database WAL bytes: $inspection_database_wal_bytes"
+    echo "- Evidence database WAL bytes: $actual_database_wal_bytes"
+    echo "- Database WAL SHA-256: $summary_database_wal_sha"
+    echo "- Inspect database WAL SHA-256: $inspection_database_wal_sha"
+    echo "- Evidence database WAL SHA-256: $actual_database_wal_sha"
+    echo "- Database SHM bytes: $summary_database_shm_bytes"
+    echo "- Inspect database SHM bytes: $inspection_database_shm_bytes"
+    echo "- Evidence database SHM bytes: $actual_database_shm_bytes"
+    echo "- Database SHM SHA-256: $summary_database_shm_sha"
+    echo "- Inspect database SHM SHA-256: $inspection_database_shm_sha"
+    echo "- Evidence database SHM SHA-256: $actual_database_shm_sha"
     echo "- Raw evidence rows: $raw_rows"
     echo "- Inspect raw evidence rows: $inspection_raw_rows"
     echo "- Decoded frame rows: $decoded_rows"
@@ -980,6 +1051,10 @@ if [[ "$evidence_pull_result_verified" == "1" ]]; then
   echo "- Android database pull helper result is PASS in the evidence bundle."
   verified_any=1
 fi
+if [[ "$evidence_database_artifacts_verified" == "1" ]]; then
+  echo "- Pulled SQLite database artifact hashes match inspect-android-capture.txt and phone handoff summary."
+  verified_any=1
+fi
 if [[ "$evidence_collect_error_free" == "1" ]]; then
   echo "- Evidence bundle has no collection error diagnostics."
   verified_any=1
@@ -1113,6 +1188,10 @@ if [[ "$evidence_result_verified" != "1" ]]; then
 fi
 if [[ "$evidence_pull_result_verified" != "1" ]]; then
   echo "- Android database pull helper result must be present and PASS."
+  remaining_any=1
+fi
+if [[ "$evidence_database_artifacts_verified" != "1" ]]; then
+  echo "- Pulled SQLite database artifact byte counts and SHA-256 hashes must match inspect-android-capture.txt and phone handoff summary."
   remaining_any=1
 fi
 if [[ "$evidence_collect_error_free" != "1" ]]; then

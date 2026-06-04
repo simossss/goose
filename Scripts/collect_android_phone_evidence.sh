@@ -116,6 +116,7 @@ GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=${GOOSE_ANDROID_MIN_FINISHED_CAPTURE
 GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}
 GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE=${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}
 GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH=${GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH:-0}
+GOOSE_ANDROID_REQUIRE_LOGCAT_START_MARKER=${GOOSE_ANDROID_REQUIRE_LOGCAT_START_MARKER:-0}
 GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT=${GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT:-0}
 GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=${GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT:-0}
 GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT:-0}
@@ -331,6 +332,12 @@ Result: ${inspection_result:-unknown}
 ## Capture
 
 - Database pull result: $(summary_value_from "RESULT" "$OUTPUT_DIR/pull-android-database-result.txt")
+- Database bytes: $(summary_value "database bytes")
+- Database SHA-256: $(summary_value "database sha256")
+- Database WAL bytes: $(summary_value "database wal bytes")
+- Database WAL SHA-256: $(summary_value "database wal sha256")
+- Database SHM bytes: $(summary_value "database shm bytes")
+- Database SHM SHA-256: $(summary_value "database shm sha256")
 - Raw evidence rows: $(summary_value "raw evidence")
 - Decoded frame rows: $(summary_value "decoded frames")
 - Capture sessions: $(summary_value "capture sessions")

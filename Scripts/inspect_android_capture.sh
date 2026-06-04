@@ -63,6 +63,33 @@ if ! command -v sqlite3 >/dev/null 2>&1; then
   exit 1
 fi
 
+file_sha256() {
+  local file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$file" | awk '{ print $1 }'
+  else
+    shasum -a 256 "$file" | awk '{ print $1 }'
+  fi
+}
+
+file_bytes_or_zero() {
+  local file="$1"
+  if [[ -f "$file" ]]; then
+    wc -c < "$file" | tr -d ' '
+  else
+    printf '0'
+  fi
+}
+
+file_sha256_or_missing() {
+  local file="$1"
+  if [[ -f "$file" ]]; then
+    file_sha256 "$file"
+  else
+    printf 'missing'
+  fi
+}
+
 if [[ ! -f "$DATABASE" ]]; then
   echo "Android database not found: $DATABASE" >&2
   echo "Pull it first with Scripts/pull_android_database.sh $DATABASE" >&2
@@ -187,7 +214,12 @@ fi
 
 echo "Android capture inspection"
 echo "database: $DATABASE"
-echo "database bytes: $(wc -c < "$DATABASE" | tr -d ' ')"
+echo "database bytes: $(file_bytes_or_zero "$DATABASE")"
+echo "database sha256: $(file_sha256_or_missing "$DATABASE")"
+echo "database wal bytes: $(file_bytes_or_zero "$DATABASE-wal")"
+echo "database wal sha256: $(file_sha256_or_missing "$DATABASE-wal")"
+echo "database shm bytes: $(file_bytes_or_zero "$DATABASE-shm")"
+echo "database shm sha256: $(file_sha256_or_missing "$DATABASE-shm")"
 echo "raw evidence: $raw_count"
 echo "decoded frames: $decoded_count"
 echo "capture sessions: $session_count"

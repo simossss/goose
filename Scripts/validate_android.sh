@@ -137,6 +137,12 @@ write_required_evidence_artifacts() {
   printf '{"schema":"goose.android.step-validation-audit.v1","event":"completed","pass":true,"capture_session_id":"android-session-a","capture_session_decoded_frame_count":1,"selected_delta":1}\n' > "$dir/goose-phone-step-validation-log.jsonl"
   {
     printf 'Android capture inspection\n'
+    printf 'database bytes: %s\n' "$(file_size "$dir/goose-phone.sqlite")"
+    printf 'database sha256: %s\n' "$(file_sha256 "$dir/goose-phone.sqlite")"
+    printf 'database wal bytes: 0\n'
+    printf 'database wal sha256: missing\n'
+    printf 'database shm bytes: 0\n'
+    printf 'database shm sha256: missing\n'
     printf 'raw evidence: 2\n'
     printf 'decoded frames: 1\n'
     printf 'capture sessions: 1\n'
@@ -354,6 +360,7 @@ if "$SCRIPT_DIR/android_pr_readiness.sh" --strict > "$readiness_strict_output" 2
   echo "PR readiness strict mode unexpectedly passed without phone evidence" >&2
   exit 1
 fi
+write_required_evidence_artifacts "$synthetic_evidence_dir"
 cat > "$synthetic_evidence_dir/phone-handoff-summary.md" <<SUMMARY
 # Goose Android Phone Evidence
 
@@ -382,6 +389,12 @@ Result: PASS
 ## Capture
 
 - Database pull result: PASS
+- Database bytes: $(file_size "$synthetic_evidence_dir/goose-phone.sqlite")
+- Database SHA-256: $(file_sha256 "$synthetic_evidence_dir/goose-phone.sqlite")
+- Database WAL bytes: 0
+- Database WAL SHA-256: missing
+- Database SHM bytes: 0
+- Database SHM SHA-256: missing
 - Raw evidence rows: 2
 - Decoded frame rows: 1
 - Capture sessions: 1
@@ -433,7 +446,6 @@ GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN=1
 GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=0
 GOOSE_ANDROID_REQUIRE_LOGCAT_START_MARKER=1
 GATES
-write_required_evidence_artifacts "$synthetic_evidence_dir"
 write_synthetic_manifest "$synthetic_evidence_dir"
 "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_evidence_dir" > "$readiness_strict_pass_output"
 
@@ -649,7 +661,8 @@ if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_incomplete_manifes
   echo "PR readiness strict mode unexpectedly passed with incomplete evidence manifest" >&2
   exit 1
 fi
-cat > "$synthetic_partial_evidence_dir/phone-handoff-summary.md" <<'SUMMARY'
+write_required_evidence_artifacts "$synthetic_partial_evidence_dir"
+cat > "$synthetic_partial_evidence_dir/phone-handoff-summary.md" <<SUMMARY
 # Goose Android Phone Evidence
 
 Generated at: 20260603T000000Z
@@ -676,6 +689,12 @@ Result: PASS
 
 ## Capture
 
+- Database bytes: $(file_size "$synthetic_partial_evidence_dir/goose-phone.sqlite")
+- Database SHA-256: $(file_sha256 "$synthetic_partial_evidence_dir/goose-phone.sqlite")
+- Database WAL bytes: 0
+- Database WAL SHA-256: missing
+- Database SHM bytes: 0
+- Database SHM SHA-256: missing
 - Raw evidence rows: 2
 - Decoded frame rows: 1
 - Capture sessions: 1
@@ -727,7 +746,6 @@ GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN=1
 GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=0
 GOOSE_ANDROID_REQUIRE_LOGCAT_START_MARKER=1
 GATES
-write_required_evidence_artifacts "$synthetic_partial_evidence_dir"
 write_synthetic_manifest "$synthetic_partial_evidence_dir"
 "$SCRIPT_DIR/android_pr_readiness.sh" "$synthetic_partial_evidence_dir" > "$readiness_partial_output"
 if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_partial_evidence_dir" > "$readiness_partial_strict_output" 2>&1; then
@@ -785,6 +803,8 @@ assert_file_contains "$readiness_strict_pass_output" "required counted-step vali
 assert_file_contains "$readiness_strict_pass_output" "Evidence result file: PASS" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff summary result matches evidence-result.txt." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Android database pull helper result is PASS in the evidence bundle." "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect database SHA-256:" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Pulled SQLite database artifact hashes match inspect-android-capture.txt and phone handoff summary." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect raw evidence rows: 2" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect decoded frame rows: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect session live notification raw evidence rows: 1" "PR readiness strict"
