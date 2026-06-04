@@ -99,8 +99,9 @@ Scripts/install_android_debug.sh
 
 Use `Scripts/install_android_debug.sh --no-build` after Android Studio has
 already built the APK. Set `ANDROID_SERIAL` when more than one adb device or
-emulator is online. The helper installs `app-debug.apk`, launches Goose, checks
-for immediate AndroidRuntime crashes, and prints the physical test checklist.
+emulator is online. The helper installs `app-debug.apk`, verifies the installed
+APK hash matches the local debug APK, launches Goose, checks for immediate
+AndroidRuntime crashes, and prints the physical test checklist.
 The final evidence and database-pull helpers also require `ANDROID_SERIAL` when
 more than one adb target is online, so phone evidence is never collected from an
 arbitrary emulator or secondary device.

@@ -303,7 +303,8 @@ Scripts/install_android_debug.sh
 
 Use `Scripts/install_android_debug.sh --no-build` after Android Studio has
 already built the debug APK. Set `ANDROID_SERIAL` when multiple adb devices are
-online.
+online. The helper reads the installed APK back over adb and verifies its
+SHA-256 matches the local debug APK before launching Goose.
 
 The final evidence and database-pull helpers also require `ANDROID_SERIAL` when
 more than one adb target is online, so phone evidence is never collected from an

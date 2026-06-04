@@ -24,13 +24,28 @@ if [[ -n "${JAVA_HOME:-}" ]]; then
   export PATH="$JAVA_HOME/bin:$PATH"
 fi
 
+file_sha256() {
+  local file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$file" | awk '{ print $1 }'
+  else
+    shasum -a 256 "$file" | awk '{ print $1 }'
+  fi
+}
+
+remote_file_sha256() {
+  local remote_path="$1"
+  "$ADB" -s "$device_serial" exec-out cat "$remote_path" | shasum -a 256 | awk '{ print $1 }'
+}
+
 usage() {
   cat <<'USAGE'
 Usage: Scripts/install_android_debug.sh [--no-build]
 
 Builds the Android debug APK unless --no-build or GOOSE_ANDROID_SKIP_BUILD=1 is
 set, installs it on an adb device, launches Goose, and checks for immediate
-AndroidRuntime crashes.
+AndroidRuntime crashes. After install, it reads the installed APK back over adb
+and verifies its SHA-256 matches the local debug APK.
 
 Set ANDROID_SERIAL when more than one adb device is online.
 USAGE
@@ -97,6 +112,25 @@ fi
 echo "==> Installing $PACKAGE on $device_serial"
 "$ADB" -s "$device_serial" install -r "$APK_PATH"
 
+echo "==> Verifying installed APK hash"
+package_path="$("$ADB" -s "$device_serial" shell pm path "$PACKAGE" 2>/dev/null | sed -n '1p' | tr -d '\r')"
+if [[ "$package_path" != package:* ]]; then
+  echo "Installed package path missing for $PACKAGE: $package_path" >&2
+  exit 1
+fi
+installed_apk_path="${package_path#package:}"
+local_apk_sha256="$(file_sha256 "$APK_PATH")"
+if ! installed_apk_sha256="$(remote_file_sha256 "$installed_apk_path" 2>/dev/null)"; then
+  echo "Unable to read installed APK for hash verification: $installed_apk_path" >&2
+  exit 1
+fi
+echo "Local debug APK sha256: $local_apk_sha256"
+echo "Installed APK sha256: $installed_apk_sha256"
+if [[ "$local_apk_sha256" != "$installed_apk_sha256" ]]; then
+  echo "Installed APK hash mismatch for $PACKAGE" >&2
+  exit 1
+fi
+
 "$ADB" -s "$device_serial" logcat -c || true
 
 echo "==> Launching $PACKAGE/$ACTIVITY on $device_serial"
@@ -124,6 +158,7 @@ fi
 
 cat <<NEXT_STEPS
 ==> Goose launched cleanly on $device_serial
+Installed APK hash verified against $APK_PATH
 
 Phone test checklist:
 1. Run Scripts/android_final_phone_checklist.sh for the current final-run sheet.
