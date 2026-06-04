@@ -12,6 +12,7 @@ if [[ -z "${ADB:-}" && -x "$HOME/Library/Android/sdk/platform-tools/adb" ]]; the
   ADB="$HOME/Library/Android/sdk/platform-tools/adb"
 fi
 ADB="${ADB:-adb}"
+GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS="${GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS:-60}"
 
 export ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
 export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
@@ -33,9 +34,47 @@ file_sha256() {
   fi
 }
 
+run_with_timeout() {
+  local label="$1"
+  local timeout_seconds="$2"
+  shift 2
+  local output_file
+  local pid
+  local elapsed=0
+  local status=0
+  output_file="$(mktemp "${TMPDIR:-/tmp}/goose-android-install-command.XXXXXX")"
+
+  "$@" > "$output_file" 2>&1 &
+  pid="$!"
+  while kill -0 "$pid" 2>/dev/null; do
+    if [[ "$elapsed" -ge "$timeout_seconds" ]]; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+      cat "$output_file"
+      rm -f "$output_file"
+      echo "$label timed out after ${timeout_seconds}s" >&2
+      return 124
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
+  set +e
+  wait "$pid"
+  status="$?"
+  set -e
+  cat "$output_file"
+  rm -f "$output_file"
+  return "$status"
+}
+
 remote_file_sha256() {
   local remote_path="$1"
-  "$ADB" -s "$device_serial" exec-out cat "$remote_path" | shasum -a 256 | awk '{ print $1 }'
+  run_with_timeout \
+    "Android installed APK read" \
+    "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+    "$ADB" -s "$device_serial" exec-out cat "$remote_path" \
+    | shasum -a 256 | awk '{ print $1 }'
 }
 
 usage() {
@@ -110,10 +149,16 @@ if [[ "$device_state" != "device" ]]; then
 fi
 
 echo "==> Installing $PACKAGE on $device_serial"
-"$ADB" -s "$device_serial" install -r "$APK_PATH"
+run_with_timeout \
+  "Android debug APK install" \
+  "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" install -r "$APK_PATH"
 
 echo "==> Verifying installed APK hash"
-package_path="$("$ADB" -s "$device_serial" shell pm path "$PACKAGE" 2>/dev/null | sed -n '1p' | tr -d '\r')"
+package_path="$(run_with_timeout \
+  "Android installed package path" \
+  "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" shell pm path "$PACKAGE" 2>/dev/null | sed -n '1p' | tr -d '\r')"
 if [[ "$package_path" != package:* ]]; then
   echo "Installed package path missing for $PACKAGE: $package_path" >&2
   exit 1
@@ -131,10 +176,16 @@ if [[ "$local_apk_sha256" != "$installed_apk_sha256" ]]; then
   exit 1
 fi
 
-"$ADB" -s "$device_serial" logcat -c || true
+run_with_timeout \
+  "Android logcat clear" \
+  "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" logcat -c || true
 
 echo "==> Launching $PACKAGE/$ACTIVITY on $device_serial"
-launch_output="$("$ADB" -s "$device_serial" shell am start -W -n "$PACKAGE/$ACTIVITY" 2>&1)"
+launch_output="$(run_with_timeout \
+  "Android app launch" \
+  "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" shell am start -W -n "$PACKAGE/$ACTIVITY" 2>&1)"
 printf '%s\n' "$launch_output"
 
 if grep -qE "Error:|Exception" <<<"$launch_output"; then
@@ -149,7 +200,10 @@ if [[ -n "$launch_status" && "$launch_status" != "ok" ]]; then
 fi
 
 sleep 2
-launch_crash_log="$("$ADB" -s "$device_serial" logcat -d -v brief AndroidRuntime:E '*:S' 2>/dev/null || true)"
+launch_crash_log="$(run_with_timeout \
+  "Android launch crash logcat" \
+  "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" logcat -d -v brief AndroidRuntime:E '*:S' 2>/dev/null || true)"
 if grep -q "$PACKAGE" <<<"$launch_crash_log"; then
   printf '%s\n' "$launch_crash_log" >&2
   echo "Android app logged a fatal exception after launch" >&2
