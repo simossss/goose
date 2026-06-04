@@ -1285,6 +1285,10 @@ if [[ "$evidence_result_verified" != "1" ]]; then
   echo "- Phone handoff summary result must match evidence-result.txt."
   remaining_any=1
 fi
+if [[ "$phone_evidence_supplied" == "1" && "$pull_result" != "PASS" ]]; then
+  echo "- pull-android-database-result.txt must report PASS for the database pull helper."
+  remaining_any=1
+fi
 if [[ "$evidence_pull_result_verified" != "1" ]]; then
   echo "- Android database pull helper result must be present and PASS."
   remaining_any=1
