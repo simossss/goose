@@ -339,9 +339,9 @@ $(summary_section "Capture session evidence detail")
 - goose-installed-apk-sha256.txt
 - inspect-android-capture.txt
 - goose-phone.sqlite
-- goose-phone-ble-session-log.jsonl, when present
-- goose-phone-health-connect-sync-log.jsonl, when present
-- goose-phone-step-validation-log.jsonl, when present
+- goose-phone-ble-session-log.jsonl, required when BLE hello gates are enabled
+- goose-phone-health-connect-sync-log.jsonl, required when Health Connect write gates are enabled
+- goose-phone-step-validation-log.jsonl, required when step-validation gates are enabled
 - logcat-goose-brief.txt
 - evidence-files-manifest.txt
 SUMMARY
@@ -366,9 +366,9 @@ Key files:
 - logcat-threadtime.txt: full device logcat snapshot.
 - logcat-goose-brief.txt: focused AndroidRuntime/Goose instrumentation logcat.
 - goose-phone.sqlite plus -wal/-shm: pulled debug app database files when present.
-- goose-phone-ble-session-log.jsonl: BLE scan/connect/session audit log when present.
-- goose-phone-health-connect-sync-log.jsonl: Health Connect sync audit log when present.
-- goose-phone-step-validation-log.jsonl: counted-step validation audit log when present.
+- goose-phone-ble-session-log.jsonl: BLE scan/connect/session audit log; required when BLE hello gates are enabled.
+- goose-phone-health-connect-sync-log.jsonl: Health Connect sync audit log; required when Health Connect write gates are enabled.
+- goose-phone-step-validation-log.jsonl: counted-step validation audit log; required when step-validation gates are enabled.
 - inspect-android-capture.txt: read-only SQLite capture summary.
 - phone-handoff-summary.md: concise PR and phone-session summary.
 - evidence-files-manifest.txt: pulled evidence files with byte counts and SHA-256 hashes.
