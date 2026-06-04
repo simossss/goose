@@ -700,8 +700,10 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         if (!audit.contains("\"candidate_count\":1")) {
             throw new AssertionError("ready-plan audit missing candidate_count: " + audit);
         }
-        if (!audit.contains("\"record_summary\"")) {
-            throw new AssertionError("ready-plan audit missing record_summary: " + audit);
+        if (!fileHasLineContainingAll(auditFile,
+                "\"event\":\"write_started\"",
+                "\"record_summary\"")) {
+            throw new AssertionError("ready-plan audit missing write_started record_summary: " + audit);
         }
         if (!audit.contains("\"StepsRecord\":1")) {
             throw new AssertionError("ready-plan audit missing StepsRecord count: " + audit);
@@ -1447,6 +1449,28 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             }
         }
         throw new AssertionError(permission + " not declared");
+    }
+
+    private boolean fileHasLineContainingAll(File file, String... fragments) throws Exception {
+        BufferedReader reader = new BufferedReader(new FileReader(file));
+        try {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                boolean matched = true;
+                for (String fragment : fragments) {
+                    if (!line.contains(fragment)) {
+                        matched = false;
+                        break;
+                    }
+                }
+                if (matched) {
+                    return true;
+                }
+            }
+            return false;
+        } finally {
+            reader.close();
+        }
     }
 
     private static final class NoOpBleListener implements GooseBleClient.Listener {
