@@ -1190,6 +1190,7 @@ assert_file_contains "$readiness_output" "Goose Android PR Readiness" "PR readin
 assert_file_contains "$readiness_output" "No phone evidence directory supplied." "PR readiness"
 assert_file_contains "$readiness_output" "Remaining Phone-Bound Acceptance" "PR readiness"
 assert_file_contains "$readiness_output" "Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real" "PR readiness"
+assert_file_contains "$readiness_output" "standard write-attempt gate already requires record-summary provenance" "PR readiness"
 assert_file_contains "$readiness_output" "Scripts/android_phone_final_gate.sh tmp/android-phone-diagnostic-gate-real --require-step-validation" "PR readiness"
 assert_file_contains "$readiness_output" "Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone evidence commit must match the current checkout commit." "PR readiness"
