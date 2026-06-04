@@ -66,8 +66,9 @@ without requiring step validation or strict PR readiness:
 Scripts/android_partial_phone_gate.sh tmp/android-phone-partial-gate-real
 ```
 
-The partial gate still requires a physical adb device by default and prints the
-remaining PR-readiness blockers from the collected evidence bundle.
+The partial gate still requires a clean git worktree and physical adb device by
+default, then prints the remaining PR-readiness blockers from the collected
+evidence bundle. Use `--allow-dirty` only for local debugging evidence.
 
 Manual build from Android Studio or the command line:
 

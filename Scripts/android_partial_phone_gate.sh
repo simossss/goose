@@ -8,10 +8,11 @@ OUTPUT_DIR="$APP_DIR/tmp/android-phone-partial-gate-$STAMP"
 RUN_VALIDATE=1
 REQUIRE_HEALTH_SUCCESS=0
 DRY_RUN=0
+ALLOW_DIRTY=0
 
 usage() {
   cat <<'USAGE'
-Usage: Scripts/android_partial_phone_gate.sh [output-dir] [--skip-validate] [--require-health-success] [--dry-run]
+Usage: Scripts/android_partial_phone_gate.sh [output-dir] [--skip-validate] [--require-health-success] [--allow-dirty] [--dry-run]
 
 Runs the Android phone evidence gate without requiring counted-step validation:
 1. Scripts/validate_android.sh, unless --skip-validate is set.
@@ -22,6 +23,11 @@ Use this while step-counter validation is parked to prove physical-phone BLE,
 capture-session, installed-package, and Health Connect write-attempt evidence.
 It intentionally does not run strict PR readiness, because the full PR gate still
 requires counted-step validation.
+
+The partial phone gate requires a clean git worktree by default, including no
+untracked non-ignored files, so the evidence bundle maps to a pushed commit.
+Use --allow-dirty only for local debugging evidence that will not be used for
+PR acceptance.
 
 The phone evidence step requires a physical adb device by default. Set
 ANDROID_SERIAL when more than one adb device is online.
@@ -41,6 +47,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --require-health-success)
       REQUIRE_HEALTH_SUCCESS=1
+      shift
+      ;;
+    --allow-dirty)
+      ALLOW_DIRTY=1
       shift
       ;;
     --dry-run)
@@ -65,6 +75,11 @@ done
 
 echo "Running Goose Android partial phone gate"
 echo "output: $OUTPUT_DIR"
+if [[ "$ALLOW_DIRTY" == "1" ]]; then
+  echo "clean worktree: skipped by --allow-dirty"
+else
+  echo "clean worktree: required"
+fi
 
 phone_gate_args=("$OUTPUT_DIR")
 if [[ "$REQUIRE_HEALTH_SUCCESS" == "1" ]]; then
@@ -85,6 +100,18 @@ if [[ "$DRY_RUN" == "1" ]]; then
   printf '%q ' "$SCRIPT_DIR/android_pr_readiness.sh" "$OUTPUT_DIR"
   printf '\n'
   exit 0
+fi
+
+if [[ "$ALLOW_DIRTY" != "1" ]]; then
+  dirty_tracked="$(git -C "$APP_DIR" status --short --untracked-files=no | wc -l | tr -d ' ')"
+  untracked="$(git -C "$APP_DIR" ls-files --others --exclude-standard | wc -l | tr -d ' ')"
+  if [[ "$dirty_tracked" != "0" || "$untracked" != "0" ]]; then
+    echo "Partial phone gate requires a clean git worktree." >&2
+    echo "Dirty tracked files: $dirty_tracked" >&2
+    echo "Untracked non-ignored files: $untracked" >&2
+    echo "Commit/stash changes first, or rerun with --allow-dirty for local debugging only." >&2
+    exit 1
+  fi
 fi
 
 if [[ "$RUN_VALIDATE" == "1" ]]; then
