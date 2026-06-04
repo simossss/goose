@@ -209,6 +209,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertStepValidationUiGuardrails();
         Log.i(TAG, "checking capture session start UI guardrails");
         assertCaptureSessionStartGuardrails();
+        Log.i(TAG, "checking command build generation guardrail");
+        assertCommandBuildGenerationGuardrail();
         Log.i(TAG, "checking Health Connect sync UI guardrails");
         assertHealthConnectSyncUiGuardrails();
         Log.i(TAG, "checking Health Connect sync duplicate-tap guardrail");
@@ -966,6 +968,15 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         String reason = MainActivity.captureSessionStartBlockReason(startInProgress, activeSessionId);
         if (reason == null || !reason.contains(expected)) {
             throw new AssertionError("unexpected capture session start guardrail reason: " + reason);
+        }
+    }
+
+    private void assertCommandBuildGenerationGuardrail() {
+        if (!MainActivity.isCurrentCommandBuild(3, 3)) {
+            throw new AssertionError("matching command build generation should be current");
+        }
+        if (MainActivity.isCurrentCommandBuild(2, 3)) {
+            throw new AssertionError("stale command build generation should not be current");
         }
     }
 

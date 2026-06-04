@@ -80,6 +80,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private volatile String activeCaptureSessionId;
     private volatile String lastFinishedCaptureSessionId;
     private PendingCommand pendingCommand;
+    private int commandBuildGeneration;
     private long clearLocalDataConfirmUntilMillis;
     private int notificationCount;
     private boolean destroyed;
@@ -134,6 +135,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     public void onStateChanged(String status) {
         runOnUiThreadIfAlive(() -> {
             if (status.toLowerCase(Locale.US).contains("disconnect")) {
+                commandBuildGeneration += 1;
                 pendingCommand = null;
             }
             bleStatus.setText(status);
@@ -629,6 +631,8 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             return;
         }
         clearLocalDataConfirmUntilMillis = 0L;
+        commandBuildGeneration += 1;
+        pendingCommand = null;
         packetIngestor.clearCaptureSession();
         activeCaptureSessionId = null;
         lastFinishedCaptureSessionId = null;
@@ -661,14 +665,23 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             return;
         }
         pendingCommand = null;
+        int buildGeneration = commandBuildGeneration + 1;
+        commandBuildGeneration = buildGeneration;
         packetStatus.setText("Preparing command: " + command);
         commandBuilder.build(command, payloadHex, result -> runOnUiThreadIfAlive(() -> {
+            if (!isCurrentCommandBuild(buildGeneration, commandBuildGeneration)) {
+                return;
+            }
             if (result.error != null) {
                 packetStatus.setText("Command build failed: " + result.error);
                 return;
             }
             prepareCommandConfirmation(result, payloadHex);
         }));
+    }
+
+    static boolean isCurrentCommandBuild(int callbackGeneration, int currentGeneration) {
+        return callbackGeneration == currentGeneration;
     }
 
     private void prepareCommandConfirmation(GooseCommandBuilder.Result result, String payloadHex) {
