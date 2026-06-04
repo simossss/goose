@@ -209,6 +209,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertStepValidationUiGuardrails();
         Log.i(TAG, "checking step validation start UI guardrails");
         assertStepValidationStartGuardrails();
+        Log.i(TAG, "checking step validation end UI guardrails");
+        assertStepValidationEndGuardrails();
         Log.i(TAG, "checking capture session start UI guardrails");
         assertCaptureSessionStartGuardrails();
         Log.i(TAG, "checking capture session finish UI guardrails");
@@ -1044,6 +1046,36 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 finishInProgress);
         if (reason == null || !reason.contains(expected)) {
             throw new AssertionError("unexpected step validation start guardrail reason: " + reason);
+        }
+    }
+
+    private void assertStepValidationEndGuardrails() {
+        String validStart = "2026-01-01T00:00:00.000Z";
+        if (MainActivity.stepValidationEndBlockReason(validStart, "android-smoke-session", false, false) != null) {
+            throw new AssertionError("active capture session should allow step validation end");
+        }
+        assertStepValidationEndBlocked("0000", "android-smoke-session", false, false, "Step validation Start");
+        assertStepValidationEndBlocked("", "android-smoke-session", false, false, "Step validation Start");
+        assertStepValidationEndBlocked(validStart, "", false, false, "Keep the capture session active");
+        assertStepValidationEndBlocked(validStart, null, false, false, "Keep the capture session active");
+        assertStepValidationEndBlocked(validStart, "android-smoke-session", true, false, "start is still running");
+        assertStepValidationEndBlocked(validStart, "android-smoke-session", false, true, "finish is still running");
+    }
+
+    private void assertStepValidationEndBlocked(
+            String start,
+            String activeSessionId,
+            boolean startInProgress,
+            boolean finishInProgress,
+            String expected
+    ) {
+        String reason = MainActivity.stepValidationEndBlockReason(
+                start,
+                activeSessionId,
+                startInProgress,
+                finishInProgress);
+        if (reason == null || !reason.contains(expected)) {
+            throw new AssertionError("unexpected step validation end guardrail reason: " + reason);
         }
     }
 

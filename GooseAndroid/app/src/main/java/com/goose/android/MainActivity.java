@@ -943,6 +943,15 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     }
 
     private void markValidationEnd() {
+        String blockReason = stepValidationEndBlockReason(
+                validationStart,
+                activeCaptureSessionId,
+                captureSessionStartInProgress,
+                captureSessionFinishInProgress);
+        if (blockReason != null) {
+            reportStatus.setText("Step validation blocked\n" + blockReason);
+            return;
+        }
         validationEnd = iso8601(System.currentTimeMillis());
         reportStatus.setText("Step validation end\n" + validationEnd);
     }
@@ -1028,6 +1037,27 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         }
         if (activeSessionId == null || activeSessionId.trim().isEmpty()) {
             return "Start a capture session before Step validation Start.";
+        }
+        return null;
+    }
+
+    static String stepValidationEndBlockReason(
+            String start,
+            String activeSessionId,
+            boolean startInProgress,
+            boolean finishInProgress
+    ) {
+        if (start == null || start.trim().isEmpty() || UNSET_VALIDATION_START.equals(start)) {
+            return "Tap Step validation Start before Step validation End.";
+        }
+        if (startInProgress) {
+            return "Capture session start is still running.";
+        }
+        if (finishInProgress) {
+            return "Capture session finish is still running.";
+        }
+        if (activeSessionId == null || activeSessionId.trim().isEmpty()) {
+            return "Keep the capture session active until Step validation End.";
         }
         return null;
     }
