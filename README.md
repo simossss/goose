@@ -263,17 +263,21 @@ Print the final real-phone run sheet before starting the controlled capture:
 Scripts/android_final_phone_checklist.sh
 ```
 
-After the controlled phone capture, run the full final PR gate:
+Run local Android validation before preparing the scoped phone evidence. After
+`Scripts/prepare_android_phone_evidence.sh` and the controlled phone capture,
+run the final PR gate with `--skip-validate` so the gate does not clear logcat
+or overwrite the start marker before evidence collection:
 
 ```bash
-Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real
+Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real --skip-validate
 ```
 
-This runs local Android validation, collects final phone evidence with required
-step validation, then applies strict PR readiness. Add
+Without `--skip-validate`, this runs local Android validation, collects final
+phone evidence with required step validation, then applies strict PR readiness.
+Use that default only before a controlled capture. Add
 `--require-health-success` when the run must prove a successful Health Connect
-platform write, `--skip-validate` when local validation was already run, or
-`--dry-run` to print the command sequence without using adb. The final PR gate
+platform write, or `--dry-run` to print the command sequence without using adb.
+The final PR gate
 requires a clean git worktree whose `HEAD` exactly matches the configured
 upstream branch, so the evidence bundle maps to the current pushed commit;
 `--allow-dirty` is for local debugging only.

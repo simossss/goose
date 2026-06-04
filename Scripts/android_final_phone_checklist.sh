@@ -44,17 +44,21 @@ Commit: $commit
 
 ## Pull Final Evidence
 
-Use the strict final gate after the app-side run. This requires a physical adb
-device by default; \`--allow-emulator\` is only for development smoke tests.
+Use the strict final gate after the app-side run. Because
+\`Scripts/prepare_android_phone_evidence.sh\` already cleared logcat and wrote
+the start marker before the controlled capture, use \`--skip-validate\` here so
+validation does not clear that scoped evidence before collection. This requires
+a physical adb device by default; \`--allow-emulator\` is only for development
+smoke tests.
 
 \`\`\`sh
-Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real
+Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real --skip-validate
 \`\`\`
 
 Require successful Health Connect write as well:
 
 \`\`\`sh
-Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real --require-health-success
+Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real --skip-validate --require-health-success
 \`\`\`
 
 For manual debugging without strict PR readiness, collect a separate diagnostic
