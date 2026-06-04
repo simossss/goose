@@ -233,6 +233,7 @@ no_android_runtime_crash_verified=0
 evidence_manifest_verified=0
 evidence_commit_verified=0
 evidence_device_serial_verified=0
+evidence_device_kind_verified=0
 step_validation_verified=0
 health_attempt_verified=0
 health_success_verified=0
@@ -244,6 +245,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
   manifest="$PHONE_EVIDENCE_DIR/evidence-files-manifest.txt"
   port_status="$PHONE_EVIDENCE_DIR/android-port-status.txt"
   android_serial_file="$PHONE_EVIDENCE_DIR/android-serial.txt"
+  android_device_kind_file="$PHONE_EVIDENCE_DIR/android-device-kind.txt"
   if [[ -f "$summary" ]]; then
     phone_evidence_supplied=1
     phone_summary_valid=1
@@ -265,6 +267,10 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       else
         device_kind="physical"
       fi
+    fi
+    evidence_device_kind=""
+    if [[ -f "$android_device_kind_file" ]]; then
+      evidence_device_kind="$(sed -n '1p' "$android_device_kind_file" | tr -d '\r')"
     fi
     installed_result="$(summary_bullet_value "Result" "$summary")"
     android_runtime_crash_lines="$(summary_bullet_value "Focused AndroidRuntime crash lines" "$summary")"
@@ -332,6 +338,12 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$device_serial" == "$evidence_device_serial" ]]; then
       evidence_device_serial_verified=1
     fi
+    if [[ "$evidence_manifest_verified" == "1" \
+      && -n "$device_kind" \
+      && -n "$evidence_device_kind" \
+      && "$device_kind" == "$evidence_device_kind" ]]; then
+      evidence_device_kind_verified=1
+    fi
     if [[ "$phone_result" == "PASS" && "$require_ble_hello" == "1" ]] \
       && is_positive_int "$ble_ready_events" \
       && is_positive_int "$ble_hello_sent_events" \
@@ -375,6 +387,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Device serial: $device_serial"
     echo "Evidence serial file: $evidence_device_serial"
     echo "Device kind: $device_kind"
+    echo "Evidence device kind file: $evidence_device_kind"
     echo "Device: $(status_value "Device" "$summary")"
     echo "Android: $(status_value "Android" "$summary")"
     echo "Summary commit: $summary_commit"
@@ -483,6 +496,10 @@ if [[ "$evidence_device_serial_verified" == "1" ]]; then
   echo "- Phone handoff summary device serial matches android-serial.txt."
   verified_any=1
 fi
+if [[ "$evidence_device_kind_verified" == "1" ]]; then
+  echo "- Phone handoff summary device kind matches android-device-kind.txt."
+  verified_any=1
+fi
 if [[ "$ble_hello_verified" == "1" ]]; then
   echo "- BLE session audit proves the app reached ready state with command characteristic ready and client hello sent."
   verified_any=1
@@ -536,6 +553,10 @@ if [[ "$evidence_commit_verified" != "1" ]]; then
 fi
 if [[ "$evidence_device_serial_verified" != "1" ]]; then
   echo "- Phone handoff summary device serial must match android-serial.txt."
+  remaining_any=1
+fi
+if [[ "$evidence_device_kind_verified" != "1" ]]; then
+  echo "- Phone handoff summary device kind must match android-device-kind.txt."
   remaining_any=1
 fi
 if [[ "$step_validation_verified" != "1" ]]; then
