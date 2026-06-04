@@ -1059,7 +1059,7 @@ if [[ "$installed_package_verified" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$ble_hello_verified" != "1" ]]; then
-  echo "- BLE session audit from the final gate must prove command characteristic readiness and completed client hello write."
+  echo "- BLE session audit from the final gate must prove completed client hello write in command-ready rows."
   remaining_any=1
 fi
 if [[ "$require_ble_hello" == "1" && "$evidence_ble_audit_manifest_verified" != "1" ]]; then

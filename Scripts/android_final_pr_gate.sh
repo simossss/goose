@@ -28,7 +28,8 @@ branch, so the evidence bundle maps to the pushed current commit.
 Use --allow-dirty only for local debugging evidence that will not be used for
 PR acceptance.
 Use --require-health-success only when the final phone run must prove a
-successful Health Connect platform write, not just a ready write attempt.
+successful Health Connect platform write with inserted records, not just a
+ready write attempt.
 Use --dry-run to print the command sequence without building, using adb, or
 collecting evidence.
 USAGE

@@ -765,7 +765,7 @@ assert_file_contains "$readiness_strict_pass_output" "Inspect ready hello comman
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff BLE session counts match inspect-android-capture.txt." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "BLE session audit log is included in the evidence byte/hash manifest." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "completed client hello write in command-ready rows." "PR readiness strict"
-assert_file_contains "$readiness_ble_command_ready_strict_output" "BLE session audit from the final gate must prove command characteristic readiness and completed client hello write." "PR readiness BLE command-ready strict"
+assert_file_contains "$readiness_ble_command_ready_strict_output" "BLE session audit from the final gate must prove completed client hello write in command-ready rows." "PR readiness BLE command-ready strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect records attempted events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect ready write succeeded events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect planned write succeeded events: 1" "PR readiness strict"

@@ -354,8 +354,8 @@ The final gate also requires session-tagged raw evidence and a finished capture
 session with `frame_count > 0`, plus installed `com.goose.android` package
 metadata and an installed APK hash match from the device, session-tagged Android
 BLE live-notification raw evidence, no focused AndroidRuntime crash lines for
-Goose, and a BLE session audit proving command readiness plus a completed
-client hello write. The evidence bundle must also show `adb-state-final.txt`
+Goose, and a BLE session audit proving completed client hello write in
+command-ready rows. The evidence bundle must also show `adb-state-final.txt`
 as `device` so the selected phone was still online after pull/hash/logcat
 collection.
 Add `--allow-emulator`
@@ -377,8 +377,8 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w com.goose.android.test/com.goose.android.GooseRustBridgeInstrumentationTest
 ```
 
-The remaining phone-dependent work is physical WHOOP strap validation with the
-BLE session audit, final capture-session-bound step-counter decoder
+The remaining phone-dependent work is physical WHOOP strap validation with a
+command-ready BLE hello audit, final capture-session-bound step-counter decoder
 confirmation, and Health Connect permission/write testing with real planned
 writes plus permissions-ready write-attempt evidence on a real Android device.
 

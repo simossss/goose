@@ -16,7 +16,7 @@ Usage: Scripts/android_phone_final_gate.sh [output-dir] [--require-step-validati
 
 Collects the final Android phone evidence bundle with strict pass/fail gates:
 - physical Android device, unless --allow-emulator is set
-- BLE session audit with completed client hello write
+- BLE session audit with completed client hello write in command-ready rows
 - at least one raw_evidence row
 - at least one decoded_frames row
 - at least one capture_sessions row
@@ -25,7 +25,8 @@ Collects the final Android phone evidence bundle with strict pass/fail gates:
 - at least one session-tagged decoded_frames row
 - at least one finished capture session with frame_count > 0
 - installed com.goose.android package metadata and APK hash match
-- Health Connect audit log and write_started event, unless --skip-health is set
+- Health Connect audit log and permissions-ready planned write_started event,
+  unless --skip-health is set
 
 Use --require-health-success only after granting Health Connect permissions and
 creating at least one writeable planned record in the app.
@@ -85,9 +86,9 @@ if [[ "$REQUIRE_STEP_VALIDATION" == "1" ]]; then
   echo "Step validation audit/pass: required"
 fi
 if [[ "$REQUIRE_HEALTH" == "1" ]]; then
-  echo "Health Connect audit/write attempt: required"
+  echo "Health Connect audit/permissions-ready planned write attempt: required"
   if [[ "$REQUIRE_HEALTH_SUCCESS" == "1" ]]; then
-    echo "Health Connect write success: required"
+    echo "Health Connect write success with inserted records: required"
   fi
 else
   echo "Health Connect gates: skipped"

@@ -173,7 +173,7 @@ Phone test checklist:
    Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-real
    Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
 
-Still phone-bound: physical WHOOP BLE session evidence, live-notification raw
-capture provenance, counted-step decoder confirmation, and Health Connect
-ready write-attempt evidence from a real Android phone.
+Still phone-bound: physical WHOOP command-ready BLE hello evidence,
+live-notification raw capture provenance, counted-step decoder confirmation,
+and Health Connect ready write-attempt evidence from a real Android phone.
 NEXT_STEPS

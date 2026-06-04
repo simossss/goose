@@ -34,7 +34,8 @@ The phone evidence step requires a physical adb device by default. Set
 ANDROID_SERIAL when more than one adb device is online.
 
 Use --require-health-success only when this partial run must prove a successful
-Health Connect platform write, not just a ready write attempt.
+Health Connect platform write with inserted records, not just a ready write
+attempt.
 Use --dry-run to print the command sequence without building, using adb, or
 collecting evidence.
 USAGE
