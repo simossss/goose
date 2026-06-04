@@ -131,14 +131,14 @@ final class HealthConnectSupport {
             callback.onReport("Health Connect sync\nNo dry-run report available.");
             return;
         }
-        if (!dryRunReport.optBoolean("pass", false)
-                || !dryRunReport.optBoolean("all_records_ready", false)
-                || dryRunReport.optInt("blocked_count", 0) > 0) {
+        String dryRunBlockReason = dryRunWriteBlockReason(dryRunReport);
+        if (dryRunBlockReason != null) {
             appendSyncAudit("blocked", putAudit(dryRunAuditDetails(dryRunReport),
-                    "reason", "dry_run_not_ready"));
+                    "reason", dryRunBlockReason));
             callback.onReport("Health Connect sync blocked\n"
                     + "pass: " + dryRunReport.optBoolean("pass", false) + "\n"
                     + "all records ready: " + dryRunReport.optBoolean("all_records_ready", false) + "\n"
+                    + "permissions ready: " + dryRunReport.optBoolean("permissions_ready", false) + "\n"
                     + "blocked: " + dryRunReport.optInt("blocked_count", 0) + "\n"
                     + "issues: " + dryRunReport.optJSONArray("issues"));
             return;
@@ -182,6 +182,25 @@ final class HealthConnectSupport {
             return;
         }
         insertRecords(dryRunReport, records, attempted, skipped, callback);
+    }
+
+    static String dryRunWriteBlockReason(JSONObject dryRunReport) {
+        if (dryRunReport == null) {
+            return "dry_run_report_missing";
+        }
+        if (!dryRunReport.optBoolean("pass", false)) {
+            return "dry_run_not_ready";
+        }
+        if (!dryRunReport.optBoolean("all_records_ready", false)) {
+            return "dry_run_not_ready";
+        }
+        if (!dryRunReport.optBoolean("permissions_ready", false)) {
+            return "permissions_not_ready";
+        }
+        if (dryRunReport.optInt("blocked_count", 0) > 0) {
+            return "dry_run_not_ready";
+        }
+        return null;
     }
 
     @SuppressLint("NewApi")

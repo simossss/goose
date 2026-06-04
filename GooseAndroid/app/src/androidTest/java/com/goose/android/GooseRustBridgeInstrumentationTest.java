@@ -213,6 +213,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertCommandBuildGenerationGuardrail();
         Log.i(TAG, "checking Health Connect sync UI guardrails");
         assertHealthConnectSyncUiGuardrails();
+        Log.i(TAG, "checking Health Connect writer dry-run guardrails");
+        assertHealthConnectWriterDryRunGuardrails();
         Log.i(TAG, "checking Health Connect sync duplicate-tap guardrail");
         assertHealthConnectSyncInProgressGuardrail();
         Log.i(TAG, "checking installed app privacy flags");
@@ -1003,6 +1005,27 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertHealthConnectSyncBlocked(healthSyncUiReport(true, true, true, 1, 1, 1), "Dry run is not ready");
     }
 
+    private void assertHealthConnectWriterDryRunGuardrails() throws Exception {
+        if (HealthConnectSupport.dryRunWriteBlockReason(healthSyncUiReport(
+                true,
+                true,
+                true,
+                1,
+                1,
+                0
+        )) != null) {
+            throw new AssertionError("valid Health Connect writer dry-run should not be blocked");
+        }
+        assertHealthConnectWriterBlocked(healthSyncUiReport(true, true, false, 1, 1, 0),
+                "permissions_not_ready");
+        assertHealthConnectWriterBlocked(healthSyncUiReport(false, true, true, 1, 1, 0),
+                "dry_run_not_ready");
+        assertHealthConnectWriterBlocked(healthSyncUiReport(true, false, true, 1, 1, 0),
+                "dry_run_not_ready");
+        assertHealthConnectWriterBlocked(healthSyncUiReport(true, true, true, 1, 1, 1),
+                "dry_run_not_ready");
+    }
+
     private void assertHealthConnectSyncInProgressGuardrail() {
         String reason = MainActivity.healthConnectSyncInProgressBlockReason(true);
         if (reason == null || !reason.contains("already running")) {
@@ -1010,6 +1033,13 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         }
         if (MainActivity.healthConnectSyncInProgressBlockReason(false) != null) {
             throw new AssertionError("idle Health Connect sync should not be blocked");
+        }
+    }
+
+    private void assertHealthConnectWriterBlocked(JSONObject report, String expected) {
+        String reason = HealthConnectSupport.dryRunWriteBlockReason(report);
+        if (!expected.equals(reason)) {
+            throw new AssertionError("unexpected Health Connect writer guardrail reason: " + reason);
         }
     }
 
