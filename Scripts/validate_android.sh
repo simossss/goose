@@ -113,7 +113,8 @@ write_required_evidence_artifacts() {
     printf 'commit: %s\n' "$SYNTHETIC_COMMIT"
     printf 'dirty tracked files: 0\n'
     printf 'untracked non-ignored files: 0\n'
-    printf 'Debug sha256: synthetic\n'
+    printf '\nDebug APK\n'
+    printf 'sha256: 1111111111111111111111111111111111111111111111111111111111111111\n'
   } > "$dir/android-port-status.txt"
   printf 'List of devices attached\nphysical-android-smoke\tdevice\n' > "$dir/adb-devices.txt"
   printf 'physical-android-smoke\n' > "$dir/android-serial.txt"
@@ -247,13 +248,14 @@ readiness_audit_manifest_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-
 readiness_health_audit_manifest_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-health-audit-manifest-strict.XXXXXX")"
 readiness_step_audit_manifest_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-step-audit-manifest-strict.XXXXXX")"
 readiness_stale_commit_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-stale-commit-strict.XXXXXX")"
+readiness_stale_debug_apk_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-stale-debug-apk-strict.XXXXXX")"
 readiness_dirty_status_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-dirty-status-strict.XXXXXX")"
 readiness_collect_error_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-collect-error-strict.XXXXXX")"
 final_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-final-gate-dry-run.XXXXXX")"
 partial_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-partial-gate-dry-run.XXXXXX")"
 inspect_session_detail_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-inspect-session-detail.XXXXXX")"
 synthetic_session_db="$(mktemp "${TMPDIR:-/tmp}/goose-android-session-detail.XXXXXX.sqlite")"
-TMP_FILES+=("$checklist_output" "$partial_checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$readiness_crash_strict_output" "$readiness_package_strict_output" "$readiness_health_success_strict_output" "$readiness_manifest_strict_output" "$readiness_stale_manifest_strict_output" "$readiness_incomplete_manifest_strict_output" "$readiness_audit_manifest_strict_output" "$readiness_health_audit_manifest_strict_output" "$readiness_step_audit_manifest_strict_output" "$readiness_stale_commit_strict_output" "$readiness_dirty_status_strict_output" "$readiness_collect_error_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output" "$inspect_session_detail_output" "$synthetic_session_db")
+TMP_FILES+=("$checklist_output" "$partial_checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$readiness_crash_strict_output" "$readiness_package_strict_output" "$readiness_health_success_strict_output" "$readiness_manifest_strict_output" "$readiness_stale_manifest_strict_output" "$readiness_incomplete_manifest_strict_output" "$readiness_audit_manifest_strict_output" "$readiness_health_audit_manifest_strict_output" "$readiness_step_audit_manifest_strict_output" "$readiness_stale_commit_strict_output" "$readiness_stale_debug_apk_strict_output" "$readiness_dirty_status_strict_output" "$readiness_collect_error_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output" "$inspect_session_detail_output" "$synthetic_session_db")
 synthetic_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-final-evidence.XXXXXX")"
 synthetic_partial_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-partial-evidence.XXXXXX")"
 synthetic_crash_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-crash-evidence.XXXXXX")"
@@ -266,9 +268,10 @@ synthetic_audit_manifest_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-androi
 synthetic_health_audit_manifest_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-health-audit-manifest-evidence.XXXXXX")"
 synthetic_step_audit_manifest_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-step-audit-manifest-evidence.XXXXXX")"
 synthetic_stale_commit_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-stale-commit-evidence.XXXXXX")"
+synthetic_stale_debug_apk_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-stale-debug-apk-evidence.XXXXXX")"
 synthetic_dirty_status_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-dirty-status-evidence.XXXXXX")"
 synthetic_collect_error_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-collect-error-evidence.XXXXXX")"
-TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir" "$synthetic_crash_evidence_dir" "$synthetic_package_evidence_dir" "$synthetic_health_success_evidence_dir" "$synthetic_manifest_evidence_dir" "$synthetic_stale_manifest_evidence_dir" "$synthetic_incomplete_manifest_evidence_dir" "$synthetic_audit_manifest_evidence_dir" "$synthetic_health_audit_manifest_evidence_dir" "$synthetic_step_audit_manifest_evidence_dir" "$synthetic_stale_commit_evidence_dir" "$synthetic_dirty_status_evidence_dir" "$synthetic_collect_error_evidence_dir")
+TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir" "$synthetic_crash_evidence_dir" "$synthetic_package_evidence_dir" "$synthetic_health_success_evidence_dir" "$synthetic_manifest_evidence_dir" "$synthetic_stale_manifest_evidence_dir" "$synthetic_incomplete_manifest_evidence_dir" "$synthetic_audit_manifest_evidence_dir" "$synthetic_health_audit_manifest_evidence_dir" "$synthetic_step_audit_manifest_evidence_dir" "$synthetic_stale_commit_evidence_dir" "$synthetic_stale_debug_apk_evidence_dir" "$synthetic_dirty_status_evidence_dir" "$synthetic_collect_error_evidence_dir")
 "$SCRIPT_DIR/android_final_phone_checklist.sh" > "$checklist_output"
 "$SCRIPT_DIR/android_partial_phone_checklist.sh" > "$partial_checklist_output"
 "$SCRIPT_DIR/android_final_pr_gate.sh" tmp/android-phone-final-gate-real --skip-validate --require-health-success --dry-run > "$final_gate_dry_run_output"
@@ -429,6 +432,23 @@ printf 'commit: stale-commit Synthetic stale evidence\nDebug sha256: synthetic\n
 write_synthetic_manifest "$synthetic_stale_commit_evidence_dir"
 if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_stale_commit_evidence_dir" > "$readiness_stale_commit_strict_output" 2>&1; then
   echo "PR readiness strict mode unexpectedly passed with stale commit evidence" >&2
+  exit 1
+fi
+
+cp "$synthetic_evidence_dir"/* "$synthetic_stale_debug_apk_evidence_dir"/
+stale_debug_apk_status_tmp="$synthetic_stale_debug_apk_evidence_dir/android-port-status.txt.tmp"
+awk '
+  $0 == "sha256: 1111111111111111111111111111111111111111111111111111111111111111" && !replaced {
+    print "sha256: 2222222222222222222222222222222222222222222222222222222222222222"
+    replaced = 1
+    next
+  }
+  { print }
+' "$synthetic_stale_debug_apk_evidence_dir/android-port-status.txt" > "$stale_debug_apk_status_tmp"
+mv "$stale_debug_apk_status_tmp" "$synthetic_stale_debug_apk_evidence_dir/android-port-status.txt"
+write_synthetic_manifest "$synthetic_stale_debug_apk_evidence_dir"
+if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_stale_debug_apk_evidence_dir" > "$readiness_stale_debug_apk_strict_output" 2>&1; then
+  echo "PR readiness strict mode unexpectedly passed with stale debug APK status evidence" >&2
   exit 1
 fi
 
@@ -714,9 +734,11 @@ assert_file_contains "$readiness_strict_pass_output" "Status snapshot commit: $S
 assert_file_contains "$readiness_strict_pass_output" "Current checkout commit: $SYNTHETIC_COMMIT" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Status snapshot dirty tracked files: 0" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Status snapshot untracked non-ignored files: 0" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Status snapshot debug APK SHA-256: 1111111111111111111111111111111111111111111111111111111111111111" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff summary commit matches the Android port status snapshot." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone evidence commit matches the current checkout commit." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone evidence status snapshot was collected from a clean worktree." "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Phone evidence local debug APK hash matches android-port-status.txt." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Evidence serial file: physical-android-smoke" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff summary device serial matches android-serial.txt." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Evidence device kind file: physical" "PR readiness strict"
@@ -761,6 +783,8 @@ assert_file_contains "$readiness_step_audit_manifest_strict_output" "Step-valida
 assert_file_contains "$readiness_step_audit_manifest_strict_output" "Strict PR readiness: FAIL" "PR readiness step audit manifest strict"
 assert_file_contains "$readiness_stale_commit_strict_output" "Phone evidence commit must match the current checkout commit." "PR readiness stale commit strict"
 assert_file_contains "$readiness_stale_commit_strict_output" "Strict PR readiness: FAIL" "PR readiness stale commit strict"
+assert_file_contains "$readiness_stale_debug_apk_strict_output" "Phone evidence local debug APK hash must match android-port-status.txt." "PR readiness stale debug APK strict"
+assert_file_contains "$readiness_stale_debug_apk_strict_output" "Strict PR readiness: FAIL" "PR readiness stale debug APK strict"
 assert_file_contains "$readiness_dirty_status_strict_output" "Phone evidence status snapshot must show 0 dirty tracked files and 0 untracked non-ignored files." "PR readiness dirty status strict"
 assert_file_contains "$readiness_dirty_status_strict_output" "Strict PR readiness: FAIL" "PR readiness dirty status strict"
 assert_file_contains "$readiness_collect_error_strict_output" "Evidence bundle must not contain nonempty collect-error.txt diagnostics." "PR readiness collect error strict"
@@ -818,6 +842,7 @@ assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "android-sdk.txt" "PR
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary commit must match android-port-status.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary result must match evidence-result.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Android database pull helper result must be present and PASS." "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone evidence local debug APK hash must match android-port-status.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff capture counts, including decoded frame counts, must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff BLE session counts must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff Health Connect counts must match inspect-android-capture.txt." "PR readiness"

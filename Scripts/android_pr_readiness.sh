@@ -49,6 +49,17 @@ status_value() {
   awk -F': ' -v key="$key" '$1 == key { print $2; exit }' "$file"
 }
 
+status_section_value() {
+  local section="$1"
+  local key="$2"
+  local file="$3"
+  awk -F': ' -v section="$section" -v key="$key" '
+    $0 == section { in_section = 1; next }
+    in_section && /^$/ { exit }
+    in_section && $1 == key { print $2; exit }
+  ' "$file"
+}
+
 summary_bullet_value() {
   local key="$1"
   local file="$2"
@@ -292,6 +303,7 @@ evidence_step_audit_manifest_verified=0
 evidence_commit_verified=0
 evidence_current_commit_verified=0
 evidence_clean_status_verified=0
+evidence_debug_apk_status_verified=0
 evidence_device_serial_verified=0
 evidence_device_kind_verified=0
 evidence_device_identity_verified=0
@@ -352,10 +364,12 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     port_status_commit=""
     port_status_dirty_tracked=""
     port_status_untracked=""
+    port_status_debug_apk_sha=""
     if [[ -f "$port_status" ]]; then
       port_status_commit="$(status_value "commit" "$port_status")"
       port_status_dirty_tracked="$(status_value "dirty tracked files" "$port_status")"
       port_status_untracked="$(status_value "untracked non-ignored files" "$port_status")"
+      port_status_debug_apk_sha="$(status_section_value "Debug APK" "sha256" "$port_status")"
     fi
     device_serial="$(status_value "Device serial" "$summary")"
     evidence_device_serial=""
@@ -630,6 +644,12 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       evidence_clean_status_verified=1
     fi
     if [[ "$evidence_manifest_verified" == "1" \
+      && "$port_status_debug_apk_sha" =~ ^[0-9A-Fa-f]{64}$ \
+      && "$evidence_local_debug_apk_sha" =~ ^[0-9A-Fa-f]{64}$ \
+      && "$(printf '%s' "$port_status_debug_apk_sha" | tr 'A-F' 'a-f')" == "$(printf '%s' "$evidence_local_debug_apk_sha" | tr 'A-F' 'a-f')" ]]; then
+      evidence_debug_apk_status_verified=1
+    fi
+    if [[ "$evidence_manifest_verified" == "1" \
       && -n "$device_serial" \
       && -n "$evidence_device_serial" \
       && "$device_serial" == "$evidence_device_serial" ]]; then
@@ -671,6 +691,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$installed_package_path" == "$evidence_package_path" \
       && "$evidence_package_summary_verified" == "1" \
       && "$evidence_package_dumpsys_verified" == "1" \
+      && "$evidence_debug_apk_status_verified" == "1" \
       && "$summary_local_debug_apk_sha" =~ ^[0-9A-Fa-f]{64}$ \
       && "$summary_installed_apk_sha" =~ ^[0-9A-Fa-f]{64}$ \
       && "$evidence_local_debug_apk_sha" =~ ^[0-9A-Fa-f]{64}$ \
@@ -753,6 +774,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Current checkout commit: $latest_commit"
     echo "Status snapshot dirty tracked files: $port_status_dirty_tracked"
     echo "Status snapshot untracked non-ignored files: $port_status_untracked"
+    echo "Status snapshot debug APK SHA-256: $port_status_debug_apk_sha"
     echo "Focused AndroidRuntime crash lines: $android_runtime_crash_lines"
     echo "Evidence focused AndroidRuntime crash lines: $evidence_android_runtime_crash_lines"
     echo
@@ -938,6 +960,10 @@ if [[ "$evidence_clean_status_verified" == "1" ]]; then
   echo "- Phone evidence status snapshot was collected from a clean worktree."
   verified_any=1
 fi
+if [[ "$evidence_debug_apk_status_verified" == "1" ]]; then
+  echo "- Phone evidence local debug APK hash matches android-port-status.txt."
+  verified_any=1
+fi
 if [[ "$evidence_device_serial_verified" == "1" ]]; then
   echo "- Phone handoff summary device serial matches android-serial.txt."
   verified_any=1
@@ -1051,6 +1077,10 @@ if [[ "$evidence_current_commit_verified" != "1" ]]; then
 fi
 if [[ "$evidence_clean_status_verified" != "1" ]]; then
   echo "- Phone evidence status snapshot must show 0 dirty tracked files and 0 untracked non-ignored files."
+  remaining_any=1
+fi
+if [[ "$evidence_debug_apk_status_verified" != "1" ]]; then
+  echo "- Phone evidence local debug APK hash must match android-port-status.txt."
   remaining_any=1
 fi
 if [[ "$evidence_device_serial_verified" != "1" ]]; then
