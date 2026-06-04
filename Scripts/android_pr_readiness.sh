@@ -429,22 +429,28 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       evidence_android_runtime_crash_lines="$(android_runtime_crash_lines "$focused_logcat_file")"
     fi
     raw_rows="$(summary_bullet_value "Raw evidence rows" "$summary")"
+    decoded_rows="$(summary_bullet_value "Decoded frame rows" "$summary")"
     capture_sessions="$(summary_bullet_value "Capture sessions" "$summary")"
     session_raw_rows="$(summary_bullet_value "Session raw evidence rows" "$summary")"
     session_live_notification_raw_rows="$(summary_bullet_value "Session live notification raw evidence rows" "$summary")"
+    session_decoded_rows="$(summary_bullet_value "Session decoded frame rows" "$summary")"
     finished_sessions="$(summary_bullet_value "Finished nonempty capture sessions" "$summary")"
     inspection_result=""
     inspection_raw_rows=""
+    inspection_decoded_rows=""
     inspection_capture_sessions=""
     inspection_session_raw_rows=""
     inspection_session_live_notification_raw_rows=""
+    inspection_session_decoded_rows=""
     inspection_finished_sessions=""
     if [[ -f "$inspection_file" ]]; then
       inspection_result="$(status_value "RESULT" "$inspection_file")"
       inspection_raw_rows="$(status_value "raw evidence" "$inspection_file")"
+      inspection_decoded_rows="$(status_value "decoded frames" "$inspection_file")"
       inspection_capture_sessions="$(status_value "capture sessions" "$inspection_file")"
       inspection_session_raw_rows="$(status_value "session raw evidence" "$inspection_file")"
       inspection_session_live_notification_raw_rows="$(status_value "session live notification raw evidence" "$inspection_file")"
+      inspection_session_decoded_rows="$(status_value "session decoded frames" "$inspection_file")"
       inspection_finished_sessions="$(status_value "finished nonempty capture sessions" "$inspection_file")"
     fi
     ble_ready_events="$(summary_bullet_value "Ready events" "$summary")"
@@ -534,14 +540,18 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     if [[ "$evidence_result_verified" == "1" \
       && "$inspection_result" == "PASS" \
       && "$raw_rows" == "$inspection_raw_rows" \
+      && "$decoded_rows" == "$inspection_decoded_rows" \
       && "$capture_sessions" == "$inspection_capture_sessions" \
       && "$session_raw_rows" == "$inspection_session_raw_rows" \
       && "$session_live_notification_raw_rows" == "$inspection_session_live_notification_raw_rows" \
+      && "$session_decoded_rows" == "$inspection_session_decoded_rows" \
       && "$finished_sessions" == "$inspection_finished_sessions" ]] \
       && is_positive_int "$raw_rows" \
+      && is_positive_int "$decoded_rows" \
       && is_positive_int "$capture_sessions" \
       && is_positive_int "$session_raw_rows" \
       && is_positive_int "$session_live_notification_raw_rows" \
+      && is_positive_int "$session_decoded_rows" \
       && is_positive_int "$finished_sessions"; then
       evidence_capture_inspection_verified=1
       capture_verified=1
@@ -743,12 +753,16 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Capture evidence:"
     echo "- Raw evidence rows: $raw_rows"
     echo "- Inspect raw evidence rows: $inspection_raw_rows"
+    echo "- Decoded frame rows: $decoded_rows"
+    echo "- Inspect decoded frame rows: $inspection_decoded_rows"
     echo "- Capture sessions: $capture_sessions"
     echo "- Inspect capture sessions: $inspection_capture_sessions"
     echo "- Session raw evidence rows: $session_raw_rows"
     echo "- Inspect session raw evidence rows: $inspection_session_raw_rows"
     echo "- Session live notification raw evidence rows: $session_live_notification_raw_rows"
     echo "- Inspect session live notification raw evidence rows: $inspection_session_live_notification_raw_rows"
+    echo "- Session decoded frame rows: $session_decoded_rows"
+    echo "- Inspect session decoded frame rows: $inspection_session_decoded_rows"
     echo "- Finished nonempty capture sessions: $finished_sessions"
     echo "- Inspect finished nonempty capture sessions: $inspection_finished_sessions"
     echo "- Step samples: $(summary_bullet_value "Step samples" "$summary")"
@@ -835,7 +849,7 @@ echo "## Verified Phone Acceptance"
 echo
 verified_any=0
 if [[ "$capture_verified" == "1" ]]; then
-  echo "- Controlled capture database pull has raw evidence, capture session, session-tagged Android BLE live-notification raw evidence, and a finished nonempty session."
+  echo "- Controlled capture database pull has raw evidence, decoded frames, capture session, session-tagged Android BLE live-notification raw evidence, session-tagged decoded frames, and a finished nonempty session."
   verified_any=1
 fi
 if [[ "$physical_capture_verified" == "1" ]]; then
@@ -990,7 +1004,7 @@ if [[ "$evidence_collect_error_free" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$evidence_capture_inspection_verified" != "1" ]]; then
-  echo "- Phone handoff capture counts must match inspect-android-capture.txt."
+  echo "- Phone handoff capture counts, including decoded frame counts, must match inspect-android-capture.txt."
   remaining_any=1
 fi
 if [[ "$evidence_ble_inspection_verified" != "1" ]]; then

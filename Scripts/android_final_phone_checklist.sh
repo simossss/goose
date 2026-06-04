@@ -84,9 +84,11 @@ Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
 - BLE session hello sent events: at least 1.
 - BLE session command ready events: at least 1.
 - Raw evidence rows: at least 1.
+- Decoded frame rows: at least 1.
 - Capture sessions: at least 1.
 - Session-tagged raw evidence rows: at least 1.
 - Session live notification raw evidence rows: at least 1.
+- Session decoded frame rows: at least 1.
 - Finished nonempty capture sessions: at least 1.
 - Step validation completed events: at least 1.
 - Step validation passed events: at least 1.

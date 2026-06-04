@@ -97,15 +97,18 @@ fi
 
 if [[ "${GOOSE_ANDROID_STRICT_EVIDENCE:-0}" == "1" ]]; then
   export GOOSE_ANDROID_MIN_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_RAW_EVIDENCE:-1}"
+  export GOOSE_ANDROID_MIN_DECODED_FRAMES="${GOOSE_ANDROID_MIN_DECODED_FRAMES:-1}"
   export GOOSE_ANDROID_MIN_CAPTURE_SESSIONS="${GOOSE_ANDROID_MIN_CAPTURE_SESSIONS:-1}"
 fi
 
 cat > "$OUTPUT_DIR/evidence-gates.txt" <<GATES
 GOOSE_ANDROID_STRICT_EVIDENCE=${GOOSE_ANDROID_STRICT_EVIDENCE:-0}
 GOOSE_ANDROID_MIN_RAW_EVIDENCE=${GOOSE_ANDROID_MIN_RAW_EVIDENCE:-0}
+GOOSE_ANDROID_MIN_DECODED_FRAMES=${GOOSE_ANDROID_MIN_DECODED_FRAMES:-0}
 GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=${GOOSE_ANDROID_MIN_CAPTURE_SESSIONS:-0}
 GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=${GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE:-0}
 GOOSE_ANDROID_MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE=${GOOSE_ANDROID_MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE:-0}
+GOOSE_ANDROID_MIN_SESSION_DECODED_FRAMES=${GOOSE_ANDROID_MIN_SESSION_DECODED_FRAMES:-0}
 GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=${GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS:-0}
 GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}
 GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE=${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}
@@ -297,6 +300,7 @@ Result: ${inspection_result:-unknown}
 - Capture sessions: $(summary_value "capture sessions")
 - Session raw evidence rows: $(summary_value "session raw evidence")
 - Session live notification raw evidence rows: $(summary_value "session live notification raw evidence")
+- Session decoded frame rows: $(summary_value "session decoded frames")
 - Finished nonempty capture sessions: $(summary_value "finished nonempty capture sessions")
 - Step samples: $(summary_value "step samples")
 - Daily activity metrics: $(summary_value "daily activity metrics")
@@ -400,12 +404,13 @@ local debugging.
 Strict mode:
 GOOSE_ANDROID_STRICT_EVIDENCE=1 Scripts/collect_android_phone_evidence.sh
 
-Strict mode requires at least one raw_evidence row and one capture_sessions row.
-The final phone gate additionally requires session-tagged raw_evidence, at least
-one session-tagged Android BLE live-notification raw_evidence row, and a finished
-nonempty capture session. Set GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=1 to
-require installed com.goose.android package metadata and an installed APK hash
-match.
+Strict mode requires at least one raw_evidence row, one decoded_frames row, and
+one capture_sessions row. The final phone gate additionally requires
+session-tagged raw_evidence, at least one session-tagged Android BLE
+live-notification raw_evidence row, at least one session-tagged decoded_frames
+row, and a finished nonempty capture session. Set
+GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=1 to require installed com.goose.android
+package metadata and an installed APK hash match.
 Set GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE=1 to reject emulator evidence.
 Set GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH=1 to fail the bundle when
 the focused AndroidRuntime logcat contains com.goose.android crash lines.

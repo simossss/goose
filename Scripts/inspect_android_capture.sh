@@ -7,9 +7,11 @@ HEALTH_AUDIT_LOG="${HEALTH_AUDIT_LOG:-$DATABASE_BASENAME-health-connect-sync-log
 STEP_VALIDATION_LOG="${STEP_VALIDATION_LOG:-$DATABASE_BASENAME-step-validation-log.jsonl}"
 BLE_SESSION_LOG="${BLE_SESSION_LOG:-$DATABASE_BASENAME-ble-session-log.jsonl}"
 MIN_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_RAW_EVIDENCE:-0}"
+MIN_DECODED_FRAMES="${GOOSE_ANDROID_MIN_DECODED_FRAMES:-0}"
 MIN_CAPTURE_SESSIONS="${GOOSE_ANDROID_MIN_CAPTURE_SESSIONS:-0}"
 MIN_SESSION_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE:-0}"
 MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE="${GOOSE_ANDROID_MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE:-0}"
+MIN_SESSION_DECODED_FRAMES="${GOOSE_ANDROID_MIN_SESSION_DECODED_FRAMES:-0}"
 MIN_FINISHED_CAPTURE_SESSIONS="${GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS:-0}"
 REQUIRE_BLE_SESSION_AUDIT="${GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT:-0}"
 REQUIRE_BLE_HELLO_SENT="${GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT:-0}"
@@ -33,9 +35,11 @@ summary. Pair it with:
 
 Optional assertions:
   GOOSE_ANDROID_MIN_RAW_EVIDENCE=1
+  GOOSE_ANDROID_MIN_DECODED_FRAMES=1
   GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1
   GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=1
   GOOSE_ANDROID_MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE=1
+  GOOSE_ANDROID_MIN_SESSION_DECODED_FRAMES=1
   GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1
   GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT=1
   GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1
@@ -113,6 +117,10 @@ decoded_count="$(table_count decoded_frames)"
 session_count="$(table_count capture_sessions)"
 session_raw_count="$(table_scalar_or_missing raw_evidence "SELECT COUNT(*) FROM raw_evidence WHERE COALESCE(capture_session_id, '') != '';")"
 session_live_notification_raw_count="$(table_scalar_or_missing raw_evidence "SELECT COUNT(*) FROM raw_evidence WHERE COALESCE(capture_session_id, '') != '' AND source LIKE 'goose-android/live-notification/%';")"
+session_decoded_count="missing"
+if table_exists raw_evidence && table_exists decoded_frames && column_exists raw_evidence capture_session_id && column_exists decoded_frames evidence_id; then
+  session_decoded_count="$(sqlite_scalar "SELECT COUNT(decoded_frames.frame_id) FROM decoded_frames INNER JOIN raw_evidence ON raw_evidence.evidence_id = decoded_frames.evidence_id WHERE COALESCE(raw_evidence.capture_session_id, '') != '';")"
+fi
 finished_session_count="$(table_scalar_or_missing capture_sessions "SELECT COUNT(*) FROM capture_sessions WHERE status = 'finished' AND frame_count > 0;")"
 step_count="$(table_count step_counter_samples)"
 activity_metric_count="$(table_count daily_activity_metrics)"
@@ -175,6 +183,7 @@ echo "decoded frames: $decoded_count"
 echo "capture sessions: $session_count"
 echo "session raw evidence: $session_raw_count"
 echo "session live notification raw evidence: $session_live_notification_raw_count"
+echo "session decoded frames: $session_decoded_count"
 echo "finished nonempty capture sessions: $finished_session_count"
 echo "step samples: $step_count"
 echo "daily activity metrics: $activity_metric_count"
@@ -346,6 +355,14 @@ elif [[ "$raw_count" == "missing" && "$MIN_RAW_EVIDENCE" -gt 0 ]]; then
   failures=$((failures + 1))
 fi
 
+if [[ "$decoded_count" != "missing" && "$decoded_count" -lt "$MIN_DECODED_FRAMES" ]]; then
+  echo "FAIL: decoded_frames rows $decoded_count < required $MIN_DECODED_FRAMES" >&2
+  failures=$((failures + 1))
+elif [[ "$decoded_count" == "missing" && "$MIN_DECODED_FRAMES" -gt 0 ]]; then
+  echo "FAIL: decoded_frames table missing" >&2
+  failures=$((failures + 1))
+fi
+
 if [[ "$session_count" != "missing" && "$session_count" -lt "$MIN_CAPTURE_SESSIONS" ]]; then
   echo "FAIL: capture_sessions rows $session_count < required $MIN_CAPTURE_SESSIONS" >&2
   failures=$((failures + 1))
@@ -367,6 +384,14 @@ if [[ "$session_live_notification_raw_count" != "missing" && "$session_live_noti
   failures=$((failures + 1))
 elif [[ "$session_live_notification_raw_count" == "missing" && "$MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE" -gt 0 ]]; then
   echo "FAIL: raw_evidence table missing" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$session_decoded_count" != "missing" && "$session_decoded_count" -lt "$MIN_SESSION_DECODED_FRAMES" ]]; then
+  echo "FAIL: session-tagged decoded_frames rows $session_decoded_count < required $MIN_SESSION_DECODED_FRAMES" >&2
+  failures=$((failures + 1))
+elif [[ "$session_decoded_count" == "missing" && "$MIN_SESSION_DECODED_FRAMES" -gt 0 ]]; then
+  echo "FAIL: session-tagged decoded_frames unavailable" >&2
   failures=$((failures + 1))
 fi
 

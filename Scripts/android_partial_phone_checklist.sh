@@ -73,9 +73,11 @@ Scripts/android_pr_readiness.sh tmp/android-phone-partial-diagnostic-gate-real
 - BLE session hello sent events: at least 1.
 - BLE session command ready events: at least 1.
 - Raw evidence rows: at least 1.
+- Decoded frame rows: at least 1.
 - Capture sessions: at least 1.
 - Session raw evidence rows: at least 1.
 - Session live notification raw evidence rows: at least 1.
+- Session decoded frame rows: at least 1.
 - Finished nonempty capture sessions: at least 1.
 - Health Connect write started events: at least 1.
 - Health Connect ready write started events: at least 1.

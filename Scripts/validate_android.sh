@@ -140,6 +140,7 @@ write_required_evidence_artifacts() {
     printf 'capture sessions: 1\n'
     printf 'session raw evidence: 1\n'
     printf 'session live notification raw evidence: 1\n'
+    printf 'session decoded frames: 1\n'
     printf 'finished nonempty capture sessions: 1\n'
     printf 'step samples: 1\n'
     printf 'daily activity metrics: 1\n'
@@ -366,6 +367,7 @@ Result: PASS
 - Capture sessions: 1
 - Session raw evidence rows: 1
 - Session live notification raw evidence rows: 1
+- Session decoded frame rows: 1
 - Finished nonempty capture sessions: 1
 - Step samples: 1
 - Daily activity metrics: 1
@@ -598,6 +600,7 @@ Result: PASS
 - Capture sessions: 1
 - Session raw evidence rows: 1
 - Session live notification raw evidence rows: 1
+- Session decoded frame rows: 1
 - Finished nonempty capture sessions: 1
 - Step samples: 1
 - Daily activity metrics: 1
@@ -651,6 +654,8 @@ assert_file_contains "$checklist_output" "without strict PR readiness" "final ph
 assert_file_contains "$checklist_output" "Reprint the PR-ready summary" "final phone checklist"
 assert_file_contains "$checklist_output" "Focused AndroidRuntime crash lines: 0." "final phone checklist"
 assert_file_contains "$checklist_output" "Installed com.goose.android package metadata and APK hash match: PASS." "final phone checklist"
+assert_file_contains "$checklist_output" "Decoded frame rows: at least 1." "final phone checklist"
+assert_file_contains "$checklist_output" "Session decoded frame rows: at least 1." "final phone checklist"
 assert_file_contains "$checklist_output" "\`adb-devices.txt\`" "final phone checklist"
 assert_file_contains "$checklist_output" "\`android-serial.txt\`" "final phone checklist"
 assert_file_contains "$checklist_output" "\`device-model.txt\`" "final phone checklist"
@@ -667,6 +672,8 @@ assert_file_contains "$partial_checklist_output" "Scripts/android_partial_phone_
 assert_file_contains "$partial_checklist_output" "Scripts/android_phone_final_gate.sh tmp/android-phone-partial-diagnostic-gate-real" "partial phone checklist"
 assert_file_contains "$partial_checklist_output" "separate diagnostic bundle" "partial phone checklist"
 assert_file_contains "$partial_checklist_output" "Installed com.goose.android package metadata and APK hash match: PASS." "partial phone checklist"
+assert_file_contains "$partial_checklist_output" "Decoded frame rows: at least 1." "partial phone checklist"
+assert_file_contains "$partial_checklist_output" "Session decoded frame rows: at least 1." "partial phone checklist"
 assert_file_contains "$partial_checklist_output" "Session live notification raw evidence rows: at least 1." "partial phone checklist"
 assert_file_contains "$partial_checklist_output" "Health Connect ready write started events: at least 1." "partial phone checklist"
 assert_file_contains "$partial_checklist_output" "Counted-step validation with" "partial phone checklist"
@@ -684,7 +691,9 @@ assert_file_contains "$readiness_strict_pass_output" "Evidence result file: PASS
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff summary result matches evidence-result.txt." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Android database pull helper result is PASS in the evidence bundle." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect raw evidence rows: 2" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect decoded frame rows: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect session live notification raw evidence rows: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect session decoded frame rows: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff capture counts match inspect-android-capture.txt." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect hello sent events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff BLE session counts match inspect-android-capture.txt." "PR readiness strict"
@@ -797,7 +806,7 @@ assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "android-sdk.txt" "PR
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary commit must match android-port-status.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary result must match evidence-result.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Android database pull helper result must be present and PASS." "PR readiness"
-assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff capture counts must match inspect-android-capture.txt." "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff capture counts, including decoded frame counts, must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff BLE session counts must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff Health Connect counts must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff step-validation counts must match inspect-android-capture.txt." "PR readiness"

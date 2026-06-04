@@ -103,7 +103,7 @@ Strict PR readiness after final phone evidence:
 Phone-bound completion checks:
   1. Physical WHOOP scan/connect validation on a real Android phone.
   2. BLE session audit proving command readiness and completed client hello write.
-  3. Controlled capture pull with session-tagged Android BLE live-notification raw evidence inspected with Scripts/inspect_android_capture.sh.
+  3. Controlled capture pull with decoded frames and session-tagged Android BLE live-notification raw evidence inspected with Scripts/inspect_android_capture.sh.
   4. Evidence bundle manifest with path, byte count, and SHA-256 for pulled files.
   5. Step-counter decoder confirmation from real counted-step evidence bound to a decoded capture session with a nonzero selected counter delta.
   6. Health Connect permission grant and real planned write attempt on Android 14+ with permissions-ready planned-write evidence.

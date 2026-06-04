@@ -18,9 +18,11 @@ Collects the final Android phone evidence bundle with strict pass/fail gates:
 - physical Android device, unless --allow-emulator is set
 - BLE session audit with completed client hello write
 - at least one raw_evidence row
+- at least one decoded_frames row
 - at least one capture_sessions row
 - at least one session-tagged raw_evidence row
 - at least one session-tagged Android BLE live-notification raw_evidence row
+- at least one session-tagged decoded_frames row
 - at least one finished capture session with frame_count > 0
 - installed com.goose.android package metadata and APK hash match
 - Health Connect audit log and write_started event, unless --skip-health is set
@@ -93,9 +95,11 @@ fi
 
 export GOOSE_ANDROID_STRICT_EVIDENCE=1
 export GOOSE_ANDROID_MIN_RAW_EVIDENCE=1
+export GOOSE_ANDROID_MIN_DECODED_FRAMES=1
 export GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1
 export GOOSE_ANDROID_MIN_SESSION_RAW_EVIDENCE=1
 export GOOSE_ANDROID_MIN_SESSION_LIVE_NOTIFICATION_RAW_EVIDENCE=1
+export GOOSE_ANDROID_MIN_SESSION_DECODED_FRAMES=1
 export GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1
 export GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=1
 export GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH=1
