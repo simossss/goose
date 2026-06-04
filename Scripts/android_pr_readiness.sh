@@ -1202,7 +1202,7 @@ if [[ "$evidence_collect_error_free" == "1" ]]; then
   verified_any=1
 fi
 if [[ "$evidence_capture_inspection_verified" == "1" ]]; then
-  echo "- Phone handoff capture counts match inspect-android-capture.txt."
+  echo "- Phone handoff capture counts, including daily activity provenance counts, match inspect-android-capture.txt."
   verified_any=1
 fi
 if [[ "$evidence_ble_inspection_verified" == "1" ]]; then
@@ -1210,7 +1210,7 @@ if [[ "$evidence_ble_inspection_verified" == "1" ]]; then
   verified_any=1
 fi
 if [[ "$evidence_health_inspection_verified" == "1" ]]; then
-  echo "- Phone handoff Health Connect counts match inspect-android-capture.txt."
+  echo "- Phone handoff Health Connect counts, including record-summary counts, match inspect-android-capture.txt."
   verified_any=1
 fi
 if [[ "$evidence_step_inspection_verified" == "1" ]]; then
@@ -1354,6 +1354,7 @@ if [[ "$evidence_collect_error_free" != "1" ]]; then
 fi
 if [[ "$evidence_capture_inspection_verified" != "1" ]]; then
   echo "- Phone handoff capture counts, including decoded frame counts, must match inspect-android-capture.txt."
+  echo "- Phone handoff daily activity provenance counts must be present, numeric, and match inspect-android-capture.txt."
   remaining_any=1
 fi
 if [[ "$evidence_ble_inspection_verified" != "1" ]]; then
@@ -1362,6 +1363,7 @@ if [[ "$evidence_ble_inspection_verified" != "1" ]]; then
 fi
 if [[ "$evidence_health_inspection_verified" != "1" ]]; then
   echo "- Phone handoff Health Connect counts must match inspect-android-capture.txt."
+  echo "- Phone handoff Health Connect record-summary counts must be present, numeric, and match inspect-android-capture.txt."
   remaining_any=1
 fi
 if [[ "$evidence_step_inspection_verified" != "1" ]]; then
