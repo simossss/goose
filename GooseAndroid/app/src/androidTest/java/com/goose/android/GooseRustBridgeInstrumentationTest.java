@@ -209,6 +209,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertBleStaleGattCallbackGuardrails();
         Log.i(TAG, "checking step validation UI guardrails");
         assertStepValidationUiGuardrails();
+        Log.i(TAG, "checking raw-motion step estimate UI guardrails");
+        assertRawMotionStepEstimateUiGuardrails();
         Log.i(TAG, "checking step validation start UI guardrails");
         assertStepValidationStartGuardrails();
         Log.i(TAG, "checking step validation end UI guardrails");
@@ -1042,6 +1044,30 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 captureSessionFrameCount);
         if (reason == null || !reason.contains(expected)) {
             throw new AssertionError("unexpected step validation guardrail reason: " + reason);
+        }
+    }
+
+    private void assertRawMotionStepEstimateUiGuardrails() {
+        String validStart = "2026-01-01T00:00:00.000Z";
+        String validEnd = "2026-01-01T00:01:00.000Z";
+        if (MainActivity.rawMotionStepEstimateBlockReason(40L, validStart, validEnd) != null) {
+            throw new AssertionError("valid raw-motion step estimate inputs should not be blocked");
+        }
+        assertRawMotionStepEstimateBlocked(0L, validStart, validEnd, "greater than zero");
+        assertRawMotionStepEstimateBlocked(40L, "0000", validEnd, "Tap Step validation Start");
+        assertRawMotionStepEstimateBlocked(40L, validStart, "9999", "Tap Step validation End");
+        assertRawMotionStepEstimateBlocked(40L, validEnd, validStart, "End must be after Start");
+    }
+
+    private void assertRawMotionStepEstimateBlocked(
+            long manualSteps,
+            String start,
+            String end,
+            String expected
+    ) {
+        String reason = MainActivity.rawMotionStepEstimateBlockReason(manualSteps, start, end);
+        if (reason == null || !reason.contains(expected)) {
+            throw new AssertionError("unexpected raw-motion step estimate guardrail reason: " + reason);
         }
     }
 

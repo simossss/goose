@@ -132,6 +132,18 @@ final class GooseStoreReporter {
         executeIfOpen(() -> callback.onReport(runStepDiscovery()));
     }
 
+    void rawMotionStepEstimate(
+            String start,
+            String end,
+            long manualStepDelta,
+            Callback callback
+    ) {
+        executeIfOpen(() -> callback.onReport(runRawMotionStepEstimate(
+                start,
+                end,
+                manualStepDelta)));
+    }
+
     void stepValidation(
             String start,
             String end,
@@ -1188,6 +1200,41 @@ final class GooseStoreReporter {
         }
     }
 
+    private String runRawMotionStepEstimate(String start, String end, long manualStepDelta) {
+        try {
+            JSONObject args = new JSONObject()
+                    .put("database_path", databasePath)
+                    .put("start", start)
+                    .put("end", end)
+                    .put("min_owned_captures", 1)
+                    .put("require_trusted_evidence", true)
+                    .put("manual_step_delta", manualStepDelta)
+                    .put("tolerance_steps", 10)
+                    .put("date_key", dateKeyFromIso8601(start))
+                    .put("timezone", "UTC")
+                    .put("write_metric", true)
+                    .put("label_provenance", new JSONObject()
+                            .put("label_source", "android_manual_count")
+                            .put("capture_app", "goose_android")
+                            .put("owner", "user"));
+            JSONObject report = bridge.request("metrics.raw_motion_step_estimate", args);
+            return "Raw-motion step estimate\n"
+                    + "window: " + start + " -> " + end + "\n"
+                    + "manual steps: " + manualStepDelta + "\n"
+                    + "pass: " + report.optBoolean("pass", false) + "\n"
+                    + "estimated steps: " + report.opt("estimated_steps") + "\n"
+                    + "cadence spm: " + report.opt("estimated_cadence_spm") + "\n"
+                    + "candidate frames: " + report.optInt("candidate_frame_count", 0) + "\n"
+                    + "trusted frames: " + report.optInt("trusted_candidate_frame_count", 0) + "\n"
+                    + "write metric: " + report.optBoolean("write_metric", false) + "\n"
+                    + "daily metric written: " + report.optBoolean("daily_metric_written", false) + "\n"
+                    + "daily metric id: " + report.optString("daily_metric_id", "none") + "\n"
+                    + "issues: " + report.optJSONArray("issues");
+        } catch (Exception error) {
+            return "Raw-motion step estimate failed\n" + error;
+        }
+    }
+
     private void appendStepValidationAudit(String event, JSONObject report, String error) {
         appendStepValidationAudit(event, report, error, "", "", 0L, null);
     }
@@ -1353,6 +1400,13 @@ final class GooseStoreReporter {
                 iso8601(startMillis),
                 iso8601(endMillis)
         );
+    }
+
+    private static String dateKeyFromIso8601(String iso8601) {
+        if (iso8601 != null && iso8601.length() >= 10) {
+            return iso8601.substring(0, 10);
+        }
+        return utcTodayWindow().dateKey;
     }
 
     private static final class DailyWindow {

@@ -419,6 +419,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         Button stepsButton = secondaryButton("Steps");
         stepsButton.setOnClickListener(view -> runReport(storeReporter::stepDiscovery));
         metricActions.addView(stepsButton, weightWrap());
+        Button motionStepsButton = secondaryButton("Motion");
+        motionStepsButton.setOnClickListener(view -> runRawMotionStepEstimate());
+        metricActions.addView(motionStepsButton, weightWrap());
         Button sensorsButton = secondaryButton("Sensors");
         sensorsButton.setOnClickListener(view -> runReport(storeReporter::recoverySensors));
         metricActions.addView(sensorsButton, weightWrap());
@@ -987,6 +990,25 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 report -> runOnUiThreadIfAlive(() -> reportStatus.setText(truncateForDisplay(report))));
     }
 
+    private void runRawMotionStepEstimate() {
+        long manualSteps;
+        String manualStepsText = manualStepsInput.getText().toString().trim();
+        try {
+            manualSteps = Long.parseLong(manualStepsText);
+        } catch (NumberFormatException error) {
+            reportStatus.setText("Manual steps must be a number");
+            return;
+        }
+        String blockReason = rawMotionStepEstimateBlockReason(manualSteps, validationStart, validationEnd);
+        if (blockReason != null) {
+            reportStatus.setText("Raw-motion steps blocked\n" + blockReason);
+            return;
+        }
+        reportStatus.setText("Running raw-motion step estimate...");
+        storeReporter.rawMotionStepEstimate(validationStart, validationEnd, manualSteps,
+                report -> runOnUiThreadIfAlive(() -> reportStatus.setText(truncateForDisplay(report))));
+    }
+
     static String stepValidationBlockReason(
             long manualSteps,
             String start,
@@ -1020,6 +1042,22 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         }
         if (captureSessionFrameCount <= 0) {
             return "Capture session must include at least one notification before final step validation.";
+        }
+        return null;
+    }
+
+    static String rawMotionStepEstimateBlockReason(long manualSteps, String start, String end) {
+        if (manualSteps <= 0) {
+            return "Manual steps must be greater than zero.";
+        }
+        if (start == null || start.trim().isEmpty() || UNSET_VALIDATION_START.equals(start)) {
+            return "Tap Step validation Start before the counted walk.";
+        }
+        if (end == null || end.trim().isEmpty() || UNSET_VALIDATION_END.equals(end)) {
+            return "Tap Step validation End after the counted walk.";
+        }
+        if (end.compareTo(start) <= 0) {
+            return "Step validation End must be after Start.";
         }
         return null;
     }
