@@ -95,6 +95,7 @@ verify_evidence_manifest() {
   local saw_inspection=0
   local saw_database=0
   local saw_logcat=0
+  local saw_full_logcat=0
   local saw_package_path=0
   local saw_package_summary=0
   local saw_package_dumpsys=0
@@ -139,6 +140,8 @@ verify_evidence_manifest() {
       saw_database=1
     elif [[ "$rel_path" == "logcat-goose-brief.txt" ]]; then
       saw_logcat=1
+    elif [[ "$rel_path" == "logcat-threadtime.txt" ]]; then
+      saw_full_logcat=1
     elif [[ "$rel_path" == "goose-package-path.txt" ]]; then
       saw_package_path=1
     elif [[ "$rel_path" == "goose-package-summary.txt" ]]; then
@@ -178,6 +181,7 @@ verify_evidence_manifest() {
     && "$saw_inspection" == "1" \
     && "$saw_database" == "1" \
     && "$saw_logcat" == "1" \
+    && "$saw_full_logcat" == "1" \
     && "$saw_package_path" == "1" \
     && "$saw_package_summary" == "1" \
     && "$saw_package_dumpsys" == "1" \

@@ -163,6 +163,7 @@ write_required_evidence_artifacts() {
     printf 'RESULT: PASS\n'
   } > "$dir/inspect-android-capture.txt"
   printf 'I/GooseBridgeSmoke(12345): com.goose.android smoke harness completed\n' > "$dir/logcat-goose-brief.txt"
+  printf '06-04 12:00:00.000 12345 12345 I GooseBridgeSmoke: synthetic full logcat snapshot\n' > "$dir/logcat-threadtime.txt"
 }
 
 copy_required_evidence_artifacts() {
@@ -189,6 +190,7 @@ copy_required_evidence_artifacts() {
   cp "$source_dir/goose-phone-step-validation-log.jsonl" "$target_dir/goose-phone-step-validation-log.jsonl"
   cp "$source_dir/inspect-android-capture.txt" "$target_dir/inspect-android-capture.txt"
   cp "$source_dir/logcat-goose-brief.txt" "$target_dir/logcat-goose-brief.txt"
+  cp "$source_dir/logcat-threadtime.txt" "$target_dir/logcat-threadtime.txt"
 }
 
 write_manifest_omitting_file() {
@@ -719,6 +721,7 @@ assert_file_contains "$readiness_strict_pass_output" "Evidence installed APK SHA
 assert_file_contains "$readiness_strict_pass_output" "Evidence focused AndroidRuntime crash lines: 0" "PR readiness strict"
 assert_file_contains "$synthetic_evidence_dir/logcat-goose-brief.txt" "GooseBridgeSmoke" "PR readiness strict"
 assert_file_contains "$synthetic_evidence_dir/logcat-goose-brief.txt" "com.goose.android smoke harness completed" "PR readiness strict"
+assert_file_contains "$synthetic_evidence_dir/evidence-files-manifest.txt" "logcat-threadtime.txt" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Strict PR readiness: PASS" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "- None from the supplied evidence bundle." "PR readiness strict"
 assert_file_contains "$readiness_crash_strict_output" "Focused AndroidRuntime logcat must have 0 com.goose.android crash lines." "PR readiness crash strict"
@@ -773,6 +776,7 @@ assert_file_contains "$SCRIPT_DIR/install_android_debug.sh" "without strict PR r
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Focused AndroidRuntime crash lines:" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "/AndroidRuntime/ && /com[.]goose[.]android/" "phone evidence collector"
+assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "logcat-threadtime.txt: full device logcat snapshot." "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "evidence-files-manifest.txt" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "path	bytes	sha256" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Evidence output directory is not empty:" "phone evidence collector"
@@ -783,6 +787,7 @@ assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "required w
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "required when step-validation gates are enabled" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "goose-installed-apk-sha256.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "/AndroidRuntime/ && /com[.]goose[.]android/" "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "logcat-threadtime.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "android-port-status.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "goose-package-path.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "goose-package-dumpsys.txt" "PR readiness"
