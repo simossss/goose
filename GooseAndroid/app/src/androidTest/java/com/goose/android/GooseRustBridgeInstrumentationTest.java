@@ -385,6 +385,10 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         if (!"standard_heart_rate".equals(result.payloadKind)) {
             throw new AssertionError("standard heart-rate notification not classified: " + result.payloadKind);
         }
+        if (!sessionId.equals(result.captureSessionId) || !result.importSummary.contains("session tagged true")) {
+            throw new AssertionError("capture session tagging missing from ingest result: "
+                    + result.captureSessionId + " / " + result.importSummary);
+        }
         int frameCount = ingestor.finishCaptureSession(sessionId);
         ingestor.close();
         if (frameCount != 1) {

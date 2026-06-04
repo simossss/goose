@@ -35,6 +35,7 @@ final class GoosePacketIngestor {
         final int directRawInserted;
         final int framesInserted;
         final int framesExisting;
+        final String captureSessionId;
         final String error;
 
         Result(
@@ -50,6 +51,7 @@ final class GoosePacketIngestor {
                 int directRawInserted,
                 int framesInserted,
                 int framesExisting,
+                String captureSessionId,
                 String error
         ) {
             this.frameHex = frameHex;
@@ -64,6 +66,7 @@ final class GoosePacketIngestor {
             this.directRawInserted = directRawInserted;
             this.framesInserted = framesInserted;
             this.framesExisting = framesExisting;
+            this.captureSessionId = captureSessionId;
             this.error = error;
         }
     }
@@ -169,6 +172,8 @@ final class GoosePacketIngestor {
                     + framesInserted
                     + ", existing "
                     + framesExisting
+                    + ", session tagged "
+                    + (captureSessionId != null && !captureSessionId.isEmpty())
                     + ", issues "
                     + (issues != null ? issues.length() : 0);
             String parseSummary;
@@ -196,10 +201,11 @@ final class GoosePacketIngestor {
                     directRawInserted,
                     framesInserted,
                     framesExisting,
+                    captureSessionId,
                     null
             );
         } catch (Exception error) {
-            return new Result(frameHex, "", "", "", "", "", "", -1, 0, 0, 0, 0, error.toString());
+            return new Result(frameHex, "", "", "", "", "", "", -1, 0, 0, 0, 0, captureSessionId, error.toString());
         }
     }
 
