@@ -84,6 +84,7 @@ verify_evidence_manifest() {
   local manifest="$2"
   local line_number=0
   local verified_count=0
+  local saw_port_status=0
   local saw_summary=0
   local saw_gates=0
   local saw_inspection=0
@@ -112,7 +113,9 @@ verify_evidence_manifest() {
     local normalized_sha
     normalized_sha="$(printf '%s' "$expected_sha" | tr 'A-F' 'a-f')"
     [[ "$(file_sha256 "$file")" == "$normalized_sha" ]] || return 1
-    if [[ "$rel_path" == "phone-handoff-summary.md" ]]; then
+    if [[ "$rel_path" == "android-port-status.txt" ]]; then
+      saw_port_status=1
+    elif [[ "$rel_path" == "phone-handoff-summary.md" ]]; then
       saw_summary=1
     elif [[ "$rel_path" == "evidence-gates.txt" ]]; then
       saw_gates=1
@@ -137,6 +140,7 @@ verify_evidence_manifest() {
   done < "$manifest"
 
   [[ "$verified_count" -gt 0 \
+    && "$saw_port_status" == "1" \
     && "$saw_summary" == "1" \
     && "$saw_gates" == "1" \
     && "$saw_inspection" == "1" \

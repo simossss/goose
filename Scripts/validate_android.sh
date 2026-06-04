@@ -108,6 +108,7 @@ write_synthetic_manifest() {
 
 write_required_evidence_artifacts() {
   local dir="$1"
+  printf 'commit: synthetic\nDebug sha256: synthetic\n' > "$dir/android-port-status.txt"
   printf 'physical\n' > "$dir/android-device-kind.txt"
   printf 'RESULT: PASS\n' > "$dir/evidence-result.txt"
   printf 'synthetic sqlite placeholder\n' > "$dir/goose-phone.sqlite"
@@ -121,6 +122,7 @@ write_required_evidence_artifacts() {
 copy_required_evidence_artifacts() {
   local source_dir="$1"
   local target_dir="$2"
+  cp "$source_dir/android-port-status.txt" "$target_dir/android-port-status.txt"
   cp "$source_dir/android-device-kind.txt" "$target_dir/android-device-kind.txt"
   cp "$source_dir/evidence-result.txt" "$target_dir/evidence-result.txt"
   cp "$source_dir/goose-phone.sqlite" "$target_dir/goose-phone.sqlite"
@@ -545,6 +547,7 @@ assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Evidence o
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "GOOSE_ANDROID_ALLOW_EXISTING_EVIDENCE_DIR=1" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Installed APK hash result:" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "goose-installed-apk-sha256.txt" "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "android-port-status.txt" "PR readiness"
 assert_file_contains "$APP_DIR/README.md" "no focused AndroidRuntime crash lines" "root README"
 assert_file_contains "$APP_DIR/README.md" "byte/hash file manifest" "root README"
 assert_file_contains "$APP_DIR/README.md" "APK hash comparison" "root README"
