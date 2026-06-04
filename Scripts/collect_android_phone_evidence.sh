@@ -10,6 +10,9 @@ REQUIRE_INSTALLED_PACKAGE="${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}"
 REQUIRE_PHYSICAL_DEVICE="${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}"
 REQUIRE_NO_ANDROID_RUNTIME_CRASH="${GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH:-0}"
 REQUIRE_LOGCAT_START_MARKER="${GOOSE_ANDROID_REQUIRE_LOGCAT_START_MARKER:-0}"
+REQUIRE_HEALTH_WRITE_ATTEMPT="${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT:-0}"
+REQUIRE_HEALTH_READY_WRITE_PLAN="${GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN:-0}"
+REQUIRE_HEALTH_WRITE_SUCCESS="${GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS:-0}"
 ALLOW_EXISTING_OUTPUT="${GOOSE_ANDROID_ALLOW_EXISTING_EVIDENCE_DIR:-0}"
 LOGCAT_MARKER_FILE="${GOOSE_ANDROID_LOGCAT_MARKER_FILE:-/sdcard/goose-evidence-start-marker.txt}"
 
@@ -348,6 +351,15 @@ if [[ "$REQUIRE_LOGCAT_START_MARKER" == "1" && "$latest_raw_capture_after_marker
   inspection_result="FAIL"
   echo "FAIL: latest raw capture is missing, unparseable, or older than the logcat start marker" >> "$OUTPUT_DIR/collect-error.txt"
   echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
+fi
+android_sdk_int="$(first_line "$OUTPUT_DIR/android-sdk.txt")"
+if [[ "$REQUIRE_HEALTH_WRITE_ATTEMPT" == "1" || "$REQUIRE_HEALTH_READY_WRITE_PLAN" == "1" || "$REQUIRE_HEALTH_WRITE_SUCCESS" == "1" ]]; then
+  if [[ ! "$android_sdk_int" =~ ^[0-9]+$ || "$android_sdk_int" -lt 34 ]]; then
+    inspection_status=1
+    inspection_result="FAIL"
+    echo "FAIL: Health Connect write evidence requires Android 14+ / SDK 34+, got SDK ${android_sdk_int:-unknown}" >> "$OUTPUT_DIR/collect-error.txt"
+    echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
+  fi
 fi
 
 final_adb_state="$("$ADB" -s "$device_serial" get-state 2>/dev/null || true)"

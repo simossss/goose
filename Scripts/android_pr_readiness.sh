@@ -960,6 +960,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$evidence_health_audit_manifest_verified" == "1" \
       && "$phone_result" == "PASS" \
       && "$require_health_attempt" == "1" ]] \
+      && is_positive_int "$evidence_android_sdk" \
+      && [[ "$evidence_android_sdk" -ge 34 ]] \
       && is_positive_int "$health_write_started" \
       && { [[ "$require_health_ready_plan" != "1" ]] \
         || { is_positive_int "$health_ready_write_started" \
@@ -1434,7 +1436,7 @@ if [[ "$require_step_pass" == "1" && "$evidence_step_audit_manifest_verified" !=
   remaining_any=1
 fi
 if [[ "$health_attempt_verified" != "1" ]]; then
-  echo "- Health Connect permission grant and real planned write attempt on Android 14+, including permissions-ready planned-write context and record-summary provenance."
+  echo "- Health Connect permission grant and real planned write attempt on Android 14+ / SDK 34+, including permissions-ready planned-write context and record-summary provenance."
   remaining_any=1
 fi
 if [[ "$require_health_attempt" == "1" && "$evidence_health_audit_manifest_verified" != "1" ]]; then
