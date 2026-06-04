@@ -259,6 +259,15 @@ if [[ "$REQUIRE_NO_ANDROID_RUNTIME_CRASH" == "1" && "$android_runtime_crash_coun
   echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
 fi
 
+final_adb_state="$("$ADB" -s "$device_serial" get-state 2>/dev/null || true)"
+printf '%s\n' "$final_adb_state" > "$OUTPUT_DIR/adb-state-final.txt"
+if [[ "$final_adb_state" != "device" ]]; then
+  inspection_status=1
+  inspection_result="FAIL"
+  echo "FAIL: adb target was not online after evidence collection: $device_serial ($final_adb_state)" >> "$OUTPUT_DIR/collect-error.txt"
+  echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
+fi
+
 cat > "$OUTPUT_DIR/phone-handoff-summary.md" <<SUMMARY
 # Goose Android Phone Evidence
 
@@ -288,6 +297,7 @@ Result: ${inspection_result:-unknown}
 
 - Device result: $device_result
 - Kind: $device_kind
+- Final adb state: $final_adb_state
 - Focused AndroidRuntime crash lines: $android_runtime_crash_count
 
 ## Installed App
@@ -359,6 +369,7 @@ $(summary_section "Capture session evidence detail")
 - android-port-status.txt
 - evidence-gates.txt
 - android-device-kind.txt
+- adb-state-final.txt
 - goose-package-path.txt
 - goose-package-summary.txt
 - goose-package-dumpsys.txt
@@ -385,6 +396,7 @@ Key files:
 - android-port-status.txt: branch, commit, APK metadata, generated artifact status.
 - evidence-gates.txt: strict gate environment used for this bundle.
 - adb-devices.txt: adb device list at collection time.
+- adb-state-final.txt: adb get-state for the selected device after evidence collection.
 - android-device-kind.txt: physical or emulator classification used by final gates.
 - goose-package-path.txt: installed com.goose.android package path from the device.
 - goose-package-summary.txt: focused package version, install time, flags, and user state.

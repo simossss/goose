@@ -124,6 +124,7 @@ write_required_evidence_artifacts() {
   printf 'physical\n' > "$dir/android-device-kind.txt"
   printf 'RESULT: PASS\n' > "$dir/evidence-result.txt"
   printf 'RESULT: PASS\n' > "$dir/pull-android-database-result.txt"
+  printf 'device\n' > "$dir/adb-state-final.txt"
   printf 'synthetic sqlite placeholder\n' > "$dir/goose-phone.sqlite"
   printf 'package:/data/app/com.goose.android/base.apk\n' > "$dir/goose-package-path.txt"
   printf 'versionName=0.1.0\n' > "$dir/goose-package-summary.txt"
@@ -180,6 +181,7 @@ copy_required_evidence_artifacts() {
   cp "$source_dir/android-device-kind.txt" "$target_dir/android-device-kind.txt"
   cp "$source_dir/evidence-result.txt" "$target_dir/evidence-result.txt"
   cp "$source_dir/pull-android-database-result.txt" "$target_dir/pull-android-database-result.txt"
+  cp "$source_dir/adb-state-final.txt" "$target_dir/adb-state-final.txt"
   cp "$source_dir/goose-phone.sqlite" "$target_dir/goose-phone.sqlite"
   cp "$source_dir/goose-package-path.txt" "$target_dir/goose-package-path.txt"
   cp "$source_dir/goose-package-summary.txt" "$target_dir/goose-package-summary.txt"
@@ -351,6 +353,7 @@ Result: PASS
 ## Device
 
 - Focused AndroidRuntime crash lines: 0
+- Final adb state: device
 
 ## Installed App
 
@@ -585,6 +588,7 @@ Result: PASS
 ## Device
 
 - Focused AndroidRuntime crash lines: 0
+- Final adb state: device
 
 ## Installed App
 
@@ -723,6 +727,9 @@ assert_file_contains "$readiness_strict_pass_output" "Evidence Android files: 16
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff summary Android version matches android-version.txt and android-sdk.txt." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "adb device state: device" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "adb-devices.txt lists the handoff device serial as online." "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Final adb state: device" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Evidence final adb state file: device" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "adb-state-final.txt confirms the handoff device was still online after evidence collection." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Evidence package path file: package:/data/app/com.goose.android/base.apk" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Evidence package summary versionName=0.1.0: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Evidence package dumpsys com.goose.android: 1" "PR readiness strict"
@@ -792,6 +799,8 @@ assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "path	bytes
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Evidence output directory is not empty:" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "GOOSE_ANDROID_ALLOW_EXISTING_EVIDENCE_DIR=1" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Installed APK hash result:" "phone evidence collector"
+assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "adb-state-final.txt" "phone evidence collector"
+assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "adb target was not online after evidence collection" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "required when BLE hello gates are enabled" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "required when Health Connect write gates are enabled" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "required when step-validation gates are enabled" "phone evidence collector"
@@ -803,6 +812,7 @@ assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "android-port-status.
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "goose-package-path.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "goose-package-dumpsys.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "adb-devices.txt" "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "adb-state-final.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "device-manufacturer.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "android-sdk.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary commit must match android-port-status.txt." "PR readiness"
@@ -820,6 +830,7 @@ assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summar
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary device identity must match device-manufacturer.txt and device-model.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary Android version must match android-version.txt and android-sdk.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "adb-devices.txt must list the handoff device serial as online." "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "adb-state-final.txt must show the handoff device was still online after evidence collection." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Evidence package path file:" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Evidence package summary versionName=0.1.0:" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Evidence package dumpsys com.goose.android:" "PR readiness"

@@ -102,6 +102,7 @@ verify_evidence_manifest() {
   local saw_local_apk_sha=0
   local saw_installed_apk_sha=0
   local saw_adb_devices=0
+  local saw_final_adb_state=0
   local saw_serial=0
   local saw_manufacturer=0
   local saw_model=0
@@ -154,6 +155,8 @@ verify_evidence_manifest() {
       saw_installed_apk_sha=1
     elif [[ "$rel_path" == "adb-devices.txt" ]]; then
       saw_adb_devices=1
+    elif [[ "$rel_path" == "adb-state-final.txt" ]]; then
+      saw_final_adb_state=1
     elif [[ "$rel_path" == "android-serial.txt" ]]; then
       saw_serial=1
     elif [[ "$rel_path" == "device-manufacturer.txt" ]]; then
@@ -188,6 +191,7 @@ verify_evidence_manifest() {
     && "$saw_local_apk_sha" == "1" \
     && "$saw_installed_apk_sha" == "1" \
     && "$saw_adb_devices" == "1" \
+    && "$saw_final_adb_state" == "1" \
     && "$saw_serial" == "1" \
     && "$saw_manufacturer" == "1" \
     && "$saw_model" == "1" \
@@ -293,6 +297,7 @@ evidence_device_kind_verified=0
 evidence_device_identity_verified=0
 evidence_android_version_verified=0
 evidence_adb_device_verified=0
+evidence_final_adb_state_verified=0
 evidence_collect_error_free=0
 step_validation_verified=0
 health_attempt_verified=0
@@ -315,6 +320,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
   focused_logcat_file="$PHONE_EVIDENCE_DIR/logcat-goose-brief.txt"
   port_status="$PHONE_EVIDENCE_DIR/android-port-status.txt"
   adb_devices_file="$PHONE_EVIDENCE_DIR/adb-devices.txt"
+  final_adb_state_file="$PHONE_EVIDENCE_DIR/adb-state-final.txt"
   android_serial_file="$PHONE_EVIDENCE_DIR/android-serial.txt"
   android_device_kind_file="$PHONE_EVIDENCE_DIR/android-device-kind.txt"
   device_manufacturer_file="$PHONE_EVIDENCE_DIR/device-manufacturer.txt"
@@ -359,6 +365,11 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     evidence_adb_device_state=""
     if [[ -f "$adb_devices_file" && -n "$device_serial" ]]; then
       evidence_adb_device_state="$(awk -v serial="$device_serial" '$1 == serial { print $2; exit }' "$adb_devices_file")"
+    fi
+    final_adb_state="$(summary_bullet_value "Final adb state" "$summary")"
+    evidence_final_adb_state=""
+    if [[ -f "$final_adb_state_file" ]]; then
+      evidence_final_adb_state="$(sed -n '1p' "$final_adb_state_file" | tr -d '\r')"
     fi
     device_kind="$(status_value "Device kind" "$summary")"
     if [[ -z "$device_kind" ]]; then
@@ -648,6 +659,11 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       evidence_adb_device_verified=1
     fi
     if [[ "$evidence_manifest_verified" == "1" \
+      && "$final_adb_state" == "device" \
+      && "$evidence_final_adb_state" == "device" ]]; then
+      evidence_final_adb_state_verified=1
+    fi
+    if [[ "$evidence_manifest_verified" == "1" \
       && "$phone_result" == "PASS" \
       && "$installed_result" == "PASS" \
       && "$summary_installed_apk_hash_result" == "PASS" \
@@ -730,6 +746,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Android: $android_version"
     echo "Evidence Android files: $evidence_android_version"
     echo "adb device state: $evidence_adb_device_state"
+    echo "Final adb state: $final_adb_state"
+    echo "Evidence final adb state file: $evidence_final_adb_state"
     echo "Summary commit: $summary_commit"
     echo "Status snapshot commit: $port_status_commit"
     echo "Current checkout commit: $latest_commit"
@@ -940,6 +958,10 @@ if [[ "$evidence_adb_device_verified" == "1" ]]; then
   echo "- adb-devices.txt lists the handoff device serial as online."
   verified_any=1
 fi
+if [[ "$evidence_final_adb_state_verified" == "1" ]]; then
+  echo "- adb-state-final.txt confirms the handoff device was still online after evidence collection."
+  verified_any=1
+fi
 if [[ "$ble_hello_verified" == "1" ]]; then
   echo "- BLE session audit proves the app reached ready state with command characteristic ready and completed client hello write."
   verified_any=1
@@ -1049,6 +1071,10 @@ if [[ "$evidence_android_version_verified" != "1" ]]; then
 fi
 if [[ "$evidence_adb_device_verified" != "1" ]]; then
   echo "- adb-devices.txt must list the handoff device serial as online."
+  remaining_any=1
+fi
+if [[ "$evidence_final_adb_state_verified" != "1" ]]; then
+  echo "- adb-state-final.txt must show the handoff device was still online after evidence collection."
   remaining_any=1
 fi
 if [[ "$step_validation_verified" != "1" ]]; then

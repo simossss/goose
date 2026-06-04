@@ -323,9 +323,9 @@ Scripts/inspect_android_capture.sh tmp/goose-phone.sqlite
 ```
 
 For a timestamped phone evidence bundle, including status, adb device details,
-strict gate configuration, installed `com.goose.android` package metadata and
-APK hash comparison, logcat, pulled SQLite files, inspection output, and a
-byte/hash file manifest:
+the final adb state after collection, strict gate configuration, installed
+`com.goose.android` package metadata and APK hash comparison, logcat, pulled
+SQLite files, inspection output, and a byte/hash file manifest:
 
 ```bash
 Scripts/collect_android_phone_evidence.sh
@@ -355,7 +355,9 @@ session with `frame_count > 0`, plus installed `com.goose.android` package
 metadata and an installed APK hash match from the device, session-tagged Android
 BLE live-notification raw evidence, no focused AndroidRuntime crash lines for
 Goose, and a BLE session audit proving command readiness plus a completed
-client hello write.
+client hello write. The evidence bundle must also show `adb-state-final.txt`
+as `device` so the selected phone was still online after pull/hash/logcat
+collection.
 Add `--allow-emulator`
 only for development smoke tests; PR acceptance still needs physical-phone
 evidence.
