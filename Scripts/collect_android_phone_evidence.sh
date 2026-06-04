@@ -138,6 +138,14 @@ summary_value() {
   awk -F': ' -v key="$key" '$1 == key { print $2; exit }' "$OUTPUT_DIR/inspect-android-capture.txt"
 }
 
+summary_value_from() {
+  local key="$1"
+  local file="$2"
+  if [[ -f "$file" ]]; then
+    awk -F': ' -v key="$key" '$1 == key { print $2; exit }' "$file"
+  fi
+}
+
 summary_section() {
   local title="$1"
   awk -v title="$title" '
@@ -294,7 +302,7 @@ Result: ${inspection_result:-unknown}
 
 ## Capture
 
-- Database pull result: $(summary_value "RESULT" "$OUTPUT_DIR/pull-android-database-result.txt")
+- Database pull result: $(summary_value_from "RESULT" "$OUTPUT_DIR/pull-android-database-result.txt")
 - Raw evidence rows: $(summary_value "raw evidence")
 - Decoded frame rows: $(summary_value "decoded frames")
 - Capture sessions: $(summary_value "capture sessions")
