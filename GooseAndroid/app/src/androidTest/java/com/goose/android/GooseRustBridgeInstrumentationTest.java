@@ -207,6 +207,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertBleDeviceRowDisplayContract();
         Log.i(TAG, "checking step validation UI guardrails");
         assertStepValidationUiGuardrails();
+        Log.i(TAG, "checking step validation start UI guardrails");
+        assertStepValidationStartGuardrails();
         Log.i(TAG, "checking capture session start UI guardrails");
         assertCaptureSessionStartGuardrails();
         Log.i(TAG, "checking capture session finish UI guardrails");
@@ -1017,6 +1019,31 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 captureSessionFrameCount);
         if (reason == null || !reason.contains(expected)) {
             throw new AssertionError("unexpected step validation guardrail reason: " + reason);
+        }
+    }
+
+    private void assertStepValidationStartGuardrails() {
+        if (MainActivity.stepValidationStartBlockReason("android-smoke-session", false, false) != null) {
+            throw new AssertionError("active capture session should allow step validation start");
+        }
+        assertStepValidationStartBlocked("", false, false, "Start a capture session");
+        assertStepValidationStartBlocked(null, false, false, "Start a capture session");
+        assertStepValidationStartBlocked("android-smoke-session", true, false, "start is still running");
+        assertStepValidationStartBlocked("android-smoke-session", false, true, "finish is still running");
+    }
+
+    private void assertStepValidationStartBlocked(
+            String activeSessionId,
+            boolean startInProgress,
+            boolean finishInProgress,
+            String expected
+    ) {
+        String reason = MainActivity.stepValidationStartBlockReason(
+                activeSessionId,
+                startInProgress,
+                finishInProgress);
+        if (reason == null || !reason.contains(expected)) {
+            throw new AssertionError("unexpected step validation start guardrail reason: " + reason);
         }
     }
 
