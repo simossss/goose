@@ -209,6 +209,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertStepValidationUiGuardrails();
         Log.i(TAG, "checking Health Connect sync UI guardrails");
         assertHealthConnectSyncUiGuardrails();
+        Log.i(TAG, "checking Health Connect sync duplicate-tap guardrail");
+        assertHealthConnectSyncInProgressGuardrail();
         Log.i(TAG, "checking installed app privacy flags");
         assertApplicationPrivacyFlags(context);
         Log.i(TAG, "checking installed app launch and hardware manifest");
@@ -966,6 +968,16 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertHealthConnectSyncBlocked(healthSyncUiReport(false, true, true, 1, 1, 0), "Dry run is not ready");
         assertHealthConnectSyncBlocked(healthSyncUiReport(true, false, true, 1, 1, 0), "Dry run is not ready");
         assertHealthConnectSyncBlocked(healthSyncUiReport(true, true, true, 1, 1, 1), "Dry run is not ready");
+    }
+
+    private void assertHealthConnectSyncInProgressGuardrail() {
+        String reason = MainActivity.healthConnectSyncInProgressBlockReason(true);
+        if (reason == null || !reason.contains("already running")) {
+            throw new AssertionError("unexpected Health Connect in-progress guardrail reason: " + reason);
+        }
+        if (MainActivity.healthConnectSyncInProgressBlockReason(false) != null) {
+            throw new AssertionError("idle Health Connect sync should not be blocked");
+        }
     }
 
     private JSONObject healthSyncUiReport(

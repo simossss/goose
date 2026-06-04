@@ -83,6 +83,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private long clearLocalDataConfirmUntilMillis;
     private int notificationCount;
     private boolean destroyed;
+    private boolean healthConnectSyncInProgress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -554,17 +555,25 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     }
 
     private void runHealthConnectSync() {
+        String inProgressBlockReason = healthConnectSyncInProgressBlockReason(healthConnectSyncInProgress);
+        if (inProgressBlockReason != null) {
+            reportStatus.setText("Health Connect sync blocked\n" + inProgressBlockReason);
+            return;
+        }
+        healthConnectSyncInProgress = true;
         reportStatus.setText("Planning Health Connect sync...");
         refreshHealthConnectStatus();
         storeReporter.healthConnectDryRunPlan(
                 healthConnectSupport.healthSyncPermissionGrants(),
                 (report, summary) -> runOnUiThreadIfAlive(() -> {
                     if (report == null) {
+                        healthConnectSyncInProgress = false;
                         reportStatus.setText(truncateForDisplay(summary));
                         return;
                     }
                     String blockReason = healthConnectSyncBlockReason(report);
                     if (blockReason != null) {
+                        healthConnectSyncInProgress = false;
                         reportStatus.setText(truncateForDisplay(summary + "\n\nHealth Connect sync blocked\n" + blockReason));
                         if (!report.optBoolean("permissions_ready", false)
                                 && report.optInt("planned_write_count", 0) > 0) {
@@ -576,11 +585,16 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                     reportStatus.setText(truncateForDisplay(summary + "\n\nWriting Health Connect records..."));
                     healthConnectSupport.writePlannedRecords(report,
                             writeReport -> runOnUiThreadIfAlive(() -> {
+                                healthConnectSyncInProgress = false;
                                 reportStatus.setText(truncateForDisplay(summary + "\n\n" + writeReport));
                                 refreshHealthConnectStatus();
                             }));
                 })
         );
+    }
+
+    static String healthConnectSyncInProgressBlockReason(boolean syncInProgress) {
+        return syncInProgress ? "Health Connect sync is already running." : null;
     }
 
     static String healthConnectSyncBlockReason(JSONObject report) {
