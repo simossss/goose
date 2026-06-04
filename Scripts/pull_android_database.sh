@@ -5,11 +5,41 @@ if [[ -z "${ADB:-}" && -x "$HOME/Library/Android/sdk/platform-tools/adb" ]]; the
   ADB="$HOME/Library/Android/sdk/platform-tools/adb"
 fi
 ADB="${ADB:-adb}"
+GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS="${GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS:-60}"
 
 PACKAGE="${PACKAGE:-com.goose.android}"
 REMOTE_DIR="${REMOTE_DIR:-files/goose}"
 OUTPUT="${1:-tmp/goose-phone.sqlite}"
 OUTPUT_BASENAME="${OUTPUT%.sqlite}"
+
+run_to_file_with_timeout() {
+  local label="$1"
+  local timeout_seconds="$2"
+  local output_file="$3"
+  shift 3
+  local pid
+  local elapsed=0
+  local status=0
+
+  "$@" > "$output_file" &
+  pid="$!"
+  while kill -0 "$pid" 2>/dev/null; do
+    if [[ "$elapsed" -ge "$timeout_seconds" ]]; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+      echo "$label timed out after ${timeout_seconds}s" >&2
+      return 124
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
+  set +e
+  wait "$pid"
+  status="$?"
+  set -e
+  return "$status"
+}
 
 if ! command -v "$ADB" >/dev/null 2>&1; then
   echo "adb not found. Set ADB or add Android platform-tools to PATH." >&2
@@ -49,7 +79,11 @@ pull_file() {
   local tmp_path="${output_path}.tmp"
 
   rm -f "$tmp_path"
-  if "$ADB" -s "$device_serial" exec-out run-as "$PACKAGE" sh -c "cat '$remote_path'" > "$tmp_path"; then
+  if run_to_file_with_timeout \
+    "adb pull $remote_path" \
+    "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+    "$tmp_path" \
+    "$ADB" -s "$device_serial" exec-out run-as "$PACKAGE" sh -c "cat '$remote_path'"; then
     mv "$tmp_path" "$output_path"
     echo "Pulled $remote_path -> $output_path"
     return
