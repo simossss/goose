@@ -888,14 +888,54 @@ awk '
 mv "$health_success_gates_tmp" "$synthetic_health_success_evidence_dir/evidence-gates.txt"
 health_success_summary_tmp="$synthetic_health_success_evidence_dir/phone-handoff-summary.md.tmp"
 awk '
-  $0 == "- Write succeeded events: 1" && !replaced {
+  $0 == "- Write succeeded events: 1" && !write_succeeded_replaced {
     print "- Write succeeded events: 0"
-    replaced = 1
+    write_succeeded_replaced = 1
+    next
+  }
+  $0 == "- Ready write succeeded events: 1" && !ready_write_succeeded_replaced {
+    print "- Ready write succeeded events: 0"
+    ready_write_succeeded_replaced = 1
+    next
+  }
+  $0 == "- Planned write succeeded events: 1" && !planned_write_succeeded_replaced {
+    print "- Planned write succeeded events: 0"
+    planned_write_succeeded_replaced = 1
+    next
+  }
+  $0 == "- Records inserted events: 1" && !records_inserted_replaced {
+    print "- Records inserted events: 0"
+    records_inserted_replaced = 1
     next
   }
   { print }
 ' "$synthetic_health_success_evidence_dir/phone-handoff-summary.md" > "$health_success_summary_tmp"
 mv "$health_success_summary_tmp" "$synthetic_health_success_evidence_dir/phone-handoff-summary.md"
+health_success_inspect_tmp="$synthetic_health_success_evidence_dir/inspect-android-capture.txt.tmp"
+awk '
+  $0 == "health sync write succeeded events: 1" && !write_succeeded_replaced {
+    print "health sync write succeeded events: 0"
+    write_succeeded_replaced = 1
+    next
+  }
+  $0 == "health sync ready write succeeded events: 1" && !ready_write_succeeded_replaced {
+    print "health sync ready write succeeded events: 0"
+    ready_write_succeeded_replaced = 1
+    next
+  }
+  $0 == "health sync planned write succeeded events: 1" && !planned_write_succeeded_replaced {
+    print "health sync planned write succeeded events: 0"
+    planned_write_succeeded_replaced = 1
+    next
+  }
+  $0 == "health sync records inserted events: 1" && !records_inserted_replaced {
+    print "health sync records inserted events: 0"
+    records_inserted_replaced = 1
+    next
+  }
+  { print }
+' "$synthetic_health_success_evidence_dir/inspect-android-capture.txt" > "$health_success_inspect_tmp"
+mv "$health_success_inspect_tmp" "$synthetic_health_success_evidence_dir/inspect-android-capture.txt"
 write_synthetic_manifest "$synthetic_health_success_evidence_dir"
 if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_health_success_evidence_dir" > "$readiness_health_success_strict_output" 2>&1; then
   echo "PR readiness strict mode unexpectedly passed with missing required Health Connect success" >&2
