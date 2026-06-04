@@ -71,7 +71,9 @@ Scripts/android_pr_readiness.sh tmp/android-phone-partial-diagnostic-gate-real
 - Focused AndroidRuntime crash lines: 0.
 - BLE session ready events: at least 1.
 - BLE session hello sent events: at least 1.
+- BLE session client hello command-ready completed events: at least 1.
 - BLE session command ready events: at least 1.
+- BLE session ready hello command-ready events: at least 1.
 - Raw evidence rows: at least 1.
 - Decoded frame rows: at least 1.
 - Capture sessions: at least 1.

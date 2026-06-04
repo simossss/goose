@@ -337,7 +337,9 @@ $(summary_section "Capture session evidence detail")
 - Ready events: $(summary_value "ble session ready events")
 - Hello sent events: $(summary_value "ble session hello sent events")
 - Client hello completed events: $(summary_value "ble session client hello completed events")
+- Client hello command-ready completed events: $(summary_value "ble session client hello command-ready completed events")
 - Command ready events: $(summary_value "ble session command ready events")
+- Ready hello command-ready events: $(summary_value "ble session ready hello command-ready events")
 
 ## Health Connect
 
@@ -439,7 +441,8 @@ Set GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH=1 to fail the bundle when
 the focused AndroidRuntime logcat contains com.goose.android crash lines.
 Set GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT=1 to require a pulled BLE session
 audit log and GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1 to require proof that the
-client hello was sent after connecting.
+client hello was sent after connecting, while the command characteristic was
+ready in the same BLE session audit rows.
 Set GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1 after a counted-step
 validation attempt, or GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1 when the
 step validation should pass. Set GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION=1

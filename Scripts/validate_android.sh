@@ -132,7 +132,7 @@ write_required_evidence_artifacts() {
   printf 'Package [com.goose.android] synthetic dumpsys placeholder\n' > "$dir/goose-package-dumpsys.txt"
   printf '1111111111111111111111111111111111111111111111111111111111111111\n' > "$dir/goose-local-debug-apk-sha256.txt"
   printf '1111111111111111111111111111111111111111111111111111111111111111\n' > "$dir/goose-installed-apk-sha256.txt"
-  printf '{"schema":"goose.android.ble-session-audit.v1","event":"connection_progress","details":{"phase":"operation_complete","active_operation_label":"client hello","hello_sent":true,"command_ready":true}}\n{"schema":"goose.android.ble-session-audit.v1","event":"connection_progress","details":{"phase":"ready","hello_sent":true,"command_ready":true}}\n' > "$dir/goose-phone-ble-session-log.jsonl"
+  printf '{"schema":"goose.android.ble-session-audit.v1","event":"connection_progress","details":{"phase":"operation_complete","active_operation_label":"client hello","command_ready":true,"hello_sent":true}}\n{"schema":"goose.android.ble-session-audit.v1","event":"connection_progress","details":{"phase":"ready","command_ready":true,"hello_sent":true}}\n' > "$dir/goose-phone-ble-session-log.jsonl"
   printf '{"schema":"goose.android.health-connect-sync-audit.v1","event":"write_started","permissions_ready":true,"planned_write_count":1,"candidate_count":1,"records_attempted":1}\n{"schema":"goose.android.health-connect-sync-audit.v1","event":"write_succeeded","permissions_ready":true,"planned_write_count":1,"candidate_count":1,"records_attempted":1,"records_inserted":1}\n' > "$dir/goose-phone-health-connect-sync-log.jsonl"
   printf '{"schema":"goose.android.step-validation-audit.v1","event":"completed","pass":true,"capture_session_id":"android-session-a","capture_session_decoded_frame_count":1,"selected_delta":1}\n' > "$dir/goose-phone-step-validation-log.jsonl"
   {
@@ -158,7 +158,9 @@ write_required_evidence_artifacts() {
     printf 'ble session ready events: 1\n'
     printf 'ble session hello sent events: 1\n'
     printf 'ble session client hello completed events: 1\n'
+    printf 'ble session client hello command-ready completed events: 1\n'
     printf 'ble session command ready events: 1\n'
+    printf 'ble session ready hello command-ready events: 1\n'
     printf 'step validation completed events: 1\n'
     printf 'step validation passed events: 1\n'
     printf 'step validation failed events: 0\n'
@@ -243,6 +245,7 @@ readiness_partial_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-part
 readiness_partial_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-partial-strict.XXXXXX")"
 readiness_crash_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-crash-strict.XXXXXX")"
 readiness_package_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-package-strict.XXXXXX")"
+readiness_ble_command_ready_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-ble-command-ready-strict.XXXXXX")"
 readiness_health_success_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-health-success-strict.XXXXXX")"
 readiness_manifest_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-manifest-strict.XXXXXX")"
 readiness_stale_manifest_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-stale-manifest-strict.XXXXXX")"
@@ -258,11 +261,12 @@ final_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-final-gate-dr
 partial_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-partial-gate-dry-run.XXXXXX")"
 inspect_session_detail_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-inspect-session-detail.XXXXXX")"
 synthetic_session_db="$(mktemp "${TMPDIR:-/tmp}/goose-android-session-detail.XXXXXX.sqlite")"
-TMP_FILES+=("$checklist_output" "$partial_checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$readiness_crash_strict_output" "$readiness_package_strict_output" "$readiness_health_success_strict_output" "$readiness_manifest_strict_output" "$readiness_stale_manifest_strict_output" "$readiness_incomplete_manifest_strict_output" "$readiness_audit_manifest_strict_output" "$readiness_health_audit_manifest_strict_output" "$readiness_step_audit_manifest_strict_output" "$readiness_stale_commit_strict_output" "$readiness_stale_debug_apk_strict_output" "$readiness_dirty_status_strict_output" "$readiness_collect_error_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output" "$inspect_session_detail_output" "$synthetic_session_db")
+TMP_FILES+=("$checklist_output" "$partial_checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$readiness_crash_strict_output" "$readiness_package_strict_output" "$readiness_ble_command_ready_strict_output" "$readiness_health_success_strict_output" "$readiness_manifest_strict_output" "$readiness_stale_manifest_strict_output" "$readiness_incomplete_manifest_strict_output" "$readiness_audit_manifest_strict_output" "$readiness_health_audit_manifest_strict_output" "$readiness_step_audit_manifest_strict_output" "$readiness_stale_commit_strict_output" "$readiness_stale_debug_apk_strict_output" "$readiness_dirty_status_strict_output" "$readiness_collect_error_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output" "$inspect_session_detail_output" "$synthetic_session_db")
 synthetic_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-final-evidence.XXXXXX")"
 synthetic_partial_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-partial-evidence.XXXXXX")"
 synthetic_crash_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-crash-evidence.XXXXXX")"
 synthetic_package_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-package-evidence.XXXXXX")"
+synthetic_ble_command_ready_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-ble-command-ready-evidence.XXXXXX")"
 synthetic_health_success_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-health-success-evidence.XXXXXX")"
 synthetic_manifest_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-manifest-evidence.XXXXXX")"
 synthetic_stale_manifest_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-stale-manifest-evidence.XXXXXX")"
@@ -274,7 +278,7 @@ synthetic_stale_commit_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-
 synthetic_stale_debug_apk_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-stale-debug-apk-evidence.XXXXXX")"
 synthetic_dirty_status_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-dirty-status-evidence.XXXXXX")"
 synthetic_collect_error_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-collect-error-evidence.XXXXXX")"
-TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir" "$synthetic_crash_evidence_dir" "$synthetic_package_evidence_dir" "$synthetic_health_success_evidence_dir" "$synthetic_manifest_evidence_dir" "$synthetic_stale_manifest_evidence_dir" "$synthetic_incomplete_manifest_evidence_dir" "$synthetic_audit_manifest_evidence_dir" "$synthetic_health_audit_manifest_evidence_dir" "$synthetic_step_audit_manifest_evidence_dir" "$synthetic_stale_commit_evidence_dir" "$synthetic_stale_debug_apk_evidence_dir" "$synthetic_dirty_status_evidence_dir" "$synthetic_collect_error_evidence_dir")
+TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir" "$synthetic_crash_evidence_dir" "$synthetic_package_evidence_dir" "$synthetic_ble_command_ready_evidence_dir" "$synthetic_health_success_evidence_dir" "$synthetic_manifest_evidence_dir" "$synthetic_stale_manifest_evidence_dir" "$synthetic_incomplete_manifest_evidence_dir" "$synthetic_audit_manifest_evidence_dir" "$synthetic_health_audit_manifest_evidence_dir" "$synthetic_step_audit_manifest_evidence_dir" "$synthetic_stale_commit_evidence_dir" "$synthetic_stale_debug_apk_evidence_dir" "$synthetic_dirty_status_evidence_dir" "$synthetic_collect_error_evidence_dir")
 "$SCRIPT_DIR/android_final_phone_checklist.sh" > "$checklist_output"
 "$SCRIPT_DIR/android_partial_phone_checklist.sh" > "$partial_checklist_output"
 "$SCRIPT_DIR/android_final_pr_gate.sh" tmp/android-phone-final-gate-real --skip-validate --require-health-success --dry-run > "$final_gate_dry_run_output"
@@ -387,7 +391,9 @@ Result: PASS
 - Ready events: 1
 - Hello sent events: 1
 - Client hello completed events: 1
+- Client hello command-ready completed events: 1
 - Command ready events: 1
+- Ready hello command-ready events: 1
 
 ## Health Connect
 
@@ -540,6 +546,24 @@ if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_package_evidence_d
   echo "PR readiness strict mode unexpectedly passed with failed installed package evidence" >&2
   exit 1
 fi
+cp "$synthetic_evidence_dir/phone-handoff-summary.md" "$synthetic_ble_command_ready_evidence_dir/phone-handoff-summary.md"
+cp "$synthetic_evidence_dir/evidence-gates.txt" "$synthetic_ble_command_ready_evidence_dir/evidence-gates.txt"
+copy_required_evidence_artifacts "$synthetic_evidence_dir" "$synthetic_ble_command_ready_evidence_dir"
+ble_command_ready_summary_tmp="$synthetic_ble_command_ready_evidence_dir/phone-handoff-summary.md.tmp"
+awk '
+  $0 == "- Client hello command-ready completed events: 1" && !replaced {
+    print "- Client hello command-ready completed events: 0"
+    replaced = 1
+    next
+  }
+  { print }
+' "$synthetic_ble_command_ready_evidence_dir/phone-handoff-summary.md" > "$ble_command_ready_summary_tmp"
+mv "$ble_command_ready_summary_tmp" "$synthetic_ble_command_ready_evidence_dir/phone-handoff-summary.md"
+write_synthetic_manifest "$synthetic_ble_command_ready_evidence_dir"
+if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_ble_command_ready_evidence_dir" > "$readiness_ble_command_ready_strict_output" 2>&1; then
+  echo "PR readiness strict mode unexpectedly passed with missing command-ready client hello evidence" >&2
+  exit 1
+fi
 cp "$synthetic_evidence_dir/phone-handoff-summary.md" "$synthetic_health_success_evidence_dir/phone-handoff-summary.md"
 cp "$synthetic_evidence_dir/evidence-gates.txt" "$synthetic_health_success_evidence_dir/evidence-gates.txt"
 copy_required_evidence_artifacts "$synthetic_evidence_dir" "$synthetic_health_success_evidence_dir"
@@ -641,7 +665,9 @@ Result: PASS
 - Ready events: 1
 - Hello sent events: 1
 - Client hello completed events: 1
+- Client hello command-ready completed events: 1
 - Command ready events: 1
+- Ready hello command-ready events: 1
 
 ## Health Connect
 
@@ -696,6 +722,8 @@ assert_file_contains "$checklist_output" "\`device-model.txt\`" "final phone che
 assert_file_contains "$checklist_output" "\`goose-package-path.txt\`" "final phone checklist"
 assert_file_contains "$checklist_output" "\`goose-package-dumpsys.txt\`" "final phone checklist"
 assert_file_contains "$checklist_output" "BLE session hello sent events: at least 1." "final phone checklist"
+assert_file_contains "$checklist_output" "BLE session client hello command-ready completed events: at least 1." "final phone checklist"
+assert_file_contains "$checklist_output" "BLE session ready hello command-ready events: at least 1." "final phone checklist"
 assert_file_contains "$checklist_output" "Session live notification raw evidence rows: at least 1." "final phone checklist"
 assert_file_contains "$checklist_output" "Step validation passed events: at least 1." "final phone checklist"
 assert_file_contains "$checklist_output" "Step validation session decoded events: at least 1." "final phone checklist"
@@ -708,6 +736,8 @@ assert_file_contains "$partial_checklist_output" "separate diagnostic bundle" "p
 assert_file_contains "$partial_checklist_output" "Installed com.goose.android package metadata and APK hash match: PASS." "partial phone checklist"
 assert_file_contains "$partial_checklist_output" "Decoded frame rows: at least 1." "partial phone checklist"
 assert_file_contains "$partial_checklist_output" "Session decoded frame rows: at least 1." "partial phone checklist"
+assert_file_contains "$partial_checklist_output" "BLE session client hello command-ready completed events: at least 1." "partial phone checklist"
+assert_file_contains "$partial_checklist_output" "BLE session ready hello command-ready events: at least 1." "partial phone checklist"
 assert_file_contains "$partial_checklist_output" "Session live notification raw evidence rows: at least 1." "partial phone checklist"
 assert_file_contains "$partial_checklist_output" "Health Connect ready write started events: at least 1." "partial phone checklist"
 assert_file_contains "$partial_checklist_output" "Counted-step validation with" "partial phone checklist"
@@ -730,8 +760,12 @@ assert_file_contains "$readiness_strict_pass_output" "Inspect session live notif
 assert_file_contains "$readiness_strict_pass_output" "Inspect session decoded frame rows: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff capture counts match inspect-android-capture.txt." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect hello sent events: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect client hello command-ready completed events: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect ready hello command-ready events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff BLE session counts match inspect-android-capture.txt." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "BLE session audit log is included in the evidence byte/hash manifest." "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "completed client hello write in command-ready rows." "PR readiness strict"
+assert_file_contains "$readiness_ble_command_ready_strict_output" "BLE session audit from the final gate must prove command characteristic readiness and completed client hello write." "PR readiness BLE command-ready strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect records attempted events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect ready write succeeded events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect planned write succeeded events: 1" "PR readiness strict"

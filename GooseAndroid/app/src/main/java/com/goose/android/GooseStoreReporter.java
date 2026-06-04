@@ -330,9 +330,20 @@ final class GooseStoreReporter {
                     "\"phase\":\"operation_complete\"",
                     "\"active_operation_label\":\"client hello\"",
                     "\"hello_sent\":true");
+            int bleClientHelloCommandReadyCompletedEvents = countFileRowsContainingAll(bleSessionAuditFile,
+                    "\"schema\":\"goose.android.ble-session-audit.v1\"",
+                    "\"phase\":\"operation_complete\"",
+                    "\"active_operation_label\":\"client hello\"",
+                    "\"command_ready\":true",
+                    "\"hello_sent\":true");
             int bleCommandReadyEvents = countFileRowsContainingAll(bleSessionAuditFile,
                     "\"schema\":\"goose.android.ble-session-audit.v1\"",
                     "\"command_ready\":true");
+            int bleReadyHelloCommandReadyEvents = countFileRowsContainingAll(bleSessionAuditFile,
+                    "\"schema\":\"goose.android.ble-session-audit.v1\"",
+                    "\"phase\":\"ready\"",
+                    "\"command_ready\":true",
+                    "\"hello_sent\":true");
             int healthWriteStartedEvents = countFileRowsContainingAll(healthSyncAuditFile,
                     "\"schema\":\"goose.android.health-connect-sync-audit.v1\"",
                     "\"event\":\"write_started\"");
@@ -384,7 +395,11 @@ final class GooseStoreReporter {
                     + "ble session ready events: " + bleReadyEvents + "\n"
                     + "ble session hello sent events: " + bleHelloSentEvents + "\n"
                     + "ble session client hello completed events: " + bleClientHelloCompletedEvents + "\n"
+                    + "ble session client hello command-ready completed events: "
+                    + bleClientHelloCommandReadyCompletedEvents + "\n"
                     + "ble session command ready events: " + bleCommandReadyEvents + "\n"
+                    + "ble session ready hello command-ready events: "
+                    + bleReadyHelloCommandReadyEvents + "\n"
                     + "health sync audit bytes: " + healthSyncAuditFile.length() + "\n"
                     + "health sync write started events: " + healthWriteStartedEvents + "\n"
                     + "health sync ready write started events: " + healthReadyWriteStartedEvents + "\n"

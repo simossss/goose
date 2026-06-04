@@ -140,7 +140,9 @@ ble_session_bytes=0
 ble_session_ready=0
 ble_session_hello_sent=0
 ble_session_client_hello_completed=0
+ble_session_client_hello_command_ready_completed=0
 ble_session_command_ready=0
+ble_session_ready_hello_command_ready=0
 step_validation_bytes=0
 step_validation_completed=0
 step_validation_passed=0
@@ -168,7 +170,9 @@ if [[ -f "$BLE_SESSION_LOG" ]]; then
   ble_session_ready="$(grep -c '"phase":"ready"' "$BLE_SESSION_LOG" || true)"
   ble_session_hello_sent="$(grep -c '"hello_sent":true' "$BLE_SESSION_LOG" || true)"
   ble_session_client_hello_completed="$(grep -Ec '"phase":"operation_complete".*"active_operation_label":"client hello".*"hello_sent":true' "$BLE_SESSION_LOG" || true)"
+  ble_session_client_hello_command_ready_completed="$(grep -Ec '"phase":"operation_complete".*"active_operation_label":"client hello".*"command_ready":true.*"hello_sent":true' "$BLE_SESSION_LOG" || true)"
   ble_session_command_ready="$(grep -c '"command_ready":true' "$BLE_SESSION_LOG" || true)"
+  ble_session_ready_hello_command_ready="$(grep -Ec '"phase":"ready".*"command_ready":true.*"hello_sent":true' "$BLE_SESSION_LOG" || true)"
 fi
 if [[ -f "$STEP_VALIDATION_LOG" ]]; then
   step_validation_bytes="$(wc -c < "$STEP_VALIDATION_LOG" | tr -d ' ')"
@@ -212,7 +216,9 @@ echo "ble session audit bytes: $ble_session_bytes"
 echo "ble session ready events: $ble_session_ready"
 echo "ble session hello sent events: $ble_session_hello_sent"
 echo "ble session client hello completed events: $ble_session_client_hello_completed"
+echo "ble session client hello command-ready completed events: $ble_session_client_hello_command_ready_completed"
 echo "ble session command ready events: $ble_session_command_ready"
+echo "ble session ready hello command-ready events: $ble_session_ready_hello_command_ready"
 echo "step validation audit: $STEP_VALIDATION_LOG"
 echo "step validation audit bytes: $step_validation_bytes"
 echo "step validation completed events: $step_validation_completed"
@@ -432,6 +438,11 @@ if [[ "$REQUIRE_BLE_HELLO_SENT" == "1" && "$ble_session_client_hello_completed" 
   failures=$((failures + 1))
 fi
 
+if [[ "$REQUIRE_BLE_HELLO_SENT" == "1" && "$ble_session_client_hello_command_ready_completed" -le 0 ]]; then
+  echo "FAIL: BLE session audit has no completed client hello write event with command_ready=true in the same row" >&2
+  failures=$((failures + 1))
+fi
+
 if [[ "$REQUIRE_BLE_HELLO_SENT" == "1" && "$ble_session_command_ready" -le 0 ]]; then
   echo "FAIL: BLE session audit has no command_ready=true event" >&2
   failures=$((failures + 1))
@@ -439,6 +450,11 @@ fi
 
 if [[ "$REQUIRE_BLE_HELLO_SENT" == "1" && "$ble_session_ready" -le 0 ]]; then
   echo "FAIL: BLE session audit has no ready phase event" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_BLE_HELLO_SENT" == "1" && "$ble_session_ready_hello_command_ready" -le 0 ]]; then
+  echo "FAIL: BLE session audit has no ready phase event with command_ready=true and hello_sent=true in the same row" >&2
   failures=$((failures + 1))
 fi
 
