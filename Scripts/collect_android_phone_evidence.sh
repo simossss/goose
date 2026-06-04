@@ -20,6 +20,7 @@ if [[ -z "${ADB:-}" && -x "$HOME/Library/Android/sdk/platform-tools/adb" ]]; the
   ADB="$HOME/Library/Android/sdk/platform-tools/adb"
 fi
 ADB="${ADB:-adb}"
+GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS="${GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS:-60}"
 
 file_size() {
   local file="$1"
@@ -33,6 +34,69 @@ file_sha256() {
   else
     shasum -a 256 "$file" | awk '{ print $1 }'
   fi
+}
+
+run_with_timeout() {
+  local label="$1"
+  local timeout_seconds="$2"
+  shift 2
+  local output_file
+  local pid
+  local elapsed=0
+  local status=0
+  output_file="$(mktemp "${TMPDIR:-/tmp}/goose-android-collect-command.XXXXXX")"
+
+  "$@" > "$output_file" 2>&1 &
+  pid="$!"
+  while kill -0 "$pid" 2>/dev/null; do
+    if [[ "$elapsed" -ge "$timeout_seconds" ]]; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+      cat "$output_file"
+      rm -f "$output_file"
+      echo "$label timed out after ${timeout_seconds}s" >&2
+      return 124
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
+  set +e
+  wait "$pid"
+  status="$?"
+  set -e
+  cat "$output_file"
+  rm -f "$output_file"
+  return "$status"
+}
+
+run_to_file_with_timeout() {
+  local label="$1"
+  local timeout_seconds="$2"
+  local output_file="$3"
+  shift 3
+  local pid
+  local elapsed=0
+  local status=0
+
+  "$@" > "$output_file" 2>&1 &
+  pid="$!"
+  while kill -0 "$pid" 2>/dev/null; do
+    if [[ "$elapsed" -ge "$timeout_seconds" ]]; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+      echo "$label timed out after ${timeout_seconds}s" >&2
+      return 124
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
+  set +e
+  wait "$pid"
+  status="$?"
+  set -e
+  return "$status"
 }
 
 write_file_manifest() {
@@ -75,7 +139,11 @@ if ! command -v "$ADB" >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! "$ADB" devices > "$OUTPUT_DIR/adb-devices.txt" 2>&1; then
+if ! run_to_file_with_timeout \
+  "Android adb devices" \
+  "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$OUTPUT_DIR/adb-devices.txt" \
+  "$ADB" devices; then
   echo "adb devices failed. Status snapshot was written, but device evidence was not collected." | tee "$OUTPUT_DIR/collect-error.txt"
   fail_before_device_evidence
   exit 1
@@ -86,7 +154,7 @@ if [[ -z "$device_serial" ]]; then
   devices=()
   while IFS= read -r serial; do
     devices+=("$serial")
-  done < <("$ADB" devices | awk 'NR > 1 && $2 == "device" { print $1 }')
+  done < <(awk 'NR > 1 && $2 == "device" { print $1 }' "$OUTPUT_DIR/adb-devices.txt")
   if [[ "${#devices[@]}" -eq 1 ]]; then
     device_serial="${devices[0]}"
   elif [[ "${#devices[@]}" -eq 0 ]]; then
@@ -104,25 +172,27 @@ if [[ -z "$device_serial" ]]; then
 fi
 
 echo "$device_serial" > "$OUTPUT_DIR/android-serial.txt"
-device_state="$("$ADB" -s "$device_serial" get-state 2>/dev/null || true)"
+device_state="$(run_with_timeout \
+  "Android initial adb state" \
+  "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" get-state 2>/dev/null || true)"
 if [[ "$device_state" != "device" ]]; then
   echo "adb target is not online: $device_serial ($device_state)" | tee "$OUTPUT_DIR/collect-error.txt"
   fail_before_device_evidence
   exit 1
 fi
 
-"$ADB" -s "$device_serial" shell getprop ro.product.manufacturer > "$OUTPUT_DIR/device-manufacturer.txt" 2>&1 || true
-"$ADB" -s "$device_serial" shell getprop ro.product.model > "$OUTPUT_DIR/device-model.txt" 2>&1 || true
-"$ADB" -s "$device_serial" shell getprop ro.build.version.release > "$OUTPUT_DIR/android-version.txt" 2>&1 || true
-"$ADB" -s "$device_serial" shell getprop ro.build.version.sdk > "$OUTPUT_DIR/android-sdk.txt" 2>&1 || true
-"$ADB" -s "$device_serial" shell pm path com.goose.android > "$OUTPUT_DIR/goose-package-path.txt" 2>&1 || true
-"$ADB" -s "$device_serial" shell dumpsys package com.goose.android > "$OUTPUT_DIR/goose-package-dumpsys.txt" 2>&1 || true
-"$ADB" -s "$device_serial" shell dumpsys package com.goose.android \
-  | awk '/versionCode=|versionName=|firstInstallTime=|lastUpdateTime=|installerPackageName=|signatures=|pkgFlags=|privateFlags=|User [0-9]+:/' \
-  > "$OUTPUT_DIR/goose-package-summary.txt" 2>&1 || true
-"$ADB" -s "$device_serial" exec-out cat "$LOGCAT_MARKER_FILE" > "$OUTPUT_DIR/logcat-start-marker.txt" 2>/dev/null || true
-"$ADB" -s "$device_serial" logcat -d -v threadtime > "$OUTPUT_DIR/logcat-threadtime.txt" 2>&1 || true
-"$ADB" -s "$device_serial" logcat -d -v brief AndroidRuntime:E GooseBridgeSmoke:I GooseEvidenceStart:I '*:S' > "$OUTPUT_DIR/logcat-goose-brief.txt" 2>&1 || true
+run_to_file_with_timeout "Android device manufacturer" "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" "$OUTPUT_DIR/device-manufacturer.txt" "$ADB" -s "$device_serial" shell getprop ro.product.manufacturer || true
+run_to_file_with_timeout "Android device model" "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" "$OUTPUT_DIR/device-model.txt" "$ADB" -s "$device_serial" shell getprop ro.product.model || true
+run_to_file_with_timeout "Android release version" "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" "$OUTPUT_DIR/android-version.txt" "$ADB" -s "$device_serial" shell getprop ro.build.version.release || true
+run_to_file_with_timeout "Android SDK version" "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" "$OUTPUT_DIR/android-sdk.txt" "$ADB" -s "$device_serial" shell getprop ro.build.version.sdk || true
+run_to_file_with_timeout "Android Goose package path" "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" "$OUTPUT_DIR/goose-package-path.txt" "$ADB" -s "$device_serial" shell pm path com.goose.android || true
+run_to_file_with_timeout "Android Goose package dumpsys" "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" "$OUTPUT_DIR/goose-package-dumpsys.txt" "$ADB" -s "$device_serial" shell dumpsys package com.goose.android || true
+awk '/versionCode=|versionName=|firstInstallTime=|lastUpdateTime=|installerPackageName=|signatures=|pkgFlags=|privateFlags=|User [0-9]+:/' \
+  "$OUTPUT_DIR/goose-package-dumpsys.txt" > "$OUTPUT_DIR/goose-package-summary.txt" 2>&1 || true
+run_to_file_with_timeout "Android logcat marker read" "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" "$OUTPUT_DIR/logcat-start-marker.txt" "$ADB" -s "$device_serial" exec-out cat "$LOGCAT_MARKER_FILE" || true
+run_to_file_with_timeout "Android full logcat snapshot" "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" "$OUTPUT_DIR/logcat-threadtime.txt" "$ADB" -s "$device_serial" logcat -d -v threadtime || true
+run_to_file_with_timeout "Android focused logcat snapshot" "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" "$OUTPUT_DIR/logcat-goose-brief.txt" "$ADB" -s "$device_serial" logcat -d -v brief AndroidRuntime:E GooseBridgeSmoke:I GooseEvidenceStart:I '*:S' || true
 
 device_kind="physical"
 device_manufacturer="$(sed -n '1p' "$OUTPUT_DIR/device-manufacturer.txt" | tr -d '\r')"
@@ -216,7 +286,18 @@ first_line() {
 
 remote_file_sha256() {
   local remote_path="$1"
-  "$ADB" -s "$device_serial" exec-out cat "$remote_path" | shasum -a 256 | awk '{ print $1 }'
+  local tmp_file
+  tmp_file="$(mktemp "${TMPDIR:-/tmp}/goose-android-installed-apk.XXXXXX")"
+  if ! run_to_file_with_timeout \
+    "Android installed APK read" \
+    "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+    "$tmp_file" \
+    "$ADB" -s "$device_serial" exec-out cat "$remote_path"; then
+    rm -f "$tmp_file"
+    return 1
+  fi
+  shasum -a 256 "$tmp_file" | awk '{ print $1 }'
+  rm -f "$tmp_file"
 }
 
 android_runtime_crash_lines() {
@@ -362,7 +443,10 @@ if [[ "$REQUIRE_HEALTH_WRITE_ATTEMPT" == "1" || "$REQUIRE_HEALTH_READY_WRITE_PLA
   fi
 fi
 
-final_adb_state="$("$ADB" -s "$device_serial" get-state 2>/dev/null || true)"
+final_adb_state="$(run_with_timeout \
+  "Android final adb state" \
+  "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" get-state 2>/dev/null || true)"
 printf '%s\n' "$final_adb_state" > "$OUTPUT_DIR/adb-state-final.txt"
 if [[ "$final_adb_state" != "device" ]]; then
   inspection_status=1
