@@ -254,6 +254,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
   device_model_file="$PHONE_EVIDENCE_DIR/device-model.txt"
   android_version_file="$PHONE_EVIDENCE_DIR/android-version.txt"
   android_sdk_file="$PHONE_EVIDENCE_DIR/android-sdk.txt"
+  package_path_file="$PHONE_EVIDENCE_DIR/goose-package-path.txt"
+  local_debug_apk_sha_file="$PHONE_EVIDENCE_DIR/goose-local-debug-apk-sha256.txt"
+  installed_apk_sha_file="$PHONE_EVIDENCE_DIR/goose-installed-apk-sha256.txt"
   if [[ -f "$summary" ]]; then
     phone_evidence_supplied=1
     phone_summary_valid=1
@@ -311,6 +314,22 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       evidence_android_version="$evidence_android_release (SDK $evidence_android_sdk)"
     fi
     installed_result="$(summary_bullet_value "Result" "$summary")"
+    installed_package_path="$(summary_bullet_value "Package path" "$summary")"
+    summary_local_debug_apk_sha="$(summary_bullet_value "Local debug APK SHA-256" "$summary")"
+    summary_installed_apk_sha="$(summary_bullet_value "Installed APK SHA-256" "$summary")"
+    summary_installed_apk_hash_result="$(summary_bullet_value "Installed APK hash result" "$summary")"
+    evidence_package_path=""
+    evidence_local_debug_apk_sha=""
+    evidence_installed_apk_sha=""
+    if [[ -f "$package_path_file" ]]; then
+      evidence_package_path="$(sed -n '1p' "$package_path_file" | tr -d '\r')"
+    fi
+    if [[ -f "$local_debug_apk_sha_file" ]]; then
+      evidence_local_debug_apk_sha="$(sed -n '1p' "$local_debug_apk_sha_file" | tr -d '\r')"
+    fi
+    if [[ -f "$installed_apk_sha_file" ]]; then
+      evidence_installed_apk_sha="$(sed -n '1p' "$installed_apk_sha_file" | tr -d '\r')"
+    fi
     android_runtime_crash_lines="$(summary_bullet_value "Focused AndroidRuntime crash lines" "$summary")"
     raw_rows="$(summary_bullet_value "Raw evidence rows" "$summary")"
     capture_sessions="$(summary_bullet_value "Capture sessions" "$summary")"
@@ -355,9 +374,6 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     if [[ "$capture_verified" == "1" && "$device_kind" == "physical" ]]; then
       physical_capture_verified=1
     fi
-    if [[ "$phone_result" == "PASS" && "$installed_result" == "PASS" ]]; then
-      installed_package_verified=1
-    fi
     if [[ "$phone_result" == "PASS" && "$android_runtime_crash_lines" =~ ^[0-9]+$ && "$android_runtime_crash_lines" -eq 0 ]]; then
       no_android_runtime_crash_verified=1
     fi
@@ -398,6 +414,21 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && -n "$device_serial" \
       && "$evidence_adb_device_state" == "device" ]]; then
       evidence_adb_device_verified=1
+    fi
+    if [[ "$evidence_manifest_verified" == "1" \
+      && "$phone_result" == "PASS" \
+      && "$installed_result" == "PASS" \
+      && "$summary_installed_apk_hash_result" == "PASS" \
+      && "$installed_package_path" == package:* \
+      && "$installed_package_path" == "$evidence_package_path" \
+      && "$summary_local_debug_apk_sha" =~ ^[0-9A-Fa-f]{64}$ \
+      && "$summary_installed_apk_sha" =~ ^[0-9A-Fa-f]{64}$ \
+      && "$evidence_local_debug_apk_sha" =~ ^[0-9A-Fa-f]{64}$ \
+      && "$evidence_installed_apk_sha" =~ ^[0-9A-Fa-f]{64}$ \
+      && "$(printf '%s' "$summary_local_debug_apk_sha" | tr 'A-F' 'a-f')" == "$(printf '%s' "$evidence_local_debug_apk_sha" | tr 'A-F' 'a-f')" \
+      && "$(printf '%s' "$summary_installed_apk_sha" | tr 'A-F' 'a-f')" == "$(printf '%s' "$evidence_installed_apk_sha" | tr 'A-F' 'a-f')" \
+      && "$(printf '%s' "$evidence_local_debug_apk_sha" | tr 'A-F' 'a-f')" == "$(printf '%s' "$evidence_installed_apk_sha" | tr 'A-F' 'a-f')" ]]; then
+      installed_package_verified=1
     fi
     if [[ "$phone_result" == "PASS" && "$require_ble_hello" == "1" ]] \
       && is_positive_int "$ble_ready_events" \
@@ -454,10 +485,13 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo
     echo "Installed app:"
     echo "- Result: $installed_result"
-    echo "- Package path: $(summary_bullet_value "Package path" "$summary")"
-    echo "- Local debug APK SHA-256: $(summary_bullet_value "Local debug APK SHA-256" "$summary")"
-    echo "- Installed APK SHA-256: $(summary_bullet_value "Installed APK SHA-256" "$summary")"
-    echo "- Installed APK hash result: $(summary_bullet_value "Installed APK hash result" "$summary")"
+    echo "- Package path: $installed_package_path"
+    echo "- Evidence package path file: $evidence_package_path"
+    echo "- Local debug APK SHA-256: $summary_local_debug_apk_sha"
+    echo "- Evidence local debug APK SHA-256 file: $evidence_local_debug_apk_sha"
+    echo "- Installed APK SHA-256: $summary_installed_apk_sha"
+    echo "- Evidence installed APK SHA-256 file: $evidence_installed_apk_sha"
+    echo "- Installed APK hash result: $summary_installed_apk_hash_result"
     echo
     echo "Capture evidence:"
     echo "- Raw evidence rows: $raw_rows"
