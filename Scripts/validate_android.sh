@@ -1054,6 +1054,8 @@ assert_file_contains "$ANDROID_DIR/README.md" "run the final PR gate with \`--sk
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "health sync ready write succeeded events" "Android evidence report"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "health sync planned write succeeded events" "Android evidence report"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "health sync records inserted events" "Android evidence report"
+assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "attemptedManualStepDelta" "Android step-validation failure audit"
+assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "attemptedCaptureSessionId" "Android step-validation failure audit"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseBleClient.java" "if (closed || !scanning)" "BLE scan callback lifecycle"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseBleClient.java" "publishQueued = false;" "BLE scan publish lifecycle"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseBleClient.java" "isCurrentGattCallback" "BLE stale GATT callback guardrail"

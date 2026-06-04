@@ -1179,12 +1179,28 @@ final class GooseStoreReporter {
                     + "selected delta: " + (selected != null ? selected.optLong("delta", 0) : "none") + "\n"
                     + "issues: " + report.optJSONArray("issues");
         } catch (Exception error) {
-            appendStepValidationAudit("failed", report, String.valueOf(error));
+            appendStepValidationAudit("failed", report, String.valueOf(error),
+                    start,
+                    end,
+                    manualStepDelta,
+                    captureSessionId);
             return "Step validation failed\n" + error;
         }
     }
 
     private void appendStepValidationAudit(String event, JSONObject report, String error) {
+        appendStepValidationAudit(event, report, error, "", "", 0L, null);
+    }
+
+    private void appendStepValidationAudit(
+            String event,
+            JSONObject report,
+            String error,
+            String attemptedStart,
+            String attemptedEnd,
+            long attemptedManualStepDelta,
+            String attemptedCaptureSessionId
+    ) {
         try {
             File parent = stepValidationAuditFile.getParentFile();
             if (parent != null && !parent.exists() && !parent.mkdirs()) {
@@ -1211,6 +1227,19 @@ final class GooseStoreReporter {
                         .put("counter_delta_candidate_count", report.optInt("counter_delta_candidate_count", 0))
                         .put("selected_delta", selected != null ? selected.optLong("delta", 0) : JSONObject.NULL)
                         .put("issues", report.optJSONArray("issues"));
+            } else {
+                row.put("capture_session_id",
+                                attemptedCaptureSessionId != null ? attemptedCaptureSessionId : "")
+                        .put("start", attemptedStart != null ? attemptedStart : "")
+                        .put("end", attemptedEnd != null ? attemptedEnd : "")
+                        .put("manual_step_delta", attemptedManualStepDelta)
+                        .put("pass", false)
+                        .put("decoded_frame_count", 0)
+                        .put("capture_session_decoded_frame_count", 0)
+                        .put("inspected_frame_count", 0)
+                        .put("counter_candidate_count", 0)
+                        .put("counter_delta_candidate_count", 0)
+                        .put("selected_delta", JSONObject.NULL);
             }
             if (error != null) {
                 row.put("error", error);
