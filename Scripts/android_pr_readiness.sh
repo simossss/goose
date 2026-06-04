@@ -510,10 +510,14 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     evidence_package_path=""
     evidence_local_debug_apk_sha=""
     evidence_installed_apk_sha=""
+    evidence_package_version_code_verified=0
     evidence_package_summary_verified=0
     evidence_package_dumpsys_verified=0
     if [[ -f "$package_path_file" ]]; then
       evidence_package_path="$(sed -n '1p' "$package_path_file" | tr -d '\r')"
+    fi
+    if [[ -f "$package_summary_file" ]] && grep -Eq '(^|[[:space:]])versionCode=1([^0-9]|$)' "$package_summary_file"; then
+      evidence_package_version_code_verified=1
     fi
     if [[ -f "$package_summary_file" ]] && grep -q 'versionName=0.1.0' "$package_summary_file"; then
       evidence_package_summary_verified=1
@@ -914,6 +918,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$summary_installed_apk_hash_result" == "PASS" \
       && "$installed_package_path" == package:* \
       && "$installed_package_path" == "$evidence_package_path" \
+      && "$evidence_package_version_code_verified" == "1" \
       && "$evidence_package_summary_verified" == "1" \
       && "$evidence_package_dumpsys_verified" == "1" \
       && "$evidence_debug_apk_status_verified" == "1" \
@@ -1016,6 +1021,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Result: $installed_result"
     echo "- Package path: $installed_package_path"
     echo "- Evidence package path file: $evidence_package_path"
+    echo "- Evidence package summary versionCode=1: $evidence_package_version_code_verified"
     echo "- Evidence package summary versionName=0.1.0: $evidence_package_summary_verified"
     echo "- Evidence package dumpsys com.goose.android: $evidence_package_dumpsys_verified"
     echo "- Local debug APK SHA-256: $summary_local_debug_apk_sha"

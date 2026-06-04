@@ -312,6 +312,7 @@ if [[ "$logcat_start_marker_result" == "PASS" ]] \
 fi
 package_result="PASS"
 if [[ "$package_path" != package:* ]] \
+  || ! grep -Eq '(^|[[:space:]])versionCode=1([^0-9]|$)' "$OUTPUT_DIR/goose-package-summary.txt" 2>/dev/null \
   || ! grep -q 'versionName=0.1.0' "$OUTPUT_DIR/goose-package-summary.txt" 2>/dev/null \
   || [[ "$installed_apk_hash_result" != "PASS" ]]; then
   package_result="FAIL"
