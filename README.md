@@ -253,7 +253,8 @@ Scripts/android_pr_readiness.sh --strict [tmp/android-phone-final-gate-...]
 ```
 
 Use `--strict` after final phone evidence collection when the command should
-exit nonzero if any physical-phone acceptance item is still missing.
+exit nonzero if any physical-phone acceptance item is still missing, or if the
+evidence bundle was collected from a different checkout commit.
 
 Print the final real-phone run sheet before starting the controlled capture:
 

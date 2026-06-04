@@ -271,6 +271,7 @@ evidence_ble_audit_manifest_verified=0
 evidence_health_audit_manifest_verified=0
 evidence_step_audit_manifest_verified=0
 evidence_commit_verified=0
+evidence_current_commit_verified=0
 evidence_device_serial_verified=0
 evidence_device_kind_verified=0
 evidence_device_identity_verified=0
@@ -554,6 +555,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$summary_commit" == "$port_status_commit" ]]; then
       evidence_commit_verified=1
     fi
+    if [[ "$evidence_commit_verified" == "1" && "$summary_commit" == "$latest_commit" ]]; then
+      evidence_current_commit_verified=1
+    fi
     if [[ "$evidence_manifest_verified" == "1" \
       && -n "$device_serial" \
       && -n "$evidence_device_serial" \
@@ -664,6 +668,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "adb device state: $evidence_adb_device_state"
     echo "Summary commit: $summary_commit"
     echo "Status snapshot commit: $port_status_commit"
+    echo "Current checkout commit: $latest_commit"
     echo "Focused AndroidRuntime crash lines: $android_runtime_crash_lines"
     echo "Evidence focused AndroidRuntime crash lines: $evidence_android_runtime_crash_lines"
     echo
@@ -825,6 +830,10 @@ if [[ "$evidence_commit_verified" == "1" ]]; then
   echo "- Phone handoff summary commit matches the Android port status snapshot."
   verified_any=1
 fi
+if [[ "$evidence_current_commit_verified" == "1" ]]; then
+  echo "- Phone evidence commit matches the current checkout commit."
+  verified_any=1
+fi
 if [[ "$evidence_device_serial_verified" == "1" ]]; then
   echo "- Phone handoff summary device serial matches android-serial.txt."
   verified_any=1
@@ -918,6 +927,10 @@ if [[ "$evidence_step_inspection_verified" != "1" ]]; then
 fi
 if [[ "$evidence_commit_verified" != "1" ]]; then
   echo "- Phone handoff summary commit must match android-port-status.txt."
+  remaining_any=1
+fi
+if [[ "$evidence_current_commit_verified" != "1" ]]; then
+  echo "- Phone evidence commit must match the current checkout commit."
   remaining_any=1
 fi
 if [[ "$evidence_device_serial_verified" != "1" ]]; then

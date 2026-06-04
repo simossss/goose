@@ -36,7 +36,8 @@ Scripts/android_pr_readiness.sh --strict [tmp/android-phone-final-gate-...]
 ```
 
 Use `--strict` after the final phone gate when the command should fail if any
-phone-bound acceptance item remains unproven.
+phone-bound acceptance item remains unproven, or if the evidence bundle was
+collected from a different checkout commit.
 
 Print the final real-phone run sheet before starting the controlled capture:
 
