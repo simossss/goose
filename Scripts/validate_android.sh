@@ -142,6 +142,12 @@ write_required_evidence_artifacts() {
     printf 'ble session ready events: 1\n'
     printf 'ble session hello sent events: 1\n'
     printf 'ble session command ready events: 1\n'
+    printf 'step validation completed events: 1\n'
+    printf 'step validation passed events: 1\n'
+    printf 'step validation failed events: 0\n'
+    printf 'step validation session-bound events: 1\n'
+    printf 'step validation session decoded events: 1\n'
+    printf 'step validation selected delta events: 1\n'
     printf 'RESULT: PASS\n'
   } > "$dir/inspect-android-capture.txt"
   printf 'focused AndroidRuntime logcat placeholder\n' > "$dir/logcat-goose-brief.txt"
@@ -560,6 +566,8 @@ assert_file_contains "$readiness_strict_pass_output" "Inspect hello sent events:
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff BLE session counts match inspect-android-capture.txt." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect records attempted events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff Health Connect counts match inspect-android-capture.txt." "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect selected delta events: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Phone handoff step-validation counts match inspect-android-capture.txt." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Summary commit: synthetic" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Status snapshot commit: synthetic" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff summary commit matches the Android port status snapshot." "PR readiness strict"
@@ -627,6 +635,7 @@ assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summar
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff capture counts must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff BLE session counts must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff Health Connect counts must match inspect-android-capture.txt." "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff step-validation counts must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary device serial must match android-serial.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary device kind must match android-device-kind.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff summary device identity must match device-manufacturer.txt and device-model.txt." "PR readiness"

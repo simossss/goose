@@ -235,6 +235,7 @@ evidence_result_verified=0
 evidence_capture_inspection_verified=0
 evidence_ble_inspection_verified=0
 evidence_health_inspection_verified=0
+evidence_step_inspection_verified=0
 evidence_commit_verified=0
 evidence_device_serial_verified=0
 evidence_device_kind_verified=0
@@ -408,9 +409,24 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     fi
     step_completed="$(summary_bullet_value "Completed events" "$summary")"
     step_passed="$(summary_bullet_value "Passed events" "$summary")"
+    step_failed="$(summary_bullet_value "Failed events" "$summary")"
     step_session_bound="$(summary_bullet_value "Session-bound events" "$summary")"
     step_session_decoded="$(summary_bullet_value "Session decoded events" "$summary")"
     step_selected_delta="$(summary_bullet_value "Selected delta events" "$summary")"
+    inspection_step_completed=""
+    inspection_step_passed=""
+    inspection_step_failed=""
+    inspection_step_session_bound=""
+    inspection_step_session_decoded=""
+    inspection_step_selected_delta=""
+    if [[ -f "$inspection_file" ]]; then
+      inspection_step_completed="$(status_value "step validation completed events" "$inspection_file")"
+      inspection_step_passed="$(status_value "step validation passed events" "$inspection_file")"
+      inspection_step_failed="$(status_value "step validation failed events" "$inspection_file")"
+      inspection_step_session_bound="$(status_value "step validation session-bound events" "$inspection_file")"
+      inspection_step_session_decoded="$(status_value "step validation session decoded events" "$inspection_file")"
+      inspection_step_selected_delta="$(status_value "step validation selected delta events" "$inspection_file")"
+    fi
     require_step_pass=0
     require_step_session=0
     require_ble_hello=0
@@ -461,6 +477,15 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$health_records_attempted" == "$inspection_health_records_attempted" \
       && "$health_write_succeeded" == "$inspection_health_write_succeeded" ]]; then
       evidence_health_inspection_verified=1
+    fi
+    if [[ "$evidence_result_verified" == "1" \
+      && "$step_completed" == "$inspection_step_completed" \
+      && "$step_passed" == "$inspection_step_passed" \
+      && "$step_failed" == "$inspection_step_failed" \
+      && "$step_session_bound" == "$inspection_step_session_bound" \
+      && "$step_session_decoded" == "$inspection_step_session_decoded" \
+      && "$step_selected_delta" == "$inspection_step_selected_delta" ]]; then
+      evidence_step_inspection_verified=1
     fi
     if [[ "$capture_verified" == "1" && "$device_kind" == "physical" ]]; then
       physical_capture_verified=1
@@ -530,7 +555,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && is_positive_int "$ble_command_ready_events"; then
       ble_hello_verified=1
     fi
-    if [[ "$phone_result" == "PASS" && "$require_step_pass" == "1" ]] \
+    if [[ "$evidence_step_inspection_verified" == "1" && "$phone_result" == "PASS" && "$require_step_pass" == "1" ]] \
       && is_positive_int "$step_completed" \
       && is_positive_int "$step_passed" \
       && { [[ "$require_step_session" != "1" ]] \
@@ -630,11 +655,17 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo
     echo "Step validation evidence:"
     echo "- Completed events: $step_completed"
+    echo "- Inspect completed events: $inspection_step_completed"
     echo "- Passed events: $step_passed"
-    echo "- Failed events: $(summary_bullet_value "Failed events" "$summary")"
+    echo "- Inspect passed events: $inspection_step_passed"
+    echo "- Failed events: $step_failed"
+    echo "- Inspect failed events: $inspection_step_failed"
     echo "- Session-bound events: $step_session_bound"
+    echo "- Inspect session-bound events: $inspection_step_session_bound"
     echo "- Session decoded events: $step_session_decoded"
+    echo "- Inspect session decoded events: $inspection_step_session_decoded"
     echo "- Selected delta events: $step_selected_delta"
+    echo "- Inspect selected delta events: $inspection_step_selected_delta"
     echo
     echo "Gate configuration:"
     if [[ -f "$gates" ]]; then
@@ -706,6 +737,10 @@ if [[ "$evidence_ble_inspection_verified" == "1" ]]; then
 fi
 if [[ "$evidence_health_inspection_verified" == "1" ]]; then
   echo "- Phone handoff Health Connect counts match inspect-android-capture.txt."
+  verified_any=1
+fi
+if [[ "$evidence_step_inspection_verified" == "1" ]]; then
+  echo "- Phone handoff step-validation counts match inspect-android-capture.txt."
   verified_any=1
 fi
 if [[ "$evidence_commit_verified" == "1" ]]; then
@@ -793,6 +828,10 @@ if [[ "$evidence_ble_inspection_verified" != "1" ]]; then
 fi
 if [[ "$evidence_health_inspection_verified" != "1" ]]; then
   echo "- Phone handoff Health Connect counts must match inspect-android-capture.txt."
+  remaining_any=1
+fi
+if [[ "$evidence_step_inspection_verified" != "1" ]]; then
+  echo "- Phone handoff step-validation counts must match inspect-android-capture.txt."
   remaining_any=1
 fi
 if [[ "$evidence_commit_verified" != "1" ]]; then
