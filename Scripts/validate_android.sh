@@ -152,6 +152,7 @@ write_required_evidence_artifacts() {
     printf 'finished nonempty capture sessions: 1\n'
     printf 'step samples: 1\n'
     printf 'daily activity metrics: 1\n'
+    printf 'latest raw capture: 2026-06-04T12:00:01.000Z\n'
     printf 'health sync write started events: 1\n'
     printf 'health sync ready write started events: 1\n'
     printf 'health sync planned write started events: 1\n'
@@ -254,6 +255,7 @@ readiness_partial_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-part
 readiness_partial_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-partial-strict.XXXXXX")"
 readiness_crash_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-crash-strict.XXXXXX")"
 readiness_logcat_marker_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-logcat-marker-strict.XXXXXX")"
+readiness_stale_capture_marker_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-stale-capture-marker-strict.XXXXXX")"
 readiness_package_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-package-strict.XXXXXX")"
 readiness_ble_command_ready_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-ble-command-ready-strict.XXXXXX")"
 readiness_health_success_strict_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-readiness-health-success-strict.XXXXXX")"
@@ -272,11 +274,12 @@ final_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-final-gate-dr
 partial_gate_dry_run_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-partial-gate-dry-run.XXXXXX")"
 inspect_session_detail_output="$(mktemp "${TMPDIR:-/tmp}/goose-android-inspect-session-detail.XXXXXX")"
 synthetic_session_db="$(mktemp "${TMPDIR:-/tmp}/goose-android-session-detail.XXXXXX.sqlite")"
-TMP_FILES+=("$checklist_output" "$partial_checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$readiness_crash_strict_output" "$readiness_logcat_marker_strict_output" "$readiness_package_strict_output" "$readiness_ble_command_ready_strict_output" "$readiness_health_success_strict_output" "$readiness_manifest_strict_output" "$readiness_stale_manifest_strict_output" "$readiness_incomplete_manifest_strict_output" "$readiness_audit_manifest_strict_output" "$readiness_health_audit_manifest_strict_output" "$readiness_step_audit_manifest_strict_output" "$readiness_rotated_audit_manifest_strict_output" "$readiness_stale_commit_strict_output" "$readiness_stale_debug_apk_strict_output" "$readiness_dirty_status_strict_output" "$readiness_collect_error_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output" "$inspect_session_detail_output" "$synthetic_session_db")
+TMP_FILES+=("$checklist_output" "$partial_checklist_output" "$readiness_output" "$readiness_strict_output" "$readiness_strict_pass_output" "$readiness_partial_output" "$readiness_partial_strict_output" "$readiness_crash_strict_output" "$readiness_logcat_marker_strict_output" "$readiness_stale_capture_marker_strict_output" "$readiness_package_strict_output" "$readiness_ble_command_ready_strict_output" "$readiness_health_success_strict_output" "$readiness_manifest_strict_output" "$readiness_stale_manifest_strict_output" "$readiness_incomplete_manifest_strict_output" "$readiness_audit_manifest_strict_output" "$readiness_health_audit_manifest_strict_output" "$readiness_step_audit_manifest_strict_output" "$readiness_rotated_audit_manifest_strict_output" "$readiness_stale_commit_strict_output" "$readiness_stale_debug_apk_strict_output" "$readiness_dirty_status_strict_output" "$readiness_collect_error_strict_output" "$final_gate_dry_run_output" "$partial_gate_dry_run_output" "$inspect_session_detail_output" "$synthetic_session_db")
 synthetic_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-final-evidence.XXXXXX")"
 synthetic_partial_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-partial-evidence.XXXXXX")"
 synthetic_crash_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-crash-evidence.XXXXXX")"
 synthetic_logcat_marker_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-logcat-marker-evidence.XXXXXX")"
+synthetic_stale_capture_marker_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-stale-capture-marker-evidence.XXXXXX")"
 synthetic_package_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-package-evidence.XXXXXX")"
 synthetic_ble_command_ready_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-ble-command-ready-evidence.XXXXXX")"
 synthetic_health_success_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-health-success-evidence.XXXXXX")"
@@ -291,7 +294,7 @@ synthetic_stale_commit_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-
 synthetic_stale_debug_apk_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-stale-debug-apk-evidence.XXXXXX")"
 synthetic_dirty_status_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-dirty-status-evidence.XXXXXX")"
 synthetic_collect_error_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/goose-android-collect-error-evidence.XXXXXX")"
-TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir" "$synthetic_crash_evidence_dir" "$synthetic_logcat_marker_evidence_dir" "$synthetic_package_evidence_dir" "$synthetic_ble_command_ready_evidence_dir" "$synthetic_health_success_evidence_dir" "$synthetic_manifest_evidence_dir" "$synthetic_stale_manifest_evidence_dir" "$synthetic_incomplete_manifest_evidence_dir" "$synthetic_audit_manifest_evidence_dir" "$synthetic_health_audit_manifest_evidence_dir" "$synthetic_step_audit_manifest_evidence_dir" "$synthetic_rotated_audit_manifest_evidence_dir" "$synthetic_stale_commit_evidence_dir" "$synthetic_stale_debug_apk_evidence_dir" "$synthetic_dirty_status_evidence_dir" "$synthetic_collect_error_evidence_dir")
+TMP_DIRS+=("$synthetic_evidence_dir" "$synthetic_partial_evidence_dir" "$synthetic_crash_evidence_dir" "$synthetic_logcat_marker_evidence_dir" "$synthetic_stale_capture_marker_evidence_dir" "$synthetic_package_evidence_dir" "$synthetic_ble_command_ready_evidence_dir" "$synthetic_health_success_evidence_dir" "$synthetic_manifest_evidence_dir" "$synthetic_stale_manifest_evidence_dir" "$synthetic_incomplete_manifest_evidence_dir" "$synthetic_audit_manifest_evidence_dir" "$synthetic_health_audit_manifest_evidence_dir" "$synthetic_step_audit_manifest_evidence_dir" "$synthetic_rotated_audit_manifest_evidence_dir" "$synthetic_stale_commit_evidence_dir" "$synthetic_stale_debug_apk_evidence_dir" "$synthetic_dirty_status_evidence_dir" "$synthetic_collect_error_evidence_dir")
 "$SCRIPT_DIR/android_final_phone_checklist.sh" > "$checklist_output"
 "$SCRIPT_DIR/android_partial_phone_checklist.sh" > "$partial_checklist_output"
 "$SCRIPT_DIR/android_final_pr_gate.sh" tmp/android-phone-final-gate-real --skip-validate --require-health-success --dry-run > "$final_gate_dry_run_output"
@@ -406,6 +409,8 @@ Result: PASS
 - Finished nonempty capture sessions: 1
 - Step samples: 1
 - Daily activity metrics: 1
+- Latest raw capture: 2026-06-04T12:00:01.000Z
+- Latest raw capture after marker result: PASS
 
 ## BLE Session
 
@@ -567,6 +572,32 @@ if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_logcat_marker_evid
   echo "PR readiness strict mode unexpectedly passed with mismatched logcat start marker evidence" >&2
   exit 1
 fi
+
+cp "$synthetic_evidence_dir"/* "$synthetic_stale_capture_marker_evidence_dir"/
+stale_capture_summary_tmp="$synthetic_stale_capture_marker_evidence_dir/phone-handoff-summary.md.tmp"
+awk '
+  $0 == "- Latest raw capture: 2026-06-04T12:00:01.000Z" {
+    print "- Latest raw capture: 2026-06-04T11:59:59.000Z"
+    next
+  }
+  { print }
+' "$synthetic_stale_capture_marker_evidence_dir/phone-handoff-summary.md" > "$stale_capture_summary_tmp"
+mv "$stale_capture_summary_tmp" "$synthetic_stale_capture_marker_evidence_dir/phone-handoff-summary.md"
+stale_capture_inspect_tmp="$synthetic_stale_capture_marker_evidence_dir/inspect-android-capture.txt.tmp"
+awk '
+  $0 == "latest raw capture: 2026-06-04T12:00:01.000Z" {
+    print "latest raw capture: 2026-06-04T11:59:59.000Z"
+    next
+  }
+  { print }
+' "$synthetic_stale_capture_marker_evidence_dir/inspect-android-capture.txt" > "$stale_capture_inspect_tmp"
+mv "$stale_capture_inspect_tmp" "$synthetic_stale_capture_marker_evidence_dir/inspect-android-capture.txt"
+write_synthetic_manifest "$synthetic_stale_capture_marker_evidence_dir"
+if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_stale_capture_marker_evidence_dir" > "$readiness_stale_capture_marker_strict_output" 2>&1; then
+  echo "PR readiness strict mode unexpectedly passed with stale raw capture evidence" >&2
+  exit 1
+fi
+
 cp "$synthetic_evidence_dir/phone-handoff-summary.md" "$synthetic_package_evidence_dir/phone-handoff-summary.md"
 cp "$synthetic_evidence_dir/evidence-gates.txt" "$synthetic_package_evidence_dir/evidence-gates.txt"
 copy_required_evidence_artifacts "$synthetic_evidence_dir" "$synthetic_package_evidence_dir"
@@ -706,6 +737,8 @@ Result: PASS
 - Finished nonempty capture sessions: 1
 - Step samples: 1
 - Daily activity metrics: 1
+- Latest raw capture: 2026-06-04T12:00:01.000Z
+- Latest raw capture after marker result: PASS
 
 ## BLE Session
 
@@ -861,6 +894,8 @@ assert_file_contains "$readiness_strict_pass_output" "Evidence installed APK SHA
 assert_file_contains "$readiness_strict_pass_output" "Evidence focused AndroidRuntime crash lines: 0" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Logcat start marker result: PASS" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Logcat start marker scopes the focused AndroidRuntime crash evidence to com.goose.android on the handoff serial." "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Latest raw capture after marker result: PASS" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Latest raw capture timestamp is at or after the controlled-run logcat start marker." "PR readiness strict"
 assert_file_contains "$synthetic_evidence_dir/logcat-goose-brief.txt" "GooseBridgeSmoke" "PR readiness strict"
 assert_file_contains "$synthetic_evidence_dir/evidence-files-manifest.txt" "logcat-start-marker.txt" "PR readiness strict"
 assert_file_contains "$synthetic_evidence_dir/logcat-goose-brief.txt" "com.goose.android smoke harness completed" "PR readiness strict"
@@ -895,6 +930,8 @@ assert_file_contains "$readiness_collect_error_strict_output" "Evidence bundle m
 assert_file_contains "$readiness_collect_error_strict_output" "Strict PR readiness: FAIL" "PR readiness collect error strict"
 assert_file_contains "$readiness_logcat_marker_strict_output" "Logcat start marker from Scripts/prepare_android_phone_evidence.sh must be present in marker, full logcat, focused logcat, manifest evidence, com.goose.android package scope, and the handoff serial." "PR readiness logcat marker strict"
 assert_file_contains "$readiness_logcat_marker_strict_output" "Strict PR readiness: FAIL" "PR readiness logcat marker strict"
+assert_file_contains "$readiness_stale_capture_marker_strict_output" "Latest raw capture timestamp must be present, match inspect-android-capture.txt, and be at or after the controlled-run logcat start marker." "PR readiness stale capture marker strict"
+assert_file_contains "$readiness_stale_capture_marker_strict_output" "Strict PR readiness: FAIL" "PR readiness stale capture marker strict"
 assert_file_contains "$readiness_partial_output" "Bundle profile: partial phone evidence" "PR readiness partial"
 assert_file_contains "$readiness_partial_output" "not enough for final PR readiness" "PR readiness partial"
 assert_file_contains "$readiness_partial_strict_output" "Strict PR readiness: FAIL" "PR readiness partial strict"
@@ -943,7 +980,9 @@ assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "/AndroidRuntime/ && 
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "logcat-threadtime.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "logcat-start-marker.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "valid_logcat_start_marker" "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "capture_at_or_after_marker" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "valid_logcat_start_marker" "phone evidence collector"
+assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "latest raw capture is missing, unparseable, or older than the logcat start marker" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/prepare_android_phone_evidence.sh" "Goose evidence start marker written" "phone evidence prep"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "android-port-status.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "goose-package-path.txt" "PR readiness"

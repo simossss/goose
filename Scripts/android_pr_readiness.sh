@@ -108,6 +108,39 @@ valid_logcat_start_marker() {
   [[ -z "${extra:-}" ]] || return 1
 }
 
+marker_stamp() {
+  local marker="$1"
+  local prefix stamp package serial extra
+  read -r prefix stamp package serial extra <<< "$marker"
+  printf '%s' "$stamp"
+}
+
+normalize_utc_capture_timestamp() {
+  local value="$1"
+  if [[ "$value" =~ ^([0-9]{8}T[0-9]{6}Z)$ ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+  elif [[ "$value" =~ ^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})(\.[0-9]+)?Z$ ]]; then
+    printf '%s%s%sT%s%s%sZ' \
+      "${BASH_REMATCH[1]}" \
+      "${BASH_REMATCH[2]}" \
+      "${BASH_REMATCH[3]}" \
+      "${BASH_REMATCH[4]}" \
+      "${BASH_REMATCH[5]}" \
+      "${BASH_REMATCH[6]}"
+  fi
+}
+
+capture_at_or_after_marker() {
+  local capture_at="$1"
+  local marker="$2"
+  local capture_stamp
+  local start_stamp
+  capture_stamp="$(normalize_utc_capture_timestamp "$capture_at")"
+  start_stamp="$(marker_stamp "$marker")"
+  [[ -n "$capture_stamp" && -n "$start_stamp" ]] || return 1
+  [[ "$capture_stamp" > "$start_stamp" || "$capture_stamp" == "$start_stamp" ]]
+}
+
 verify_evidence_manifest() {
   local dir="$1"
   local manifest="$2"
@@ -321,6 +354,7 @@ ble_hello_verified=0
 installed_package_verified=0
 no_android_runtime_crash_verified=0
 evidence_logcat_start_marker_verified=0
+evidence_capture_after_marker_verified=0
 evidence_manifest_verified=0
 evidence_result_verified=0
 evidence_pull_result_verified=0
@@ -495,6 +529,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       evidence_logcat_start_marker="$(sed -n '1p' "$logcat_marker_file" | tr -d '\r')"
     fi
     raw_rows="$(summary_bullet_value "Raw evidence rows" "$summary")"
+    latest_raw_capture="$(summary_bullet_value "Latest raw capture" "$summary")"
+    latest_raw_capture_after_marker_result="$(summary_bullet_value "Latest raw capture after marker result" "$summary")"
     summary_database_bytes="$(summary_bullet_value "Database bytes" "$summary")"
     summary_database_sha="$(summary_bullet_value "Database SHA-256" "$summary")"
     summary_database_wal_bytes="$(summary_bullet_value "Database WAL bytes" "$summary")"
@@ -515,6 +551,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     inspection_session_live_notification_raw_rows=""
     inspection_session_decoded_rows=""
     inspection_finished_sessions=""
+    inspection_latest_raw_capture=""
     inspection_database_bytes=""
     inspection_database_sha=""
     inspection_database_wal_bytes=""
@@ -536,6 +573,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       inspection_session_live_notification_raw_rows="$(status_value "session live notification raw evidence" "$inspection_file")"
       inspection_session_decoded_rows="$(status_value "session decoded frames" "$inspection_file")"
       inspection_finished_sessions="$(status_value "finished nonempty capture sessions" "$inspection_file")"
+      inspection_latest_raw_capture="$(status_value "latest raw capture" "$inspection_file")"
     fi
     ble_ready_events="$(summary_bullet_value "Ready events" "$summary")"
     ble_hello_sent_events="$(summary_bullet_value "Hello sent events" "$summary")"
@@ -758,6 +796,13 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && grep -Fq "$evidence_logcat_start_marker" "$focused_logcat_file"; then
       evidence_logcat_start_marker_verified=1
     fi
+    if [[ "$evidence_logcat_start_marker_verified" == "1" \
+      && "$latest_raw_capture_after_marker_result" == "PASS" \
+      && -n "$latest_raw_capture" \
+      && "$latest_raw_capture" == "$inspection_latest_raw_capture" ]] \
+      && capture_at_or_after_marker "$latest_raw_capture" "$evidence_logcat_start_marker"; then
+      evidence_capture_after_marker_verified=1
+    fi
     if [[ "$evidence_manifest_verified" == "1" \
       && -n "$summary_commit" \
       && -n "$port_status_commit" \
@@ -913,6 +958,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Evidence focused AndroidRuntime crash lines: $evidence_android_runtime_crash_lines"
     echo "Logcat start marker result: $logcat_start_marker_result"
     echo "Evidence logcat start marker: $evidence_logcat_start_marker"
+    echo "Latest raw capture after marker result: $latest_raw_capture_after_marker_result"
     echo
     echo "Installed app:"
     echo "- Result: $installed_result"
@@ -959,6 +1005,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Inspect session decoded frame rows: $inspection_session_decoded_rows"
     echo "- Finished nonempty capture sessions: $finished_sessions"
     echo "- Inspect finished nonempty capture sessions: $inspection_finished_sessions"
+    echo "- Latest raw capture: $latest_raw_capture"
+    echo "- Inspect latest raw capture: $inspection_latest_raw_capture"
+    echo "- Latest raw capture after marker result: $latest_raw_capture_after_marker_result"
     echo "- Step samples: $(summary_bullet_value "Step samples" "$summary")"
     echo "- Daily activity metrics: $(summary_bullet_value "Daily activity metrics" "$summary")"
     echo
@@ -1070,6 +1119,10 @@ if [[ "$no_android_runtime_crash_verified" == "1" ]]; then
 fi
 if [[ "$evidence_logcat_start_marker_verified" == "1" ]]; then
   echo "- Logcat start marker scopes the focused AndroidRuntime crash evidence to com.goose.android on the handoff serial."
+  verified_any=1
+fi
+if [[ "$evidence_capture_after_marker_verified" == "1" ]]; then
+  echo "- Latest raw capture timestamp is at or after the controlled-run logcat start marker."
   verified_any=1
 fi
 if [[ "$evidence_manifest_verified" == "1" ]]; then
@@ -1209,6 +1262,10 @@ if [[ "$no_android_runtime_crash_verified" != "1" ]]; then
 fi
 if [[ "$require_logcat_start_marker" == "1" && "$evidence_logcat_start_marker_verified" != "1" ]]; then
   echo "- Logcat start marker from Scripts/prepare_android_phone_evidence.sh must be present in marker, full logcat, focused logcat, manifest evidence, com.goose.android package scope, and the handoff serial."
+  remaining_any=1
+fi
+if [[ "$require_logcat_start_marker" == "1" && "$evidence_capture_after_marker_verified" != "1" ]]; then
+  echo "- Latest raw capture timestamp must be present, match inspect-android-capture.txt, and be at or after the controlled-run logcat start marker."
   remaining_any=1
 fi
 if [[ "$evidence_manifest_verified" != "1" ]]; then

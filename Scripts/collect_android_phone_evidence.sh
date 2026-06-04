@@ -203,6 +203,39 @@ valid_logcat_start_marker() {
   [[ -z "${extra:-}" ]] || return 1
 }
 
+marker_stamp() {
+  local marker="$1"
+  local prefix stamp package serial extra
+  read -r prefix stamp package serial extra <<< "$marker"
+  printf '%s' "$stamp"
+}
+
+normalize_utc_capture_timestamp() {
+  local value="$1"
+  if [[ "$value" =~ ^([0-9]{8}T[0-9]{6}Z)$ ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+  elif [[ "$value" =~ ^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})(\.[0-9]+)?Z$ ]]; then
+    printf '%s%s%sT%s%s%sZ' \
+      "${BASH_REMATCH[1]}" \
+      "${BASH_REMATCH[2]}" \
+      "${BASH_REMATCH[3]}" \
+      "${BASH_REMATCH[4]}" \
+      "${BASH_REMATCH[5]}" \
+      "${BASH_REMATCH[6]}"
+  fi
+}
+
+capture_at_or_after_marker() {
+  local capture_at="$1"
+  local marker="$2"
+  local capture_stamp
+  local start_stamp
+  capture_stamp="$(normalize_utc_capture_timestamp "$capture_at")"
+  start_stamp="$(marker_stamp "$marker")"
+  [[ -n "$capture_stamp" && -n "$start_stamp" ]] || return 1
+  [[ "$capture_stamp" > "$start_stamp" || "$capture_stamp" == "$start_stamp" ]]
+}
+
 write_file_manifest() {
   local manifest="$OUTPUT_DIR/evidence-files-manifest.txt"
   local tmp_manifest="$manifest.tmp"
@@ -257,6 +290,12 @@ if [[ -n "$logcat_start_marker" ]] \
   && grep -Fq "$logcat_start_marker" "$OUTPUT_DIR/logcat-goose-brief.txt"; then
   logcat_start_marker_result="PASS"
 fi
+latest_raw_capture="$(summary_value "latest raw capture")"
+latest_raw_capture_after_marker_result="FAIL"
+if [[ "$logcat_start_marker_result" == "PASS" ]] \
+  && capture_at_or_after_marker "$latest_raw_capture" "$logcat_start_marker"; then
+  latest_raw_capture_after_marker_result="PASS"
+fi
 package_result="PASS"
 if [[ "$package_path" != package:* ]] \
   || ! grep -q 'versionName=0.1.0' "$OUTPUT_DIR/goose-package-summary.txt" 2>/dev/null \
@@ -287,6 +326,12 @@ if [[ "$REQUIRE_LOGCAT_START_MARKER" == "1" && "$logcat_start_marker_result" != 
   inspection_status=1
   inspection_result="FAIL"
   echo "FAIL: logcat start marker missing from marker file, full logcat, or focused logcat" >> "$OUTPUT_DIR/collect-error.txt"
+  echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
+fi
+if [[ "$REQUIRE_LOGCAT_START_MARKER" == "1" && "$latest_raw_capture_after_marker_result" != "PASS" ]]; then
+  inspection_status=1
+  inspection_result="FAIL"
+  echo "FAIL: latest raw capture is missing, unparseable, or older than the logcat start marker" >> "$OUTPUT_DIR/collect-error.txt"
   echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
 fi
 
@@ -331,6 +376,7 @@ Result: ${inspection_result:-unknown}
 - Kind: $device_kind
 - Final adb state: $final_adb_state
 - Logcat start marker result: $logcat_start_marker_result
+- Latest raw capture after marker result: $latest_raw_capture_after_marker_result
 - Focused AndroidRuntime crash lines: $android_runtime_crash_count
 
 ## Installed App
@@ -361,7 +407,8 @@ Result: ${inspection_result:-unknown}
 - Finished nonempty capture sessions: $(summary_value "finished nonempty capture sessions")
 - Step samples: $(summary_value "step samples")
 - Daily activity metrics: $(summary_value "daily activity metrics")
-- Latest raw capture: $(summary_value "latest raw capture")
+- Latest raw capture: $latest_raw_capture
+- Latest raw capture after marker result: $latest_raw_capture_after_marker_result
 
 ## Capture Session Evidence Detail
 
