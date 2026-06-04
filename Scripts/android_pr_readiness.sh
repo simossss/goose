@@ -185,6 +185,37 @@ verify_evidence_manifest() {
     && "$saw_result" == "1" ]]
 }
 
+verify_manifest_file() {
+  local dir="$1"
+  local manifest="$2"
+  local required_path="$3"
+  local line_number=0
+
+  [[ -f "$manifest" ]] || return 1
+  while IFS=$'\t' read -r rel_path expected_bytes expected_sha extra || [[ -n "$rel_path" ]]; do
+    line_number=$((line_number + 1))
+    if [[ "$line_number" -eq 1 ]]; then
+      continue
+    fi
+    if [[ "$rel_path" != "$required_path" ]]; then
+      continue
+    fi
+    [[ -n "$expected_bytes" && -n "$expected_sha" && -z "${extra:-}" ]] || return 1
+    [[ "$rel_path" != /* && "$rel_path" != *".."* && "$rel_path" != *$'\n'* ]] || return 1
+    [[ "$expected_bytes" =~ ^[0-9]+$ ]] || return 1
+    [[ "$expected_sha" =~ ^[0-9A-Fa-f]{64}$ ]] || return 1
+    local file="$dir/$rel_path"
+    [[ -f "$file" ]] || return 1
+    [[ "$(file_size "$file")" == "$expected_bytes" ]] || return 1
+    local normalized_sha
+    normalized_sha="$(printf '%s' "$expected_sha" | tr 'A-F' 'a-f')"
+    [[ "$(file_sha256 "$file")" == "$normalized_sha" ]] || return 1
+    return 0
+  done < "$manifest"
+
+  return 1
+}
+
 latest_commit="$(git -C "$APP_DIR" rev-parse --short HEAD) $(git -C "$APP_DIR" log -1 --pretty=%s)"
 branch="$(git -C "$APP_DIR" rev-parse --abbrev-ref HEAD)"
 dirty_tracked="$(git -C "$APP_DIR" status --short --untracked-files=no | wc -l | tr -d ' ')"
@@ -236,6 +267,9 @@ evidence_capture_inspection_verified=0
 evidence_ble_inspection_verified=0
 evidence_health_inspection_verified=0
 evidence_step_inspection_verified=0
+evidence_ble_audit_manifest_verified=0
+evidence_health_audit_manifest_verified=0
+evidence_step_audit_manifest_verified=0
 evidence_commit_verified=0
 evidence_device_serial_verified=0
 evidence_device_kind_verified=0
@@ -245,6 +279,11 @@ evidence_adb_device_verified=0
 step_validation_verified=0
 health_attempt_verified=0
 health_success_verified=0
+require_step_pass=0
+require_step_session=0
+require_ble_hello=0
+require_health_attempt=0
+require_health_ready_plan=0
 require_health_success=0
 bundle_profile="not supplied"
 if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
@@ -487,6 +526,18 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$step_selected_delta" == "$inspection_step_selected_delta" ]]; then
       evidence_step_inspection_verified=1
     fi
+    if [[ "$evidence_manifest_verified" == "1" ]] \
+      && verify_manifest_file "$PHONE_EVIDENCE_DIR" "$manifest" "goose-phone-ble-session-log.jsonl"; then
+      evidence_ble_audit_manifest_verified=1
+    fi
+    if [[ "$evidence_manifest_verified" == "1" ]] \
+      && verify_manifest_file "$PHONE_EVIDENCE_DIR" "$manifest" "goose-phone-health-connect-sync-log.jsonl"; then
+      evidence_health_audit_manifest_verified=1
+    fi
+    if [[ "$evidence_manifest_verified" == "1" ]] \
+      && verify_manifest_file "$PHONE_EVIDENCE_DIR" "$manifest" "goose-phone-step-validation-log.jsonl"; then
+      evidence_step_audit_manifest_verified=1
+    fi
     if [[ "$capture_verified" == "1" && "$device_kind" == "physical" ]]; then
       physical_capture_verified=1
     fi
@@ -549,13 +600,19 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$(printf '%s' "$evidence_local_debug_apk_sha" | tr 'A-F' 'a-f')" == "$(printf '%s' "$evidence_installed_apk_sha" | tr 'A-F' 'a-f')" ]]; then
       installed_package_verified=1
     fi
-    if [[ "$evidence_ble_inspection_verified" == "1" && "$phone_result" == "PASS" && "$require_ble_hello" == "1" ]] \
+    if [[ "$evidence_ble_inspection_verified" == "1" \
+      && "$evidence_ble_audit_manifest_verified" == "1" \
+      && "$phone_result" == "PASS" \
+      && "$require_ble_hello" == "1" ]] \
       && is_positive_int "$ble_ready_events" \
       && is_positive_int "$ble_hello_sent_events" \
       && is_positive_int "$ble_command_ready_events"; then
       ble_hello_verified=1
     fi
-    if [[ "$evidence_step_inspection_verified" == "1" && "$phone_result" == "PASS" && "$require_step_pass" == "1" ]] \
+    if [[ "$evidence_step_inspection_verified" == "1" \
+      && "$evidence_step_audit_manifest_verified" == "1" \
+      && "$phone_result" == "PASS" \
+      && "$require_step_pass" == "1" ]] \
       && is_positive_int "$step_completed" \
       && is_positive_int "$step_passed" \
       && { [[ "$require_step_session" != "1" ]] \
@@ -564,7 +621,10 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
           && is_positive_int "$step_selected_delta"; }; }; then
       step_validation_verified=1
     fi
-    if [[ "$evidence_health_inspection_verified" == "1" && "$phone_result" == "PASS" && "$require_health_attempt" == "1" ]] \
+    if [[ "$evidence_health_inspection_verified" == "1" \
+      && "$evidence_health_audit_manifest_verified" == "1" \
+      && "$phone_result" == "PASS" \
+      && "$require_health_attempt" == "1" ]] \
       && is_positive_int "$health_write_started" \
       && { [[ "$require_health_ready_plan" != "1" ]] \
         || { is_positive_int "$health_ready_write_started" \
@@ -573,7 +633,10 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
           && is_positive_int "$health_records_attempted"; }; }; then
       health_attempt_verified=1
     fi
-    if [[ "$evidence_health_inspection_verified" == "1" && "$phone_result" == "PASS" && "$require_health_success" == "1" ]] \
+    if [[ "$evidence_health_inspection_verified" == "1" \
+      && "$evidence_health_audit_manifest_verified" == "1" \
+      && "$phone_result" == "PASS" \
+      && "$require_health_success" == "1" ]] \
       && is_positive_int "$health_write_succeeded"; then
       health_success_verified=1
     fi
@@ -631,6 +694,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Daily activity metrics: $(summary_bullet_value "Daily activity metrics" "$summary")"
     echo
     echo "BLE session evidence:"
+    echo "- Audit manifest verified: $evidence_ble_audit_manifest_verified"
     echo "- Ready events: $ble_ready_events"
     echo "- Inspect ready events: $inspection_ble_ready_events"
     echo "- Hello sent events: $ble_hello_sent_events"
@@ -639,6 +703,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Inspect command ready events: $inspection_ble_command_ready_events"
     echo
     echo "Health Connect evidence:"
+    echo "- Audit manifest verified: $evidence_health_audit_manifest_verified"
     echo "- Write started events: $health_write_started"
     echo "- Inspect write started events: $inspection_health_write_started"
     echo "- Ready write started events: $health_ready_write_started"
@@ -654,6 +719,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Write failed events: $(summary_bullet_value "Write failed events" "$summary")"
     echo
     echo "Step validation evidence:"
+    echo "- Audit manifest verified: $evidence_step_audit_manifest_verified"
     echo "- Completed events: $step_completed"
     echo "- Inspect completed events: $inspection_step_completed"
     echo "- Passed events: $step_passed"
@@ -743,6 +809,18 @@ if [[ "$evidence_step_inspection_verified" == "1" ]]; then
   echo "- Phone handoff step-validation counts match inspect-android-capture.txt."
   verified_any=1
 fi
+if [[ "$evidence_ble_audit_manifest_verified" == "1" ]]; then
+  echo "- BLE session audit log is included in the evidence byte/hash manifest."
+  verified_any=1
+fi
+if [[ "$evidence_health_audit_manifest_verified" == "1" ]]; then
+  echo "- Health Connect audit log is included in the evidence byte/hash manifest."
+  verified_any=1
+fi
+if [[ "$evidence_step_audit_manifest_verified" == "1" ]]; then
+  echo "- Step-validation audit log is included in the evidence byte/hash manifest."
+  verified_any=1
+fi
 if [[ "$evidence_commit_verified" == "1" ]]; then
   echo "- Phone handoff summary commit matches the Android port status snapshot."
   verified_any=1
@@ -806,6 +884,10 @@ if [[ "$ble_hello_verified" != "1" ]]; then
   echo "- BLE session audit from the final gate must prove command characteristic readiness and client hello sent."
   remaining_any=1
 fi
+if [[ "$require_ble_hello" == "1" && "$evidence_ble_audit_manifest_verified" != "1" ]]; then
+  echo "- BLE session audit log must be included in the evidence byte/hash manifest."
+  remaining_any=1
+fi
 if [[ "$no_android_runtime_crash_verified" != "1" ]]; then
   echo "- Focused AndroidRuntime logcat must have 0 com.goose.android crash lines."
   remaining_any=1
@@ -862,8 +944,16 @@ if [[ "$step_validation_verified" != "1" ]]; then
   echo "- Step-counter decoder confirmation from real counted-step evidence with \`--require-step-validation\`, capture-session binding, decoded session frames, and selected counter delta."
   remaining_any=1
 fi
+if [[ "$require_step_pass" == "1" && "$evidence_step_audit_manifest_verified" != "1" ]]; then
+  echo "- Step-validation audit log must be included in the evidence byte/hash manifest."
+  remaining_any=1
+fi
 if [[ "$health_attempt_verified" != "1" ]]; then
   echo "- Health Connect permission grant and real planned write attempt on Android 14+, including permissions-ready planned-write context."
+  remaining_any=1
+fi
+if [[ "$require_health_attempt" == "1" && "$evidence_health_audit_manifest_verified" != "1" ]]; then
+  echo "- Health Connect audit log must be included in the evidence byte/hash manifest."
   remaining_any=1
 fi
 if [[ "$require_health_success" == "1" && "$health_success_verified" != "1" ]]; then
