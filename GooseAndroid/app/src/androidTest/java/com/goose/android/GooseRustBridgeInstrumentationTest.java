@@ -207,6 +207,8 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertBleDeviceRowDisplayContract();
         Log.i(TAG, "checking step validation UI guardrails");
         assertStepValidationUiGuardrails();
+        Log.i(TAG, "checking capture session start UI guardrails");
+        assertCaptureSessionStartGuardrails();
         Log.i(TAG, "checking Health Connect sync UI guardrails");
         assertHealthConnectSyncUiGuardrails();
         Log.i(TAG, "checking Health Connect sync duplicate-tap guardrail");
@@ -949,6 +951,21 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         String reason = MainActivity.stepValidationBlockReason(manualSteps, start, end, captureSessionId);
         if (reason == null || !reason.contains(expected)) {
             throw new AssertionError("unexpected step validation guardrail reason: " + reason);
+        }
+    }
+
+    private void assertCaptureSessionStartGuardrails() {
+        if (MainActivity.captureSessionStartBlockReason(false, null) != null) {
+            throw new AssertionError("idle capture session start should not be blocked");
+        }
+        assertCaptureSessionStartBlocked(true, null, "already running");
+        assertCaptureSessionStartBlocked(false, "android-smoke-session", "Capture session active");
+    }
+
+    private void assertCaptureSessionStartBlocked(boolean startInProgress, String activeSessionId, String expected) {
+        String reason = MainActivity.captureSessionStartBlockReason(startInProgress, activeSessionId);
+        if (reason == null || !reason.contains(expected)) {
+            throw new AssertionError("unexpected capture session start guardrail reason: " + reason);
         }
     }
 

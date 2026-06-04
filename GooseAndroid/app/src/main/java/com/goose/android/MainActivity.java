@@ -83,6 +83,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private long clearLocalDataConfirmUntilMillis;
     private int notificationCount;
     private boolean destroyed;
+    private boolean captureSessionStartInProgress;
     private boolean healthConnectSyncInProgress;
 
     @Override
@@ -631,6 +632,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         packetIngestor.clearCaptureSession();
         activeCaptureSessionId = null;
         lastFinishedCaptureSessionId = null;
+        captureSessionStartInProgress = false;
         resetValidationWindow();
         sessionStatus.setText("Capture session: none");
         runStorageMutation(storeReporter::clearLocalData);
@@ -754,10 +756,16 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     }
 
     private void startCaptureSession() {
+        String startBlockReason = captureSessionStartBlockReason(captureSessionStartInProgress, activeCaptureSessionId);
+        if (startBlockReason != null) {
+            sessionStatus.setText(startBlockReason);
+            return;
+        }
         if (activeCaptureSessionId != null) {
             sessionStatus.setText("Capture session active\n" + activeCaptureSessionId);
             return;
         }
+        captureSessionStartInProgress = true;
         String sessionId = "android-" + iso8601(System.currentTimeMillis())
                 .replace(":", "")
                 .replace(".", "")
@@ -782,11 +790,27 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 bridge.request("capture.start_session", args);
                 packetIngestor.startCaptureSession(sessionId);
                 activeCaptureSessionId = sessionId;
-                runOnUiThreadIfAlive(() -> sessionStatus.setText("Capture session active\n" + sessionId));
+                runOnUiThreadIfAlive(() -> {
+                    captureSessionStartInProgress = false;
+                    sessionStatus.setText("Capture session active\n" + sessionId);
+                });
             } catch (Exception error) {
-                runOnUiThreadIfAlive(() -> sessionStatus.setText("Capture session start failed\n" + error));
+                runOnUiThreadIfAlive(() -> {
+                    captureSessionStartInProgress = false;
+                    sessionStatus.setText("Capture session start failed\n" + error);
+                });
             }
         });
+    }
+
+    static String captureSessionStartBlockReason(boolean startInProgress, String activeSessionId) {
+        if (startInProgress) {
+            return "Capture session start already running.";
+        }
+        if (activeSessionId != null && !activeSessionId.trim().isEmpty()) {
+            return "Capture session active\n" + activeSessionId;
+        }
+        return null;
     }
 
     private void finishCaptureSession() {
