@@ -90,7 +90,9 @@ verify_evidence_manifest() {
   local saw_inspection=0
   local saw_database=0
   local saw_logcat=0
+  local saw_package_path=0
   local saw_package_summary=0
+  local saw_package_dumpsys=0
   local saw_local_apk_sha=0
   local saw_installed_apk_sha=0
   local saw_device_kind=0
@@ -125,8 +127,12 @@ verify_evidence_manifest() {
       saw_database=1
     elif [[ "$rel_path" == "logcat-goose-brief.txt" ]]; then
       saw_logcat=1
+    elif [[ "$rel_path" == "goose-package-path.txt" ]]; then
+      saw_package_path=1
     elif [[ "$rel_path" == "goose-package-summary.txt" ]]; then
       saw_package_summary=1
+    elif [[ "$rel_path" == "goose-package-dumpsys.txt" ]]; then
+      saw_package_dumpsys=1
     elif [[ "$rel_path" == "goose-local-debug-apk-sha256.txt" ]]; then
       saw_local_apk_sha=1
     elif [[ "$rel_path" == "goose-installed-apk-sha256.txt" ]]; then
@@ -146,7 +152,9 @@ verify_evidence_manifest() {
     && "$saw_inspection" == "1" \
     && "$saw_database" == "1" \
     && "$saw_logcat" == "1" \
+    && "$saw_package_path" == "1" \
     && "$saw_package_summary" == "1" \
+    && "$saw_package_dumpsys" == "1" \
     && "$saw_local_apk_sha" == "1" \
     && "$saw_installed_apk_sha" == "1" \
     && "$saw_device_kind" == "1" \

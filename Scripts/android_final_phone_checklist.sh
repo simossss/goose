@@ -103,7 +103,9 @@ Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
 - \`phone-handoff-summary.md\`
 - \`evidence-gates.txt\`
 - \`inspect-android-capture.txt\`
+- \`goose-package-path.txt\`
 - \`goose-package-summary.txt\`
+- \`goose-package-dumpsys.txt\`
 - \`goose-local-debug-apk-sha256.txt\`
 - \`goose-installed-apk-sha256.txt\`
 - \`goose-phone.sqlite\`
