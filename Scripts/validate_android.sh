@@ -90,9 +90,14 @@ select_adb_target() {
   fi
 
   local devices=()
+  local adb_devices_output
+  adb_devices_output="$(run_with_timeout \
+    "Android adb devices" \
+    "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+    "$ADB" devices)"
   while IFS= read -r serial; do
     devices+=("$serial")
-  done < <("$ADB" devices | awk 'NR > 1 && $2 == "device" { print $1 }')
+  done < <(printf '%s\n' "$adb_devices_output" | awk 'NR > 1 && $2 == "device" { print $1 }')
 
   if [[ "${#devices[@]}" -eq 1 ]]; then
     printf '%s\n' "${devices[0]}"
@@ -1615,6 +1620,7 @@ assert_file_contains "$SCRIPT_DIR/validate_android.sh" "Multiple adb devices are
 assert_file_contains "$SCRIPT_DIR/validate_android.sh" "GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" "Android validation adb timeout"
 assert_file_contains "$SCRIPT_DIR/validate_android.sh" "GOOSE_ANDROID_INSTRUMENTATION_TIMEOUT_SECONDS" "Android validation adb timeout"
 assert_file_contains "$SCRIPT_DIR/validate_android.sh" "run_with_timeout" "Android validation adb timeout"
+assert_file_contains "$SCRIPT_DIR/validate_android.sh" "Android adb devices" "Android validation adb timeout"
 assert_file_contains "$SCRIPT_DIR/validate_android.sh" "Android test APK install" "Android validation adb timeout"
 assert_file_contains "$SCRIPT_DIR/validate_android.sh" "Android bridge instrumentation" "Android validation adb timeout"
 
