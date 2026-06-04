@@ -1277,6 +1277,10 @@ if [[ "$evidence_manifest_verified" != "1" ]]; then
   echo "- Evidence bundle must include a valid evidence-files-manifest.txt with matching path, byte, and SHA-256 columns for required evidence files."
   remaining_any=1
 fi
+if [[ "$phone_evidence_supplied" == "1" && "$evidence_result" != "PASS" ]]; then
+  echo "- evidence-result.txt must report PASS for the capture inspection gate."
+  remaining_any=1
+fi
 if [[ "$evidence_result_verified" != "1" ]]; then
   echo "- Phone handoff summary result must match evidence-result.txt."
   remaining_any=1
