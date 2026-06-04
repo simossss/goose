@@ -322,6 +322,7 @@ final class GooseStoreReporter {
                     .append("capture sessions: ").append(countRows(database, "capture_sessions")).append('\n')
                     .append("step samples: ").append(countRows(database, "step_counter_samples")).append('\n')
                     .append("activity sessions: ").append(countRows(database, "activity_sessions")).append('\n')
+                    .append("daily activity metrics: ").append(countRows(database, "daily_activity_metrics")).append('\n')
                     .append("latest capture: ").append(latestValue(database, "raw_evidence", "captured_at")).append('\n')
                     .append("raw byte policy: local app storage; raw exports include bytes only after tapping Export\n")
                     .append("delete controls: Clear Exports removes generated bundles; Clear Data requires a second tap and also removes generated bundles");
@@ -350,6 +351,11 @@ final class GooseStoreReporter {
                     "status = 'finished' AND frame_count > 0");
             int decodedFrames = countRows(database, "decoded_frames");
             int stepSamples = countRows(database, "step_counter_samples");
+            int dailyActivityMetrics = countRows(database, "daily_activity_metrics");
+            int dailyLocalEstimateMetrics = countRowsWhereEquals(database, "daily_activity_metrics",
+                    "source_kind", "local_estimate");
+            int dailyDeviceCounterMetrics = countRowsWhereEquals(database, "daily_activity_metrics",
+                    "source_kind", "device_counter");
             String latestCapture = latestValue(database, "raw_evidence", "captured_at");
             int bleReadyEvents = countFileRowsContainingAll(bleSessionAuditFile,
                     "\"schema\":\"goose.android.ble-session-audit.v1\"",
@@ -430,6 +436,12 @@ final class GooseStoreReporter {
                     + "finished nonempty capture sessions: " + finishedNonemptySessions + "\n"
                     + "decoded frames: " + decodedFrames + "\n"
                     + "step samples: " + stepSamples + "\n"
+                    + "daily activity metrics: " + dailyActivityMetrics + "\n"
+                    + "daily local estimate metrics: " + dailyLocalEstimateMetrics + "\n"
+                    + "daily device counter metrics: " + dailyDeviceCounterMetrics + "\n"
+                    + "motion health guidance: "
+                    + activityHealthGuidance(dailyActivityMetrics, dailyLocalEstimateMetrics, dailyDeviceCounterMetrics)
+                    + "\n"
                     + "latest capture: " + latestCapture + "\n"
                     + "ble session audit bytes: " + auditBytesWithRotated(bleSessionAuditFile) + "\n"
                     + "ble session audit rotated bytes: " + rotatedAuditBytes(bleSessionAuditFile) + "\n"
@@ -926,6 +938,29 @@ final class GooseStoreReporter {
         try (Cursor cursor = database.rawQuery("SELECT COUNT(*) FROM " + table + " WHERE " + whereClause, null)) {
             return cursor.moveToFirst() ? cursor.getInt(0) : 0;
         }
+    }
+
+    private int countRowsWhereEquals(SQLiteDatabase database, String table, String column, String value) {
+        try (Cursor cursor = database.rawQuery(
+                "SELECT COUNT(*) FROM " + table + " WHERE " + column + " = ?",
+                new String[]{value}
+        )) {
+            return cursor.moveToFirst() ? cursor.getInt(0) : 0;
+        }
+    }
+
+    private String activityHealthGuidance(
+            int dailyActivityMetrics,
+            int dailyLocalEstimateMetrics,
+            int dailyDeviceCounterMetrics
+    ) {
+        if (dailyLocalEstimateMetrics > 0 || dailyDeviceCounterMetrics > 0) {
+            return "daily activity rows available for Health Connect planning";
+        }
+        if (dailyActivityMetrics > 0) {
+            return "daily activity rows exist, but no writable step source yet";
+        }
+        return "run Motion after marking a counted window before Health Connect planning";
     }
 
     private String latestValue(SQLiteDatabase database, String table, String column) {
