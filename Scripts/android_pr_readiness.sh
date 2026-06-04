@@ -498,12 +498,18 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     health_candidate_write_started="$(summary_bullet_value "Candidate write started events" "$summary")"
     health_records_attempted="$(summary_bullet_value "Records attempted events" "$summary")"
     health_write_succeeded="$(summary_bullet_value "Write succeeded events" "$summary")"
+    health_ready_write_succeeded="$(summary_bullet_value "Ready write succeeded events" "$summary")"
+    health_planned_write_succeeded="$(summary_bullet_value "Planned write succeeded events" "$summary")"
+    health_records_inserted="$(summary_bullet_value "Records inserted events" "$summary")"
     inspection_health_write_started=""
     inspection_health_ready_write_started=""
     inspection_health_planned_write_started=""
     inspection_health_candidate_write_started=""
     inspection_health_records_attempted=""
     inspection_health_write_succeeded=""
+    inspection_health_ready_write_succeeded=""
+    inspection_health_planned_write_succeeded=""
+    inspection_health_records_inserted=""
     if [[ -f "$inspection_file" ]]; then
       inspection_health_write_started="$(status_value "health sync write started events" "$inspection_file")"
       inspection_health_ready_write_started="$(status_value "health sync ready write started events" "$inspection_file")"
@@ -511,6 +517,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       inspection_health_candidate_write_started="$(status_value "health sync candidate write started events" "$inspection_file")"
       inspection_health_records_attempted="$(status_value "health sync records attempted events" "$inspection_file")"
       inspection_health_write_succeeded="$(status_value "health sync write succeeded events" "$inspection_file")"
+      inspection_health_ready_write_succeeded="$(status_value "health sync ready write succeeded events" "$inspection_file")"
+      inspection_health_planned_write_succeeded="$(status_value "health sync planned write succeeded events" "$inspection_file")"
+      inspection_health_records_inserted="$(status_value "health sync records inserted events" "$inspection_file")"
     fi
     step_completed="$(summary_bullet_value "Completed events" "$summary")"
     step_passed="$(summary_bullet_value "Passed events" "$summary")"
@@ -594,7 +603,10 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$health_planned_write_started" == "$inspection_health_planned_write_started" \
       && "$health_candidate_write_started" == "$inspection_health_candidate_write_started" \
       && "$health_records_attempted" == "$inspection_health_records_attempted" \
-      && "$health_write_succeeded" == "$inspection_health_write_succeeded" ]]; then
+      && "$health_write_succeeded" == "$inspection_health_write_succeeded" \
+      && "$health_ready_write_succeeded" == "$inspection_health_ready_write_succeeded" \
+      && "$health_planned_write_succeeded" == "$inspection_health_planned_write_succeeded" \
+      && "$health_records_inserted" == "$inspection_health_records_inserted" ]]; then
       evidence_health_inspection_verified=1
     fi
     if [[ "$evidence_result_verified" == "1" \
@@ -740,7 +752,10 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$evidence_health_audit_manifest_verified" == "1" \
       && "$phone_result" == "PASS" \
       && "$require_health_success" == "1" ]] \
-      && is_positive_int "$health_write_succeeded"; then
+      && is_positive_int "$health_write_succeeded" \
+      && is_positive_int "$health_ready_write_succeeded" \
+      && is_positive_int "$health_planned_write_succeeded" \
+      && is_positive_int "$health_records_inserted"; then
       health_success_verified=1
     fi
     if [[ "$device_kind" == "emulator" ]]; then
@@ -833,6 +848,12 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Inspect records attempted events: $inspection_health_records_attempted"
     echo "- Write succeeded events: $health_write_succeeded"
     echo "- Inspect write succeeded events: $inspection_health_write_succeeded"
+    echo "- Ready write succeeded events: $health_ready_write_succeeded"
+    echo "- Inspect ready write succeeded events: $inspection_health_ready_write_succeeded"
+    echo "- Planned write succeeded events: $health_planned_write_succeeded"
+    echo "- Inspect planned write succeeded events: $inspection_health_planned_write_succeeded"
+    echo "- Records inserted events: $health_records_inserted"
+    echo "- Inspect records inserted events: $inspection_health_records_inserted"
     echo "- Write failed events: $(summary_bullet_value "Write failed events" "$summary")"
     echo
     echo "Step validation evidence:"
@@ -1001,7 +1022,7 @@ if [[ "$health_attempt_verified" == "1" ]]; then
   verified_any=1
 fi
 if [[ "$health_success_verified" == "1" ]]; then
-  echo "- Health Connect write success was recorded under the required final gate."
+  echo "- Health Connect write success was recorded under the required final gate with ready-plan context and inserted records."
   verified_any=1
 fi
 if [[ "$verified_any" == "0" ]]; then
@@ -1124,7 +1145,7 @@ if [[ "$require_health_attempt" == "1" && "$evidence_health_audit_manifest_verif
   remaining_any=1
 fi
 if [[ "$require_health_success" == "1" && "$health_success_verified" != "1" ]]; then
-  echo "- Health Connect successful platform write must be recorded because the final gate required it."
+  echo "- Health Connect successful platform write must include permissions-ready planned-write context and inserted records because the final gate required it."
   remaining_any=1
 fi
 if [[ "$remaining_any" == "0" ]]; then

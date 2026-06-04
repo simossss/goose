@@ -133,7 +133,7 @@ write_required_evidence_artifacts() {
   printf '1111111111111111111111111111111111111111111111111111111111111111\n' > "$dir/goose-local-debug-apk-sha256.txt"
   printf '1111111111111111111111111111111111111111111111111111111111111111\n' > "$dir/goose-installed-apk-sha256.txt"
   printf '{"schema":"goose.android.ble-session-audit.v1","event":"connection_progress","details":{"phase":"operation_complete","active_operation_label":"client hello","hello_sent":true,"command_ready":true}}\n{"schema":"goose.android.ble-session-audit.v1","event":"connection_progress","details":{"phase":"ready","hello_sent":true,"command_ready":true}}\n' > "$dir/goose-phone-ble-session-log.jsonl"
-  printf '{"schema":"goose.android.health-connect-sync-audit.v1","event":"write_started","permissions_ready":true,"planned_write_count":1,"candidate_count":1,"records_attempted":1}\n{"schema":"goose.android.health-connect-sync-audit.v1","event":"write_succeeded"}\n' > "$dir/goose-phone-health-connect-sync-log.jsonl"
+  printf '{"schema":"goose.android.health-connect-sync-audit.v1","event":"write_started","permissions_ready":true,"planned_write_count":1,"candidate_count":1,"records_attempted":1}\n{"schema":"goose.android.health-connect-sync-audit.v1","event":"write_succeeded","permissions_ready":true,"planned_write_count":1,"candidate_count":1,"records_attempted":1,"records_inserted":1}\n' > "$dir/goose-phone-health-connect-sync-log.jsonl"
   printf '{"schema":"goose.android.step-validation-audit.v1","event":"completed","pass":true,"capture_session_id":"android-session-a","capture_session_decoded_frame_count":1,"selected_delta":1}\n' > "$dir/goose-phone-step-validation-log.jsonl"
   {
     printf 'Android capture inspection\n'
@@ -152,6 +152,9 @@ write_required_evidence_artifacts() {
     printf 'health sync candidate write started events: 1\n'
     printf 'health sync records attempted events: 1\n'
     printf 'health sync write succeeded events: 1\n'
+    printf 'health sync ready write succeeded events: 1\n'
+    printf 'health sync planned write succeeded events: 1\n'
+    printf 'health sync records inserted events: 1\n'
     printf 'ble session ready events: 1\n'
     printf 'ble session hello sent events: 1\n'
     printf 'ble session client hello completed events: 1\n'
@@ -394,6 +397,9 @@ Result: PASS
 - Candidate write started events: 1
 - Records attempted events: 1
 - Write succeeded events: 1
+- Ready write succeeded events: 1
+- Planned write succeeded events: 1
+- Records inserted events: 1
 - Write failed events: 0
 
 ## Step Validation
@@ -645,6 +651,9 @@ Result: PASS
 - Candidate write started events: 1
 - Records attempted events: 1
 - Write succeeded events: 0
+- Ready write succeeded events: 0
+- Planned write succeeded events: 0
+- Records inserted events: 0
 - Write failed events: 0
 
 ## Step Validation
@@ -724,6 +733,9 @@ assert_file_contains "$readiness_strict_pass_output" "Inspect hello sent events:
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff BLE session counts match inspect-android-capture.txt." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "BLE session audit log is included in the evidence byte/hash manifest." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect records attempted events: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect ready write succeeded events: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect planned write succeeded events: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect records inserted events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff Health Connect counts match inspect-android-capture.txt." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Health Connect audit log is included in the evidence byte/hash manifest." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect selected delta events: 1" "PR readiness strict"
@@ -767,7 +779,7 @@ assert_file_contains "$readiness_crash_strict_output" "Focused AndroidRuntime lo
 assert_file_contains "$readiness_crash_strict_output" "Strict PR readiness: FAIL" "PR readiness crash strict"
 assert_file_contains "$readiness_package_strict_output" "Installed com.goose.android package metadata and APK hash match must pass the evidence gate." "PR readiness package strict"
 assert_file_contains "$readiness_package_strict_output" "Strict PR readiness: FAIL" "PR readiness package strict"
-assert_file_contains "$readiness_health_success_strict_output" "Health Connect successful platform write must be recorded because the final gate required it." "PR readiness health success strict"
+assert_file_contains "$readiness_health_success_strict_output" "Health Connect successful platform write must include permissions-ready planned-write context and inserted records because the final gate required it." "PR readiness health success strict"
 assert_file_contains "$readiness_health_success_strict_output" "Strict PR readiness: FAIL" "PR readiness health success strict"
 assert_file_contains "$readiness_manifest_strict_output" "Evidence bundle must include a valid evidence-files-manifest.txt with matching path, byte, and SHA-256 columns for required evidence files." "PR readiness manifest strict"
 assert_file_contains "$readiness_manifest_strict_output" "Strict PR readiness: FAIL" "PR readiness manifest strict"

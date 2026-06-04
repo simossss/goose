@@ -350,6 +350,9 @@ $(summary_section "Capture session evidence detail")
 - Candidate write started events: $(summary_value "health sync candidate write started events")
 - Records attempted events: $(summary_value "health sync records attempted events")
 - Write succeeded events: $(summary_value "health sync write succeeded events")
+- Ready write succeeded events: $(summary_value "health sync ready write succeeded events")
+- Planned write succeeded events: $(summary_value "health sync planned write succeeded events")
+- Records inserted events: $(summary_value "health sync records inserted events")
 - Write failed events: $(summary_value "health sync write failed events")
 
 ## Step Validation

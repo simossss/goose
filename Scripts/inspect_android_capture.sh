@@ -132,6 +132,9 @@ health_audit_planned_write_started=0
 health_audit_candidate_write_started=0
 health_audit_records_attempted=0
 health_audit_write_succeeded=0
+health_audit_ready_write_succeeded=0
+health_audit_planned_write_succeeded=0
+health_audit_records_inserted=0
 health_audit_write_failed=0
 ble_session_bytes=0
 ble_session_ready=0
@@ -155,6 +158,9 @@ if [[ -f "$HEALTH_AUDIT_LOG" ]]; then
   health_audit_candidate_write_started="$(grep -Ec '"event":"write_started".*"candidate_count":[1-9][0-9]*' "$HEALTH_AUDIT_LOG" || true)"
   health_audit_records_attempted="$(grep -Ec '"event":"write_started".*"records_attempted":[1-9][0-9]*' "$HEALTH_AUDIT_LOG" || true)"
   health_audit_write_succeeded="$(grep -c '"event":"write_succeeded"' "$HEALTH_AUDIT_LOG" || true)"
+  health_audit_ready_write_succeeded="$(grep -Ec '"event":"write_succeeded".*"permissions_ready":true' "$HEALTH_AUDIT_LOG" || true)"
+  health_audit_planned_write_succeeded="$(grep -Ec '"event":"write_succeeded".*"planned_write_count":[1-9][0-9]*' "$HEALTH_AUDIT_LOG" || true)"
+  health_audit_records_inserted="$(grep -Ec '"event":"write_succeeded".*"records_inserted":[1-9][0-9]*' "$HEALTH_AUDIT_LOG" || true)"
   health_audit_write_failed="$(grep -c '"event":"write_failed"' "$HEALTH_AUDIT_LOG" || true)"
 fi
 if [[ -f "$BLE_SESSION_LOG" ]]; then
@@ -197,6 +203,9 @@ echo "health sync planned write started events: $health_audit_planned_write_star
 echo "health sync candidate write started events: $health_audit_candidate_write_started"
 echo "health sync records attempted events: $health_audit_records_attempted"
 echo "health sync write succeeded events: $health_audit_write_succeeded"
+echo "health sync ready write succeeded events: $health_audit_ready_write_succeeded"
+echo "health sync planned write succeeded events: $health_audit_planned_write_succeeded"
+echo "health sync records inserted events: $health_audit_records_inserted"
 echo "health sync write failed events: $health_audit_write_failed"
 echo "ble session audit: $BLE_SESSION_LOG"
 echo "ble session audit bytes: $ble_session_bytes"
@@ -490,6 +499,21 @@ fi
 
 if [[ "$REQUIRE_HEALTH_WRITE_SUCCESS" == "1" && "$health_audit_write_succeeded" -le 0 ]]; then
   echo "FAIL: Health Connect audit has no write_succeeded event" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_HEALTH_WRITE_SUCCESS" == "1" && "$health_audit_ready_write_succeeded" -le 0 ]]; then
+  echo "FAIL: Health Connect write_succeeded audit has no permissions_ready=true context" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_HEALTH_WRITE_SUCCESS" == "1" && "$health_audit_planned_write_succeeded" -le 0 ]]; then
+  echo "FAIL: Health Connect write_succeeded audit has no planned_write_count > 0" >&2
+  failures=$((failures + 1))
+fi
+
+if [[ "$REQUIRE_HEALTH_WRITE_SUCCESS" == "1" && "$health_audit_records_inserted" -le 0 ]]; then
+  echo "FAIL: Health Connect write_succeeded audit has no records_inserted > 0" >&2
   failures=$((failures + 1))
 fi
 
