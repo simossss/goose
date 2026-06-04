@@ -135,6 +135,7 @@ if "$SCRIPT_DIR/inspect_android_capture.sh" "$OUTPUT_DIR/goose-phone.sqlite" \
 else
   inspection_status=$?
   echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
+  echo "FAIL: Android capture inspection failed with exit status $inspection_status; see inspect-android-capture.txt" >> "$OUTPUT_DIR/collect-error.txt"
 fi
 
 summary_value() {

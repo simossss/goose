@@ -982,6 +982,7 @@ assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "required w
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "required when Health Connect write gates are enabled" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "required when step-validation gates are enabled" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" 'Database pull result: $(summary_value_from "RESULT" "$OUTPUT_DIR/pull-android-database-result.txt")' "phone evidence collector"
+assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "Android capture inspection failed with exit status" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "goose-installed-apk-sha256.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "/AndroidRuntime/ && /com[.]goose[.]android/" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "logcat-threadtime.txt" "PR readiness"
