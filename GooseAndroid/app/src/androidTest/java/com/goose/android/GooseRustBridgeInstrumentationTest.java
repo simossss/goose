@@ -562,6 +562,7 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 0,
                 11,
                 6,
+                "client hello",
                 true,
                 true,
                 null,
@@ -582,6 +583,9 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         }
         if (!audit.contains("\"command_ready\":true")) {
             throw new AssertionError("BLE session audit missing command_ready=true: " + audit);
+        }
+        if (!audit.contains("\"active_operation_label\":\"client hello\"")) {
+            throw new AssertionError("BLE session audit missing active operation label: " + audit);
         }
     }
 

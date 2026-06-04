@@ -148,6 +148,7 @@ final class GooseBleClient {
         final int queuedOperationCount;
         final int completedOperationCount;
         final int subscriptionCount;
+        final String activeOperationLabel;
         final boolean commandReady;
         final boolean helloSent;
         final String error;
@@ -164,6 +165,7 @@ final class GooseBleClient {
                 int queuedOperationCount,
                 int completedOperationCount,
                 int subscriptionCount,
+                String activeOperationLabel,
                 boolean commandReady,
                 boolean helloSent,
                 String error,
@@ -179,6 +181,7 @@ final class GooseBleClient {
             this.queuedOperationCount = queuedOperationCount;
             this.completedOperationCount = completedOperationCount;
             this.subscriptionCount = subscriptionCount;
+            this.activeOperationLabel = activeOperationLabel;
             this.commandReady = commandReady;
             this.helloSent = helloSent;
             this.error = error;
@@ -946,6 +949,7 @@ final class GooseBleClient {
                 operationQueue.size() + (activeOperation != null ? 1 : 0),
                 completedOperationCount,
                 subscriptionCount,
+                activeOperation != null ? activeOperation.label() : "",
                 commandReady(),
                 clientHelloSent,
                 error,

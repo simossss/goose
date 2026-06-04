@@ -29,6 +29,7 @@ final class BleSessionAudit {
         put(details, "queued_operation_count", progress.queuedOperationCount);
         put(details, "completed_operation_count", progress.completedOperationCount);
         put(details, "subscription_count", progress.subscriptionCount);
+        put(details, "active_operation_label", progress.activeOperationLabel);
         put(details, "command_ready", progress.commandReady);
         put(details, "hello_sent", progress.helloSent);
         put(details, "error", progress.error);
