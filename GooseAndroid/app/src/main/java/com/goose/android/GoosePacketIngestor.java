@@ -120,6 +120,10 @@ final class GoosePacketIngestor {
         return activeCaptureSessionId;
     }
 
+    synchronized int activeCaptureSessionFrameCount() {
+        return activeCaptureSessionFrameCount;
+    }
+
     synchronized void clearCaptureSession() {
         activeCaptureSessionId = null;
         activeCaptureSessionFrameCount = 0;

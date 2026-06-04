@@ -79,6 +79,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private String validationEnd = UNSET_VALIDATION_END;
     private volatile String activeCaptureSessionId;
     private volatile String lastFinishedCaptureSessionId;
+    private volatile int lastFinishedCaptureFrameCount;
     private volatile String pendingFinishCaptureSessionId;
     private volatile int pendingFinishCaptureFrameCount;
     private PendingCommand pendingCommand;
@@ -177,6 +178,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                     ? result.error
                     : result.parseSummary + "\n" + result.importSummary;
             packetStatus.setText("Notifications: " + notificationCount + "\n" + summary);
+            updateActiveCaptureSessionStatus();
             transferProgress.recordPacket(result, notification.capturedAtMillis);
             transferStatus.setText(transferProgress.summary());
             appendNotificationLog(stamp, notification.characteristicUuid, result.frameHex);
@@ -639,6 +641,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         packetIngestor.clearCaptureSession();
         activeCaptureSessionId = null;
         lastFinishedCaptureSessionId = null;
+        lastFinishedCaptureFrameCount = 0;
         pendingFinishCaptureSessionId = null;
         pendingFinishCaptureFrameCount = 0;
         captureSessionStartInProgress = false;
@@ -795,6 +798,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 .replace("-", "")
                 + "-" + UUID.randomUUID().toString().substring(0, 8);
         lastFinishedCaptureSessionId = null;
+        lastFinishedCaptureFrameCount = 0;
         resetValidationWindow();
         long startedAt = System.currentTimeMillis();
         sessionStatus.setText("Starting capture session\n" + sessionId);
@@ -886,6 +890,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                         .put("frame_count", frameCount);
                 JSONObject report = bridge.request("capture.finish_session", args);
                 lastFinishedCaptureSessionId = sessionId;
+                lastFinishedCaptureFrameCount = frameCount;
                 pendingFinishCaptureSessionId = null;
                 pendingFinishCaptureFrameCount = 0;
                 runOnUiThreadIfAlive(() -> sessionStatus.setText("Capture session finished\n"
@@ -946,7 +951,15 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         String captureSessionId = activeCaptureSessionId != null
                 ? activeCaptureSessionId
                 : lastFinishedCaptureSessionId;
-        String blockReason = stepValidationBlockReason(manualSteps, validationStart, validationEnd, captureSessionId);
+        int captureSessionFrameCount = activeCaptureSessionId != null
+                ? packetIngestor.activeCaptureSessionFrameCount()
+                : lastFinishedCaptureFrameCount;
+        String blockReason = stepValidationBlockReason(
+                manualSteps,
+                validationStart,
+                validationEnd,
+                captureSessionId,
+                captureSessionFrameCount);
         if (blockReason != null) {
             reportStatus.setText("Step validation blocked\n" + blockReason);
             return;
@@ -963,6 +976,16 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             String end,
             String captureSessionId
     ) {
+        return stepValidationBlockReason(manualSteps, start, end, captureSessionId, 1);
+    }
+
+    static String stepValidationBlockReason(
+            long manualSteps,
+            String start,
+            String end,
+            String captureSessionId,
+            int captureSessionFrameCount
+    ) {
         if (manualSteps <= 0) {
             return "Manual steps must be greater than zero.";
         }
@@ -978,12 +1001,25 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         if (captureSessionId == null || captureSessionId.trim().isEmpty()) {
             return "Start or finish a capture session before running final step validation.";
         }
+        if (captureSessionFrameCount <= 0) {
+            return "Capture session must include at least one notification before final step validation.";
+        }
         return null;
     }
 
     private void resetValidationWindow() {
         validationStart = UNSET_VALIDATION_START;
         validationEnd = UNSET_VALIDATION_END;
+    }
+
+    private void updateActiveCaptureSessionStatus() {
+        String sessionId = activeCaptureSessionId;
+        if (sessionId == null || sessionId.trim().isEmpty() || sessionStatus == null) {
+            return;
+        }
+        sessionStatus.setText("Capture session active\n"
+                + sessionId
+                + "\nframes: " + packetIngestor.activeCaptureSessionFrameCount());
     }
 
     private void appendNotificationLog(String stamp, String characteristicUuid, String frameHex) {

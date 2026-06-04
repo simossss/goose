@@ -958,7 +958,7 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         String validStart = "2026-01-01T00:00:00.000Z";
         String validEnd = "2026-01-01T00:01:00.000Z";
         String sessionId = "android-smoke-session";
-        if (MainActivity.stepValidationBlockReason(40L, validStart, validEnd, sessionId) != null) {
+        if (MainActivity.stepValidationBlockReason(40L, validStart, validEnd, sessionId, 1) != null) {
             throw new AssertionError("valid step validation inputs should not be blocked");
         }
         assertStepValidationBlocked(0L, validStart, validEnd, sessionId, "greater than zero");
@@ -966,6 +966,7 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         assertStepValidationBlocked(40L, validStart, "9999", sessionId, "Tap Step validation End");
         assertStepValidationBlocked(40L, validEnd, validStart, sessionId, "End must be after Start");
         assertStepValidationBlocked(40L, validStart, validEnd, "", "capture session");
+        assertStepValidationBlocked(40L, validStart, validEnd, sessionId, 0, "at least one notification");
     }
 
     private void assertStepValidationBlocked(
@@ -975,7 +976,23 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             String captureSessionId,
             String expected
     ) {
-        String reason = MainActivity.stepValidationBlockReason(manualSteps, start, end, captureSessionId);
+        assertStepValidationBlocked(manualSteps, start, end, captureSessionId, 1, expected);
+    }
+
+    private void assertStepValidationBlocked(
+            long manualSteps,
+            String start,
+            String end,
+            String captureSessionId,
+            int captureSessionFrameCount,
+            String expected
+    ) {
+        String reason = MainActivity.stepValidationBlockReason(
+                manualSteps,
+                start,
+                end,
+                captureSessionId,
+                captureSessionFrameCount);
         if (reason == null || !reason.contains(expected)) {
             throw new AssertionError("unexpected step validation guardrail reason: " + reason);
         }
