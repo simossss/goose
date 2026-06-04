@@ -107,6 +107,7 @@ verify_evidence_manifest() {
   local saw_database=0
   local saw_logcat=0
   local saw_full_logcat=0
+  local saw_logcat_marker=0
   local saw_package_path=0
   local saw_package_summary=0
   local saw_package_dumpsys=0
@@ -154,6 +155,8 @@ verify_evidence_manifest() {
       saw_logcat=1
     elif [[ "$rel_path" == "logcat-threadtime.txt" ]]; then
       saw_full_logcat=1
+    elif [[ "$rel_path" == "logcat-start-marker.txt" ]]; then
+      saw_logcat_marker=1
     elif [[ "$rel_path" == "goose-package-path.txt" ]]; then
       saw_package_path=1
     elif [[ "$rel_path" == "goose-package-summary.txt" ]]; then
@@ -196,6 +199,7 @@ verify_evidence_manifest() {
     && "$saw_database" == "1" \
     && "$saw_logcat" == "1" \
     && "$saw_full_logcat" == "1" \
+    && "$saw_logcat_marker" == "1" \
     && "$saw_package_path" == "1" \
     && "$saw_package_summary" == "1" \
     && "$saw_package_dumpsys" == "1" \
@@ -290,6 +294,7 @@ physical_capture_verified=0
 ble_hello_verified=0
 installed_package_verified=0
 no_android_runtime_crash_verified=0
+evidence_logcat_start_marker_verified=0
 evidence_manifest_verified=0
 evidence_result_verified=0
 evidence_pull_result_verified=0
@@ -320,6 +325,7 @@ require_ble_hello=0
 require_health_attempt=0
 require_health_ready_plan=0
 require_health_success=0
+require_logcat_start_marker=0
 bundle_profile="not supplied"
 if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
   summary="$PHONE_EVIDENCE_DIR/phone-handoff-summary.md"
@@ -330,6 +336,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
   pull_result_file="$PHONE_EVIDENCE_DIR/pull-android-database-result.txt"
   collect_error_file="$PHONE_EVIDENCE_DIR/collect-error.txt"
   focused_logcat_file="$PHONE_EVIDENCE_DIR/logcat-goose-brief.txt"
+  full_logcat_file="$PHONE_EVIDENCE_DIR/logcat-threadtime.txt"
+  logcat_marker_file="$PHONE_EVIDENCE_DIR/logcat-start-marker.txt"
   port_status="$PHONE_EVIDENCE_DIR/android-port-status.txt"
   adb_devices_file="$PHONE_EVIDENCE_DIR/adb-devices.txt"
   final_adb_state_file="$PHONE_EVIDENCE_DIR/adb-state-final.txt"
@@ -449,9 +457,14 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       evidence_installed_apk_sha="$(sed -n '1p' "$installed_apk_sha_file" | tr -d '\r')"
     fi
     android_runtime_crash_lines="$(summary_bullet_value "Focused AndroidRuntime crash lines" "$summary")"
+    logcat_start_marker_result="$(summary_bullet_value "Logcat start marker result" "$summary")"
+    evidence_logcat_start_marker=""
     evidence_android_runtime_crash_lines=""
     if [[ -f "$focused_logcat_file" ]]; then
       evidence_android_runtime_crash_lines="$(android_runtime_crash_lines "$focused_logcat_file")"
+    fi
+    if [[ -f "$logcat_marker_file" ]]; then
+      evidence_logcat_start_marker="$(sed -n '1p' "$logcat_marker_file" | tr -d '\r')"
     fi
     raw_rows="$(summary_bullet_value "Raw evidence rows" "$summary")"
     decoded_rows="$(summary_bullet_value "Decoded frame rows" "$summary")"
@@ -562,6 +575,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       require_health_attempt="$(gate_value "GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT" "$gates")"
       require_health_ready_plan="$(gate_value "GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN" "$gates")"
       require_health_success="$(gate_value "GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS" "$gates")"
+      require_logcat_start_marker="$(gate_value "GOOSE_ANDROID_REQUIRE_LOGCAT_START_MARKER" "$gates")"
     fi
     if [[ "$phone_result" == "PASS" ]] && verify_evidence_manifest "$PHONE_EVIDENCE_DIR" "$manifest"; then
       evidence_manifest_verified=1
@@ -648,6 +662,15 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$android_runtime_crash_lines" == "$evidence_android_runtime_crash_lines" \
       && "$evidence_android_runtime_crash_lines" -eq 0 ]]; then
       no_android_runtime_crash_verified=1
+    fi
+    if [[ "$evidence_manifest_verified" == "1" \
+      && "$logcat_start_marker_result" == "PASS" \
+      && -n "$evidence_logcat_start_marker" \
+      && -f "$full_logcat_file" \
+      && -f "$focused_logcat_file" ]] \
+      && grep -Fq "$evidence_logcat_start_marker" "$full_logcat_file" \
+      && grep -Fq "$evidence_logcat_start_marker" "$focused_logcat_file"; then
+      evidence_logcat_start_marker_verified=1
     fi
     if [[ "$evidence_manifest_verified" == "1" \
       && -n "$summary_commit" \
@@ -802,6 +825,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Status snapshot debug APK SHA-256: $port_status_debug_apk_sha"
     echo "Focused AndroidRuntime crash lines: $android_runtime_crash_lines"
     echo "Evidence focused AndroidRuntime crash lines: $evidence_android_runtime_crash_lines"
+    echo "Logcat start marker result: $logcat_start_marker_result"
+    echo "Evidence logcat start marker: $evidence_logcat_start_marker"
     echo
     echo "Installed app:"
     echo "- Result: $installed_result"
@@ -939,6 +964,10 @@ if [[ "$no_android_runtime_crash_verified" == "1" ]]; then
   echo "- Focused AndroidRuntime logcat has no com.goose.android crash lines."
   verified_any=1
 fi
+if [[ "$evidence_logcat_start_marker_verified" == "1" ]]; then
+  echo "- Logcat start marker scopes the focused AndroidRuntime crash evidence to the controlled phone run."
+  verified_any=1
+fi
 if [[ "$evidence_manifest_verified" == "1" ]]; then
   echo "- Evidence file manifest verifies byte counts and SHA-256 hashes for required evidence files."
   verified_any=1
@@ -1068,6 +1097,10 @@ if [[ "$require_ble_hello" == "1" && "$evidence_ble_audit_manifest_verified" != 
 fi
 if [[ "$no_android_runtime_crash_verified" != "1" ]]; then
   echo "- Focused AndroidRuntime logcat must have 0 com.goose.android crash lines."
+  remaining_any=1
+fi
+if [[ "$require_logcat_start_marker" == "1" && "$evidence_logcat_start_marker_verified" != "1" ]]; then
+  echo "- Logcat start marker from Scripts/prepare_android_phone_evidence.sh must be present in marker, full logcat, focused logcat, and manifest evidence."
   remaining_any=1
 fi
 if [[ "$evidence_manifest_verified" != "1" ]]; then

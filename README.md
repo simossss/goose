@@ -346,6 +346,10 @@ sync attempt. It requires a physical adb device by default:
 Scripts/android_phone_final_gate.sh
 ```
 
+Run `Scripts/prepare_android_phone_evidence.sh` immediately before the
+controlled capture. It clears logcat and writes the start marker required by
+the final gate, so AndroidRuntime crash evidence is scoped to the current run.
+
 Add `--require-health-success` when the final session should require a
 successful Health Connect platform write in addition to a write attempt. The
 standard write-attempt gate also requires permissions-ready dry-run context,
@@ -353,9 +357,10 @@ planned writes, candidates, and attempted records in the audit row.
 The final gate also requires session-tagged raw evidence and a finished capture
 session with `frame_count > 0`, plus installed `com.goose.android` package
 metadata and an installed APK hash match from the device, session-tagged Android
-BLE live-notification raw evidence, no focused AndroidRuntime crash lines for
-Goose, and a BLE session audit proving completed client hello write in
-command-ready rows. The evidence bundle must also show `adb-state-final.txt`
+BLE live-notification raw evidence, a logcat start marker, no focused
+AndroidRuntime crash lines for Goose, and a BLE session audit proving completed
+client hello write in command-ready rows. The evidence bundle must also show
+`adb-state-final.txt`
 as `device` so the selected phone was still online after pull/hash/logcat
 collection.
 Add `--allow-emulator`

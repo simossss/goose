@@ -27,6 +27,7 @@ Collects the final Android phone evidence bundle with strict pass/fail gates:
 - installed com.goose.android package metadata and APK hash match
 - Health Connect audit log and permissions-ready planned write_started event,
   unless --skip-health is set
+- logcat start marker from Scripts/prepare_android_phone_evidence.sh
 
 Use --require-health-success only after granting Health Connect permissions and
 creating at least one writeable planned record in the app.
@@ -82,6 +83,7 @@ else
   echo "Physical Android device: required"
 fi
 echo "BLE session/completed client hello evidence: required"
+echo "Logcat start marker: required"
 if [[ "$REQUIRE_STEP_VALIDATION" == "1" ]]; then
   echo "Step validation audit/pass: required"
 fi
@@ -104,6 +106,7 @@ export GOOSE_ANDROID_MIN_SESSION_DECODED_FRAMES=1
 export GOOSE_ANDROID_MIN_FINISHED_CAPTURE_SESSIONS=1
 export GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE=1
 export GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH=1
+export GOOSE_ANDROID_REQUIRE_LOGCAT_START_MARKER=1
 export GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT=1
 export GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1
 if [[ "$ALLOW_EMULATOR" != "1" ]]; then

@@ -21,6 +21,8 @@ Runs the full Android PR handoff gate:
 
 The phone evidence step requires a physical adb device by default. Set
 ANDROID_SERIAL when more than one adb device is online.
+Run Scripts/prepare_android_phone_evidence.sh immediately before the controlled
+phone capture so the final logcat evidence has a start marker.
 
 The final PR gate requires a clean git worktree by default, including no
 untracked non-ignored files, and requires HEAD to match the configured upstream

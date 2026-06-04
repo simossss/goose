@@ -21,10 +21,12 @@ passing step-validation audit.
 
 1. Install or run the debug app on the phone:
    \`Scripts/install_android_debug.sh\`
-2. Open Goose, grant Bluetooth permissions, and grant location if Android 11 or older asks for it.
-3. Tap \`Scan\`, then tap the WHOOP candidate.
-4. Wait for the status text to include \`Ready; subscribed ...; hello sent\`.
-5. Tap capture-session \`Start\`.
+2. Prepare scoped logcat evidence:
+   \`Scripts/prepare_android_phone_evidence.sh\`
+3. Open Goose, grant Bluetooth permissions, and grant location if Android 11 or older asks for it.
+4. Tap \`Scan\`, then tap the WHOOP candidate.
+5. Wait for the status text to include \`Ready; subscribed ...; hello sent\`.
+6. Tap capture-session \`Start\`.
 
 ## Controlled Capture
 
@@ -68,6 +70,7 @@ Scripts/android_pr_readiness.sh tmp/android-phone-partial-diagnostic-gate-real
 
 - Installed com.goose.android package metadata and APK hash match: PASS.
 - Device kind: physical.
+- Logcat start marker result: PASS.
 - Focused AndroidRuntime crash lines: 0.
 - BLE session ready events: at least 1.
 - BLE session hello sent events: at least 1.

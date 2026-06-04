@@ -32,6 +32,8 @@ PR acceptance.
 
 The phone evidence step requires a physical adb device by default. Set
 ANDROID_SERIAL when more than one adb device is online.
+Run Scripts/prepare_android_phone_evidence.sh immediately before the controlled
+phone capture so logcat evidence has a start marker.
 
 Use --require-health-success only when this partial run must prove a successful
 Health Connect platform write with inserted records, not just a ready write

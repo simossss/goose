@@ -148,6 +148,10 @@ sync attempt. It requires a physical adb device by default:
 Scripts/android_phone_final_gate.sh
 ```
 
+Run `Scripts/prepare_android_phone_evidence.sh` immediately before the
+controlled capture. It clears logcat and writes the start marker required by
+the final gate, so AndroidRuntime crash evidence is scoped to the current run.
+
 Add `--require-health-success` after granting Health Connect permissions when
 the session should prove a successful platform write, not just a write attempt.
 The standard write-attempt gate also requires the audit row to include
@@ -162,7 +166,8 @@ Set `ANDROID_SERIAL` when more than one adb device is online. The helper uses
 `run-as com.goose.android`, so it expects the debug APK. It also pulls the
 bounded BLE session, Health Connect sync, and step-validation audit logs,
 snapshots the installed `com.goose.android` package metadata, compares the installed APK hash
-against the local debug APK, records `adb-state-final.txt` after collection, and
+against the local debug APK, records `logcat-start-marker.txt` and
+`adb-state-final.txt` after collection, and
 writes `evidence-gates.txt` with the effective gate configuration. Final
 readiness requires that final adb state to be `device`, so the selected phone
 must still be online after pull/hash/logcat collection. When BLE hello, Health
@@ -186,9 +191,10 @@ permissions-ready planned-write context on that attempt, and
 successful write with permissions-ready planned-write context and inserted
 records. `Scripts/android_phone_final_gate.sh` enables the physical device, BLE
 hello in command-ready audit rows, raw, session, session-tagged raw,
-finished-session, installed-package, no-focused-AndroidRuntime-crash, Health
-Connect audit, and write-attempt gates by default. Add `--skip-health` only for
-development smoke tests and `--allow-emulator` only for emulator smoke tests.
+finished-session, installed-package, logcat-start-marker,
+no-focused-AndroidRuntime-crash, Health Connect audit, and write-attempt gates
+by default. Add `--skip-health` only for development smoke tests and
+`--allow-emulator` only for emulator smoke tests.
 For counted-step validation, set `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_AUDIT=1`,
 `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS=1`, or
 `GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION=1`.

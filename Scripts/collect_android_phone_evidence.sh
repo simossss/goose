@@ -9,7 +9,9 @@ OUTPUT_DIR="${1:-$APP_DIR/tmp/android-phone-evidence-$STAMP}"
 REQUIRE_INSTALLED_PACKAGE="${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}"
 REQUIRE_PHYSICAL_DEVICE="${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}"
 REQUIRE_NO_ANDROID_RUNTIME_CRASH="${GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH:-0}"
+REQUIRE_LOGCAT_START_MARKER="${GOOSE_ANDROID_REQUIRE_LOGCAT_START_MARKER:-0}"
 ALLOW_EXISTING_OUTPUT="${GOOSE_ANDROID_ALLOW_EXISTING_EVIDENCE_DIR:-0}"
+LOGCAT_MARKER_FILE="${GOOSE_ANDROID_LOGCAT_MARKER_FILE:-/sdcard/goose-evidence-start-marker.txt}"
 
 if [[ -z "${ADB:-}" && -x "$HOME/Library/Android/sdk/platform-tools/adb" ]]; then
   ADB="$HOME/Library/Android/sdk/platform-tools/adb"
@@ -71,8 +73,9 @@ echo "$device_serial" > "$OUTPUT_DIR/android-serial.txt"
 "$ADB" -s "$device_serial" shell dumpsys package com.goose.android \
   | awk '/versionCode=|versionName=|firstInstallTime=|lastUpdateTime=|installerPackageName=|signatures=|pkgFlags=|privateFlags=|User [0-9]+:/' \
   > "$OUTPUT_DIR/goose-package-summary.txt" 2>&1 || true
+"$ADB" -s "$device_serial" exec-out cat "$LOGCAT_MARKER_FILE" > "$OUTPUT_DIR/logcat-start-marker.txt" 2>/dev/null || true
 "$ADB" -s "$device_serial" logcat -d -v threadtime > "$OUTPUT_DIR/logcat-threadtime.txt" 2>&1 || true
-"$ADB" -s "$device_serial" logcat -d -v brief AndroidRuntime:E GooseBridgeSmoke:I '*:S' > "$OUTPUT_DIR/logcat-goose-brief.txt" 2>&1 || true
+"$ADB" -s "$device_serial" logcat -d -v brief AndroidRuntime:E GooseBridgeSmoke:I GooseEvidenceStart:I '*:S' > "$OUTPUT_DIR/logcat-goose-brief.txt" 2>&1 || true
 
 device_kind="physical"
 device_manufacturer="$(sed -n '1p' "$OUTPUT_DIR/device-manufacturer.txt" | tr -d '\r')"
@@ -232,6 +235,13 @@ fi
 printf '%s\n' "$local_debug_apk_sha256" > "$OUTPUT_DIR/goose-local-debug-apk-sha256.txt"
 printf '%s\n' "$installed_apk_sha256" > "$OUTPUT_DIR/goose-installed-apk-sha256.txt"
 android_runtime_crash_count="$(android_runtime_crash_lines "$OUTPUT_DIR/logcat-goose-brief.txt")"
+logcat_start_marker="$(first_line "$OUTPUT_DIR/logcat-start-marker.txt")"
+logcat_start_marker_result="FAIL"
+if [[ -n "$logcat_start_marker" ]] \
+  && grep -Fq "$logcat_start_marker" "$OUTPUT_DIR/logcat-threadtime.txt" \
+  && grep -Fq "$logcat_start_marker" "$OUTPUT_DIR/logcat-goose-brief.txt"; then
+  logcat_start_marker_result="PASS"
+fi
 package_result="PASS"
 if [[ "$package_path" != package:* ]] \
   || ! grep -q 'versionName=0.1.0' "$OUTPUT_DIR/goose-package-summary.txt" 2>/dev/null \
@@ -256,6 +266,12 @@ if [[ "$REQUIRE_NO_ANDROID_RUNTIME_CRASH" == "1" && "$android_runtime_crash_coun
   inspection_status=1
   inspection_result="FAIL"
   echo "FAIL: focused AndroidRuntime logcat contains com.goose.android crash lines" >> "$OUTPUT_DIR/collect-error.txt"
+  echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
+fi
+if [[ "$REQUIRE_LOGCAT_START_MARKER" == "1" && "$logcat_start_marker_result" != "PASS" ]]; then
+  inspection_status=1
+  inspection_result="FAIL"
+  echo "FAIL: logcat start marker missing from marker file, full logcat, or focused logcat" >> "$OUTPUT_DIR/collect-error.txt"
   echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
 fi
 
@@ -286,6 +302,7 @@ Result: ${inspection_result:-unknown}
 - Require installed package: ${GOOSE_ANDROID_REQUIRE_INSTALLED_PACKAGE:-0}
 - Require physical device: ${GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE:-0}
 - Require no AndroidRuntime crash: ${GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH:-0}
+- Require logcat start marker: ${GOOSE_ANDROID_REQUIRE_LOGCAT_START_MARKER:-0}
 - Require BLE hello sent: ${GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT:-0}
 - Require step validation pass: ${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_PASS:-0}
 - Require step validation session: ${GOOSE_ANDROID_REQUIRE_STEP_VALIDATION_SESSION:-0}
@@ -298,6 +315,7 @@ Result: ${inspection_result:-unknown}
 - Device result: $device_result
 - Kind: $device_kind
 - Final adb state: $final_adb_state
+- Logcat start marker result: $logcat_start_marker_result
 - Focused AndroidRuntime crash lines: $android_runtime_crash_count
 
 ## Installed App
@@ -387,6 +405,7 @@ $(summary_section "Capture session evidence detail")
 - goose-phone-health-connect-sync-log.jsonl, required when Health Connect write gates are enabled
 - goose-phone-step-validation-log.jsonl, required when step-validation gates are enabled
 - logcat-goose-brief.txt
+- logcat-start-marker.txt
 - evidence-files-manifest.txt
 SUMMARY
 
@@ -410,6 +429,7 @@ Key files:
 - goose-installed-apk-sha256.txt: SHA-256 of the installed APK read over adb.
 - logcat-threadtime.txt: full device logcat snapshot.
 - logcat-goose-brief.txt: focused AndroidRuntime/Goose instrumentation logcat.
+- logcat-start-marker.txt: marker written by Scripts/prepare_android_phone_evidence.sh before the controlled run.
 - goose-phone.sqlite plus -wal/-shm: pulled debug app database files when present.
 - pull-android-database-result.txt: PASS/FAIL for the database pull helper.
 - goose-phone-ble-session-log.jsonl: BLE scan/connect/session audit log; required when BLE hello gates are enabled.
@@ -439,6 +459,8 @@ package metadata and an installed APK hash match.
 Set GOOSE_ANDROID_REQUIRE_PHYSICAL_DEVICE=1 to reject emulator evidence.
 Set GOOSE_ANDROID_REQUIRE_NO_ANDROID_RUNTIME_CRASH=1 to fail the bundle when
 the focused AndroidRuntime logcat contains com.goose.android crash lines.
+Set GOOSE_ANDROID_REQUIRE_LOGCAT_START_MARKER=1 to require a marker written by
+Scripts/prepare_android_phone_evidence.sh before the controlled run.
 Set GOOSE_ANDROID_REQUIRE_BLE_SESSION_AUDIT=1 to require a pulled BLE session
 audit log and GOOSE_ANDROID_REQUIRE_BLE_HELLO_SENT=1 to require proof that the
 client hello was sent after connecting, while the command characteristic was
@@ -453,7 +475,7 @@ Connect sync attempt. Set GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_ATTEMPT=1 to
 require a platform write attempt, GOOSE_ANDROID_REQUIRE_HEALTH_READY_WRITE_PLAN=1
 to require permissions-ready dry-run context with planned writes and attempted
 records on the write attempt, and GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1
-to require a successful write.
+to require a successful write with inserted records.
 README
 
 write_file_manifest
