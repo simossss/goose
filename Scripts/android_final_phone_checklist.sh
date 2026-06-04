@@ -28,11 +28,11 @@ Commit: $commit
 ## Controlled Step Capture
 
 1. Walk the counted route.
-2. Tap validation \`End\`.
+2. Tap validation \`End\` while the capture session is still active.
 3. Enter the manual counted steps.
 4. Tap capture-session \`Finish\`.
 5. Tap \`Validate\`.
-6. Confirm the validation report names the active or most recently finished capture session.
+6. Confirm the validation report names the most recently finished capture session.
 
 ## Health Connect
 

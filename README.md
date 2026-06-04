@@ -371,8 +371,9 @@ Add `--require-step-validation` after running the in-app counted-step validation
 when the final session should require a passing step-validation audit row bound
 to a decoded capture session with a nonzero selected counter delta.
 For that validation, start a capture session before the counted walk, finish it
-afterwards, then press `Validate`; the app reports the active or most recently
-finished capture session used for the check.
+only after pressing step-validation `End` while the capture session is still
+active, then press `Validate`; the app reports the most recently finished
+capture session used for the check.
 
 Run the Android bridge/storage/protocol smoke harness on an emulator or device:
 

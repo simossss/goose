@@ -322,12 +322,13 @@ These files are build artifacts and are ignored by git.
    then press `Range` again within 15 seconds to send. Use the same two-tap
    flow for `History` and `Abort`.
 7. For counted-step validation, use the `Step validation` row: press `Start`
-   before the counted walk, press `End` afterwards, enter the manual count,
-   then press `Validate`. The report should name the active or most recently
-   finished capture session. The app blocks validation until the manual count is
-   positive, the validation window is marked, and a capture session is active or
-   recently finished. Starting a new capture or clearing local data resets the
-   previous validation window and finished-session marker.
+   before the counted walk, press `End` afterwards while the capture session is
+   still active, enter the manual count, press capture-session `Finish`, then
+   press `Validate`. The report should name the most recently finished capture
+   session. The app blocks validation until the manual count is positive, the
+   validation window is marked, and a capture session is active or recently
+   finished. Starting a new capture or clearing local data resets the previous
+   validation window and finished-session marker.
 8. Use `Heart`, `Sensors`, `Steps`, `Blocked`, and `Sessions` for compact
    summaries instead of dumping large raw JSON in the UI.
 9. Pull and inspect the debug store:
