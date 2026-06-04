@@ -272,6 +272,7 @@ evidence_health_audit_manifest_verified=0
 evidence_step_audit_manifest_verified=0
 evidence_commit_verified=0
 evidence_current_commit_verified=0
+evidence_clean_status_verified=0
 evidence_device_serial_verified=0
 evidence_device_kind_verified=0
 evidence_device_identity_verified=0
@@ -317,8 +318,12 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     fi
     summary_commit="$(status_value "Commit" "$summary")"
     port_status_commit=""
+    port_status_dirty_tracked=""
+    port_status_untracked=""
     if [[ -f "$port_status" ]]; then
       port_status_commit="$(status_value "commit" "$port_status")"
+      port_status_dirty_tracked="$(status_value "dirty tracked files" "$port_status")"
+      port_status_untracked="$(status_value "untracked non-ignored files" "$port_status")"
     fi
     device_serial="$(status_value "Device serial" "$summary")"
     evidence_device_serial=""
@@ -559,6 +564,11 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       evidence_current_commit_verified=1
     fi
     if [[ "$evidence_manifest_verified" == "1" \
+      && "$port_status_dirty_tracked" == "0" \
+      && "$port_status_untracked" == "0" ]]; then
+      evidence_clean_status_verified=1
+    fi
+    if [[ "$evidence_manifest_verified" == "1" \
       && -n "$device_serial" \
       && -n "$evidence_device_serial" \
       && "$device_serial" == "$evidence_device_serial" ]]; then
@@ -669,6 +679,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Summary commit: $summary_commit"
     echo "Status snapshot commit: $port_status_commit"
     echo "Current checkout commit: $latest_commit"
+    echo "Status snapshot dirty tracked files: $port_status_dirty_tracked"
+    echo "Status snapshot untracked non-ignored files: $port_status_untracked"
     echo "Focused AndroidRuntime crash lines: $android_runtime_crash_lines"
     echo "Evidence focused AndroidRuntime crash lines: $evidence_android_runtime_crash_lines"
     echo
@@ -834,6 +846,10 @@ if [[ "$evidence_current_commit_verified" == "1" ]]; then
   echo "- Phone evidence commit matches the current checkout commit."
   verified_any=1
 fi
+if [[ "$evidence_clean_status_verified" == "1" ]]; then
+  echo "- Phone evidence status snapshot was collected from a clean worktree."
+  verified_any=1
+fi
 if [[ "$evidence_device_serial_verified" == "1" ]]; then
   echo "- Phone handoff summary device serial matches android-serial.txt."
   verified_any=1
@@ -931,6 +947,10 @@ if [[ "$evidence_commit_verified" != "1" ]]; then
 fi
 if [[ "$evidence_current_commit_verified" != "1" ]]; then
   echo "- Phone evidence commit must match the current checkout commit."
+  remaining_any=1
+fi
+if [[ "$evidence_clean_status_verified" != "1" ]]; then
+  echo "- Phone evidence status snapshot must show 0 dirty tracked files and 0 untracked non-ignored files."
   remaining_any=1
 fi
 if [[ "$evidence_device_serial_verified" != "1" ]]; then
