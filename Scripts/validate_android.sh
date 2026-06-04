@@ -812,6 +812,16 @@ awk '
   { print }
 ' "$synthetic_ble_command_ready_evidence_dir/phone-handoff-summary.md" > "$ble_command_ready_summary_tmp"
 mv "$ble_command_ready_summary_tmp" "$synthetic_ble_command_ready_evidence_dir/phone-handoff-summary.md"
+ble_command_ready_inspect_tmp="$synthetic_ble_command_ready_evidence_dir/inspect-android-capture.txt.tmp"
+awk '
+  $0 == "ble session client hello command-ready completed events: 1" && !replaced {
+    print "ble session client hello command-ready completed events: 0"
+    replaced = 1
+    next
+  }
+  { print }
+' "$synthetic_ble_command_ready_evidence_dir/inspect-android-capture.txt" > "$ble_command_ready_inspect_tmp"
+mv "$ble_command_ready_inspect_tmp" "$synthetic_ble_command_ready_evidence_dir/inspect-android-capture.txt"
 write_synthetic_manifest "$synthetic_ble_command_ready_evidence_dir"
 if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_ble_command_ready_evidence_dir" > "$readiness_ble_command_ready_strict_output" 2>&1; then
   echo "PR readiness strict mode unexpectedly passed with missing command-ready client hello evidence" >&2
