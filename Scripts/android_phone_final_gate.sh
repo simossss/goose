@@ -129,8 +129,28 @@ if [[ "$REQUIRE_HEALTH_SUCCESS" == "1" ]]; then
   export GOOSE_ANDROID_REQUIRE_HEALTH_WRITE_SUCCESS=1
 fi
 
+set +e
 "$SCRIPT_DIR/collect_android_phone_evidence.sh" "$OUTPUT_DIR"
+collection_status="$?"
+set -e
 
 echo
 echo "Final gate summary:"
-sed -n '1,120p' "$OUTPUT_DIR/phone-handoff-summary.md"
+if [[ -f "$OUTPUT_DIR/phone-handoff-summary.md" ]]; then
+  sed -n '1,160p' "$OUTPUT_DIR/phone-handoff-summary.md"
+else
+  echo "phone-handoff-summary.md not written"
+fi
+
+if [[ "$collection_status" -ne 0 ]]; then
+  echo
+  echo "Final gate diagnostics:"
+  if [[ -s "$OUTPUT_DIR/collect-error.txt" ]]; then
+    cat "$OUTPUT_DIR/collect-error.txt"
+  else
+    echo "collect-error.txt missing or empty"
+  fi
+  echo
+  echo "Android final phone gate failed: $OUTPUT_DIR" >&2
+  exit "$collection_status"
+fi
