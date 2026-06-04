@@ -234,6 +234,9 @@ evidence_manifest_verified=0
 evidence_commit_verified=0
 evidence_device_serial_verified=0
 evidence_device_kind_verified=0
+evidence_device_identity_verified=0
+evidence_android_version_verified=0
+evidence_adb_device_verified=0
 step_validation_verified=0
 health_attempt_verified=0
 health_success_verified=0
@@ -244,8 +247,13 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
   gates="$PHONE_EVIDENCE_DIR/evidence-gates.txt"
   manifest="$PHONE_EVIDENCE_DIR/evidence-files-manifest.txt"
   port_status="$PHONE_EVIDENCE_DIR/android-port-status.txt"
+  adb_devices_file="$PHONE_EVIDENCE_DIR/adb-devices.txt"
   android_serial_file="$PHONE_EVIDENCE_DIR/android-serial.txt"
   android_device_kind_file="$PHONE_EVIDENCE_DIR/android-device-kind.txt"
+  device_manufacturer_file="$PHONE_EVIDENCE_DIR/device-manufacturer.txt"
+  device_model_file="$PHONE_EVIDENCE_DIR/device-model.txt"
+  android_version_file="$PHONE_EVIDENCE_DIR/android-version.txt"
+  android_sdk_file="$PHONE_EVIDENCE_DIR/android-sdk.txt"
   if [[ -f "$summary" ]]; then
     phone_evidence_supplied=1
     phone_summary_valid=1
@@ -260,6 +268,10 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     if [[ -f "$android_serial_file" ]]; then
       evidence_device_serial="$(sed -n '1p' "$android_serial_file" | tr -d '\r')"
     fi
+    evidence_adb_device_state=""
+    if [[ -f "$adb_devices_file" && -n "$device_serial" ]]; then
+      evidence_adb_device_state="$(awk -v serial="$device_serial" '$1 == serial { print $2; exit }' "$adb_devices_file")"
+    fi
     device_kind="$(status_value "Device kind" "$summary")"
     if [[ -z "$device_kind" ]]; then
       if [[ "$device_serial" == emulator-* ]]; then
@@ -271,6 +283,32 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     evidence_device_kind=""
     if [[ -f "$android_device_kind_file" ]]; then
       evidence_device_kind="$(sed -n '1p' "$android_device_kind_file" | tr -d '\r')"
+    fi
+    device_identity="$(status_value "Device" "$summary")"
+    evidence_device_manufacturer=""
+    evidence_device_model=""
+    evidence_device_identity=""
+    if [[ -f "$device_manufacturer_file" ]]; then
+      evidence_device_manufacturer="$(sed -n '1p' "$device_manufacturer_file" | tr -d '\r')"
+    fi
+    if [[ -f "$device_model_file" ]]; then
+      evidence_device_model="$(sed -n '1p' "$device_model_file" | tr -d '\r')"
+    fi
+    if [[ -n "$evidence_device_manufacturer" || -n "$evidence_device_model" ]]; then
+      evidence_device_identity="$evidence_device_manufacturer $evidence_device_model"
+    fi
+    android_version="$(status_value "Android" "$summary")"
+    evidence_android_release=""
+    evidence_android_sdk=""
+    evidence_android_version=""
+    if [[ -f "$android_version_file" ]]; then
+      evidence_android_release="$(sed -n '1p' "$android_version_file" | tr -d '\r')"
+    fi
+    if [[ -f "$android_sdk_file" ]]; then
+      evidence_android_sdk="$(sed -n '1p' "$android_sdk_file" | tr -d '\r')"
+    fi
+    if [[ -n "$evidence_android_release" || -n "$evidence_android_sdk" ]]; then
+      evidence_android_version="$evidence_android_release (SDK $evidence_android_sdk)"
     fi
     installed_result="$(summary_bullet_value "Result" "$summary")"
     android_runtime_crash_lines="$(summary_bullet_value "Focused AndroidRuntime crash lines" "$summary")"
@@ -344,6 +382,23 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$device_kind" == "$evidence_device_kind" ]]; then
       evidence_device_kind_verified=1
     fi
+    if [[ "$evidence_manifest_verified" == "1" \
+      && -n "$device_identity" \
+      && -n "$evidence_device_identity" \
+      && "$device_identity" == "$evidence_device_identity" ]]; then
+      evidence_device_identity_verified=1
+    fi
+    if [[ "$evidence_manifest_verified" == "1" \
+      && -n "$android_version" \
+      && -n "$evidence_android_version" \
+      && "$android_version" == "$evidence_android_version" ]]; then
+      evidence_android_version_verified=1
+    fi
+    if [[ "$evidence_manifest_verified" == "1" \
+      && -n "$device_serial" \
+      && "$evidence_adb_device_state" == "device" ]]; then
+      evidence_adb_device_verified=1
+    fi
     if [[ "$phone_result" == "PASS" && "$require_ble_hello" == "1" ]] \
       && is_positive_int "$ble_ready_events" \
       && is_positive_int "$ble_hello_sent_events" \
@@ -388,8 +443,11 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Evidence serial file: $evidence_device_serial"
     echo "Device kind: $device_kind"
     echo "Evidence device kind file: $evidence_device_kind"
-    echo "Device: $(status_value "Device" "$summary")"
-    echo "Android: $(status_value "Android" "$summary")"
+    echo "Device: $device_identity"
+    echo "Evidence device files: $evidence_device_identity"
+    echo "Android: $android_version"
+    echo "Evidence Android files: $evidence_android_version"
+    echo "adb device state: $evidence_adb_device_state"
     echo "Summary commit: $summary_commit"
     echo "Status snapshot commit: $port_status_commit"
     echo "Focused AndroidRuntime crash lines: $android_runtime_crash_lines"
@@ -500,6 +558,18 @@ if [[ "$evidence_device_kind_verified" == "1" ]]; then
   echo "- Phone handoff summary device kind matches android-device-kind.txt."
   verified_any=1
 fi
+if [[ "$evidence_device_identity_verified" == "1" ]]; then
+  echo "- Phone handoff summary device identity matches device-manufacturer.txt and device-model.txt."
+  verified_any=1
+fi
+if [[ "$evidence_android_version_verified" == "1" ]]; then
+  echo "- Phone handoff summary Android version matches android-version.txt and android-sdk.txt."
+  verified_any=1
+fi
+if [[ "$evidence_adb_device_verified" == "1" ]]; then
+  echo "- adb-devices.txt lists the handoff device serial as online."
+  verified_any=1
+fi
 if [[ "$ble_hello_verified" == "1" ]]; then
   echo "- BLE session audit proves the app reached ready state with command characteristic ready and client hello sent."
   verified_any=1
@@ -557,6 +627,18 @@ if [[ "$evidence_device_serial_verified" != "1" ]]; then
 fi
 if [[ "$evidence_device_kind_verified" != "1" ]]; then
   echo "- Phone handoff summary device kind must match android-device-kind.txt."
+  remaining_any=1
+fi
+if [[ "$evidence_device_identity_verified" != "1" ]]; then
+  echo "- Phone handoff summary device identity must match device-manufacturer.txt and device-model.txt."
+  remaining_any=1
+fi
+if [[ "$evidence_android_version_verified" != "1" ]]; then
+  echo "- Phone handoff summary Android version must match android-version.txt and android-sdk.txt."
+  remaining_any=1
+fi
+if [[ "$evidence_adb_device_verified" != "1" ]]; then
+  echo "- adb-devices.txt must list the handoff device serial as online."
   remaining_any=1
 fi
 if [[ "$step_validation_verified" != "1" ]]; then
