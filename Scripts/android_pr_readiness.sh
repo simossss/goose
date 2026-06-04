@@ -231,6 +231,7 @@ ble_hello_verified=0
 installed_package_verified=0
 no_android_runtime_crash_verified=0
 evidence_manifest_verified=0
+evidence_result_verified=0
 evidence_commit_verified=0
 evidence_device_serial_verified=0
 evidence_device_kind_verified=0
@@ -246,6 +247,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
   summary="$PHONE_EVIDENCE_DIR/phone-handoff-summary.md"
   gates="$PHONE_EVIDENCE_DIR/evidence-gates.txt"
   manifest="$PHONE_EVIDENCE_DIR/evidence-files-manifest.txt"
+  evidence_result_file="$PHONE_EVIDENCE_DIR/evidence-result.txt"
+  focused_logcat_file="$PHONE_EVIDENCE_DIR/logcat-goose-brief.txt"
   port_status="$PHONE_EVIDENCE_DIR/android-port-status.txt"
   adb_devices_file="$PHONE_EVIDENCE_DIR/adb-devices.txt"
   android_serial_file="$PHONE_EVIDENCE_DIR/android-serial.txt"
@@ -263,6 +266,10 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     phone_evidence_supplied=1
     phone_summary_valid=1
     phone_result="$(status_value "Result" "$summary")"
+    evidence_result=""
+    if [[ -f "$evidence_result_file" ]]; then
+      evidence_result="$(awk -F': ' '$1 == "RESULT" { print $2; exit }' "$evidence_result_file")"
+    fi
     summary_commit="$(status_value "Commit" "$summary")"
     port_status_commit=""
     if [[ -f "$port_status" ]]; then
@@ -341,6 +348,10 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       evidence_installed_apk_sha="$(sed -n '1p' "$installed_apk_sha_file" | tr -d '\r')"
     fi
     android_runtime_crash_lines="$(summary_bullet_value "Focused AndroidRuntime crash lines" "$summary")"
+    evidence_android_runtime_crash_lines=""
+    if [[ -f "$focused_logcat_file" ]]; then
+      evidence_android_runtime_crash_lines="$(grep -c 'com.goose.android' "$focused_logcat_file" 2>/dev/null || true)"
+    fi
     raw_rows="$(summary_bullet_value "Raw evidence rows" "$summary")"
     capture_sessions="$(summary_bullet_value "Capture sessions" "$summary")"
     session_raw_rows="$(summary_bullet_value "Session raw evidence rows" "$summary")"
@@ -384,11 +395,20 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     if [[ "$capture_verified" == "1" && "$device_kind" == "physical" ]]; then
       physical_capture_verified=1
     fi
-    if [[ "$phone_result" == "PASS" && "$android_runtime_crash_lines" =~ ^[0-9]+$ && "$android_runtime_crash_lines" -eq 0 ]]; then
-      no_android_runtime_crash_verified=1
-    fi
     if [[ "$phone_result" == "PASS" ]] && verify_evidence_manifest "$PHONE_EVIDENCE_DIR" "$manifest"; then
       evidence_manifest_verified=1
+    fi
+    if [[ "$evidence_manifest_verified" == "1" \
+      && "$phone_result" == "PASS" \
+      && "$evidence_result" == "PASS" ]]; then
+      evidence_result_verified=1
+    fi
+    if [[ "$evidence_result_verified" == "1" \
+      && "$android_runtime_crash_lines" =~ ^[0-9]+$ \
+      && "$evidence_android_runtime_crash_lines" =~ ^[0-9]+$ \
+      && "$android_runtime_crash_lines" == "$evidence_android_runtime_crash_lines" \
+      && "$evidence_android_runtime_crash_lines" -eq 0 ]]; then
+      no_android_runtime_crash_verified=1
     fi
     if [[ "$evidence_manifest_verified" == "1" \
       && -n "$summary_commit" \
@@ -481,6 +501,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     fi
     echo "Evidence directory: $PHONE_EVIDENCE_DIR"
     echo "Result: $phone_result"
+    echo "Evidence result file: $evidence_result"
     echo "Bundle profile: $bundle_profile"
     echo "Device serial: $device_serial"
     echo "Evidence serial file: $evidence_device_serial"
@@ -494,6 +515,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Summary commit: $summary_commit"
     echo "Status snapshot commit: $port_status_commit"
     echo "Focused AndroidRuntime crash lines: $android_runtime_crash_lines"
+    echo "Evidence focused AndroidRuntime crash lines: $evidence_android_runtime_crash_lines"
     echo
     echo "Installed app:"
     echo "- Result: $installed_result"
@@ -594,6 +616,10 @@ if [[ "$evidence_manifest_verified" == "1" ]]; then
   echo "- Evidence file manifest verifies byte counts and SHA-256 hashes for required evidence files."
   verified_any=1
 fi
+if [[ "$evidence_result_verified" == "1" ]]; then
+  echo "- Phone handoff summary result matches evidence-result.txt."
+  verified_any=1
+fi
 if [[ "$evidence_commit_verified" == "1" ]]; then
   echo "- Phone handoff summary commit matches the Android port status snapshot."
   verified_any=1
@@ -663,6 +689,10 @@ if [[ "$no_android_runtime_crash_verified" != "1" ]]; then
 fi
 if [[ "$evidence_manifest_verified" != "1" ]]; then
   echo "- Evidence bundle must include a valid evidence-files-manifest.txt with matching path, byte, and SHA-256 columns for required evidence files."
+  remaining_any=1
+fi
+if [[ "$evidence_result_verified" != "1" ]]; then
+  echo "- Phone handoff summary result must match evidence-result.txt."
   remaining_any=1
 fi
 if [[ "$evidence_commit_verified" != "1" ]]; then
