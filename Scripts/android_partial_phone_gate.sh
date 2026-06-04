@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/android_gate_worktree.sh"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUTPUT_DIR="$APP_DIR/tmp/android-phone-partial-gate-$STAMP"
 RUN_VALIDATE=1
@@ -107,30 +108,7 @@ if [[ "$DRY_RUN" == "1" ]]; then
 fi
 
 if [[ "$ALLOW_DIRTY" != "1" ]]; then
-  dirty_tracked="$(git -C "$APP_DIR" status --short --untracked-files=no | wc -l | tr -d ' ')"
-  untracked="$(git -C "$APP_DIR" ls-files --others --exclude-standard | wc -l | tr -d ' ')"
-  if [[ "$dirty_tracked" != "0" || "$untracked" != "0" ]]; then
-    echo "Partial phone gate requires a clean git worktree." >&2
-    echo "Dirty tracked files: $dirty_tracked" >&2
-    echo "Untracked non-ignored files: $untracked" >&2
-    echo "Commit/stash changes first, or rerun with --allow-dirty for local debugging only." >&2
-    exit 1
-  fi
-  if ! upstream_ref="$(git -C "$APP_DIR" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)"; then
-    echo "Partial phone gate requires the current branch to have a configured upstream." >&2
-    echo "Push the branch and set upstream first, or rerun with --allow-dirty for local debugging only." >&2
-    exit 1
-  fi
-  head_commit="$(git -C "$APP_DIR" rev-parse HEAD)"
-  upstream_commit="$(git -C "$APP_DIR" rev-parse '@{u}')"
-  if [[ "$head_commit" != "$upstream_commit" ]]; then
-    head_commit="$(git -C "$APP_DIR" rev-parse --short HEAD)"
-    upstream_commit="$(git -C "$APP_DIR" rev-parse --short '@{u}')"
-    echo "Partial phone gate requires HEAD ($head_commit) to match upstream $upstream_ref ($upstream_commit)." >&2
-    echo "Pull/rebase or push the current commit first, or rerun with --allow-dirty for local debugging only." >&2
-    exit 1
-  fi
-  echo "upstream: $upstream_ref"
+  require_clean_pushed_worktree "$APP_DIR" "Partial phone gate"
 fi
 
 if [[ "$RUN_VALIDATE" == "1" ]]; then
