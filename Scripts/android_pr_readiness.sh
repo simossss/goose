@@ -95,6 +95,19 @@ android_runtime_crash_lines() {
   awk '/AndroidRuntime/ && /com[.]goose[.]android/ { count += 1 } END { print count + 0 }' "$file" 2>/dev/null
 }
 
+valid_logcat_start_marker() {
+  local marker="$1"
+  local expected_serial="$2"
+  local prefix stamp package serial extra
+
+  read -r prefix stamp package serial extra <<< "$marker"
+  [[ "$prefix" == "goose-evidence-start" ]] || return 1
+  [[ "$stamp" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || return 1
+  [[ "$package" == "com.goose.android" ]] || return 1
+  [[ "$serial" == "$expected_serial" ]] || return 1
+  [[ -z "${extra:-}" ]] || return 1
+}
+
 verify_evidence_manifest() {
   local dir="$1"
   local manifest="$2"
@@ -740,6 +753,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && -n "$evidence_logcat_start_marker" \
       && -f "$full_logcat_file" \
       && -f "$focused_logcat_file" ]] \
+      && valid_logcat_start_marker "$evidence_logcat_start_marker" "$device_serial" \
       && grep -Fq "$evidence_logcat_start_marker" "$full_logcat_file" \
       && grep -Fq "$evidence_logcat_start_marker" "$focused_logcat_file"; then
       evidence_logcat_start_marker_verified=1
@@ -1055,7 +1069,7 @@ if [[ "$no_android_runtime_crash_verified" == "1" ]]; then
   verified_any=1
 fi
 if [[ "$evidence_logcat_start_marker_verified" == "1" ]]; then
-  echo "- Logcat start marker scopes the focused AndroidRuntime crash evidence to the controlled phone run."
+  echo "- Logcat start marker scopes the focused AndroidRuntime crash evidence to com.goose.android on the handoff serial."
   verified_any=1
 fi
 if [[ "$evidence_manifest_verified" == "1" ]]; then
@@ -1194,7 +1208,7 @@ if [[ "$no_android_runtime_crash_verified" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$require_logcat_start_marker" == "1" && "$evidence_logcat_start_marker_verified" != "1" ]]; then
-  echo "- Logcat start marker from Scripts/prepare_android_phone_evidence.sh must be present in marker, full logcat, focused logcat, and manifest evidence."
+  echo "- Logcat start marker from Scripts/prepare_android_phone_evidence.sh must be present in marker, full logcat, focused logcat, manifest evidence, com.goose.android package scope, and the handoff serial."
   remaining_any=1
 fi
 if [[ "$evidence_manifest_verified" != "1" ]]; then

@@ -176,9 +176,9 @@ write_required_evidence_artifacts() {
     printf 'step validation passing session selected-delta events: 1\n'
     printf 'RESULT: PASS\n'
   } > "$dir/inspect-android-capture.txt"
-  printf 'goose-evidence-start synthetic com.goose.android physical-android-smoke\n' > "$dir/logcat-start-marker.txt"
-  printf 'I/GooseEvidenceStart(12345): goose-evidence-start synthetic com.goose.android physical-android-smoke\nI/GooseBridgeSmoke(12345): com.goose.android smoke harness completed\n' > "$dir/logcat-goose-brief.txt"
-  printf '06-04 12:00:00.000 12345 12345 I GooseEvidenceStart: goose-evidence-start synthetic com.goose.android physical-android-smoke\n06-04 12:00:00.001 12345 12345 I GooseBridgeSmoke: synthetic full logcat snapshot\n' > "$dir/logcat-threadtime.txt"
+  printf 'goose-evidence-start 20260604T120000Z com.goose.android physical-android-smoke\n' > "$dir/logcat-start-marker.txt"
+  printf 'I/GooseEvidenceStart(12345): goose-evidence-start 20260604T120000Z com.goose.android physical-android-smoke\nI/GooseBridgeSmoke(12345): com.goose.android smoke harness completed\n' > "$dir/logcat-goose-brief.txt"
+  printf '06-04 12:00:00.000 12345 12345 I GooseEvidenceStart: goose-evidence-start 20260604T120000Z com.goose.android physical-android-smoke\n06-04 12:00:00.001 12345 12345 I GooseBridgeSmoke: synthetic full logcat snapshot\n' > "$dir/logcat-threadtime.txt"
 }
 
 copy_required_evidence_artifacts() {
@@ -559,19 +559,12 @@ fi
 cp "$synthetic_evidence_dir/phone-handoff-summary.md" "$synthetic_logcat_marker_evidence_dir/phone-handoff-summary.md"
 cp "$synthetic_evidence_dir/evidence-gates.txt" "$synthetic_logcat_marker_evidence_dir/evidence-gates.txt"
 copy_required_evidence_artifacts "$synthetic_evidence_dir" "$synthetic_logcat_marker_evidence_dir"
-logcat_marker_summary_tmp="$synthetic_logcat_marker_evidence_dir/phone-handoff-summary.md.tmp"
-awk '
-  $0 == "- Logcat start marker result: PASS" && !replaced {
-    print "- Logcat start marker result: FAIL"
-    replaced = 1
-    next
-  }
-  { print }
-' "$synthetic_logcat_marker_evidence_dir/phone-handoff-summary.md" > "$logcat_marker_summary_tmp"
-mv "$logcat_marker_summary_tmp" "$synthetic_logcat_marker_evidence_dir/phone-handoff-summary.md"
+printf 'goose-evidence-start 20260604T120000Z com.goose.android other-android-smoke\n' > "$synthetic_logcat_marker_evidence_dir/logcat-start-marker.txt"
+printf 'I/GooseEvidenceStart(12345): goose-evidence-start 20260604T120000Z com.goose.android other-android-smoke\nI/GooseBridgeSmoke(12345): com.goose.android smoke harness completed\n' > "$synthetic_logcat_marker_evidence_dir/logcat-goose-brief.txt"
+printf '06-04 12:00:00.000 12345 12345 I GooseEvidenceStart: goose-evidence-start 20260604T120000Z com.goose.android other-android-smoke\n06-04 12:00:00.001 12345 12345 I GooseBridgeSmoke: synthetic full logcat snapshot\n' > "$synthetic_logcat_marker_evidence_dir/logcat-threadtime.txt"
 write_synthetic_manifest "$synthetic_logcat_marker_evidence_dir"
 if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_logcat_marker_evidence_dir" > "$readiness_logcat_marker_strict_output" 2>&1; then
-  echo "PR readiness strict mode unexpectedly passed with missing logcat start marker evidence" >&2
+  echo "PR readiness strict mode unexpectedly passed with mismatched logcat start marker evidence" >&2
   exit 1
 fi
 cp "$synthetic_evidence_dir/phone-handoff-summary.md" "$synthetic_package_evidence_dir/phone-handoff-summary.md"
@@ -867,7 +860,7 @@ assert_file_contains "$readiness_strict_pass_output" "Evidence local debug APK S
 assert_file_contains "$readiness_strict_pass_output" "Evidence installed APK SHA-256 file: 1111111111111111111111111111111111111111111111111111111111111111" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Evidence focused AndroidRuntime crash lines: 0" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Logcat start marker result: PASS" "PR readiness strict"
-assert_file_contains "$readiness_strict_pass_output" "Logcat start marker scopes the focused AndroidRuntime crash evidence to the controlled phone run." "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Logcat start marker scopes the focused AndroidRuntime crash evidence to com.goose.android on the handoff serial." "PR readiness strict"
 assert_file_contains "$synthetic_evidence_dir/logcat-goose-brief.txt" "GooseBridgeSmoke" "PR readiness strict"
 assert_file_contains "$synthetic_evidence_dir/evidence-files-manifest.txt" "logcat-start-marker.txt" "PR readiness strict"
 assert_file_contains "$synthetic_evidence_dir/logcat-goose-brief.txt" "com.goose.android smoke harness completed" "PR readiness strict"
@@ -900,7 +893,7 @@ assert_file_contains "$readiness_dirty_status_strict_output" "Phone evidence sta
 assert_file_contains "$readiness_dirty_status_strict_output" "Strict PR readiness: FAIL" "PR readiness dirty status strict"
 assert_file_contains "$readiness_collect_error_strict_output" "Evidence bundle must not contain nonempty collect-error.txt diagnostics." "PR readiness collect error strict"
 assert_file_contains "$readiness_collect_error_strict_output" "Strict PR readiness: FAIL" "PR readiness collect error strict"
-assert_file_contains "$readiness_logcat_marker_strict_output" "Logcat start marker from Scripts/prepare_android_phone_evidence.sh must be present in marker, full logcat, focused logcat, and manifest evidence." "PR readiness logcat marker strict"
+assert_file_contains "$readiness_logcat_marker_strict_output" "Logcat start marker from Scripts/prepare_android_phone_evidence.sh must be present in marker, full logcat, focused logcat, manifest evidence, com.goose.android package scope, and the handoff serial." "PR readiness logcat marker strict"
 assert_file_contains "$readiness_logcat_marker_strict_output" "Strict PR readiness: FAIL" "PR readiness logcat marker strict"
 assert_file_contains "$readiness_partial_output" "Bundle profile: partial phone evidence" "PR readiness partial"
 assert_file_contains "$readiness_partial_output" "not enough for final PR readiness" "PR readiness partial"
@@ -949,6 +942,8 @@ assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "goose-installed-apk-
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "/AndroidRuntime/ && /com[.]goose[.]android/" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "logcat-threadtime.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "logcat-start-marker.txt" "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "valid_logcat_start_marker" "PR readiness"
+assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "valid_logcat_start_marker" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/prepare_android_phone_evidence.sh" "Goose evidence start marker written" "phone evidence prep"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "android-port-status.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "goose-package-path.txt" "PR readiness"

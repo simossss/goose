@@ -190,6 +190,19 @@ android_runtime_crash_lines() {
   awk '/AndroidRuntime/ && /com[.]goose[.]android/ { count += 1 } END { print count + 0 }' "$file" 2>/dev/null
 }
 
+valid_logcat_start_marker() {
+  local marker="$1"
+  local expected_serial="$2"
+  local prefix stamp package serial extra
+
+  read -r prefix stamp package serial extra <<< "$marker"
+  [[ "$prefix" == "goose-evidence-start" ]] || return 1
+  [[ "$stamp" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || return 1
+  [[ "$package" == "com.goose.android" ]] || return 1
+  [[ "$serial" == "$expected_serial" ]] || return 1
+  [[ -z "${extra:-}" ]] || return 1
+}
+
 write_file_manifest() {
   local manifest="$OUTPUT_DIR/evidence-files-manifest.txt"
   local tmp_manifest="$manifest.tmp"
@@ -239,6 +252,7 @@ android_runtime_crash_count="$(android_runtime_crash_lines "$OUTPUT_DIR/logcat-g
 logcat_start_marker="$(first_line "$OUTPUT_DIR/logcat-start-marker.txt")"
 logcat_start_marker_result="FAIL"
 if [[ -n "$logcat_start_marker" ]] \
+  && valid_logcat_start_marker "$logcat_start_marker" "$device_serial" \
   && grep -Fq "$logcat_start_marker" "$OUTPUT_DIR/logcat-threadtime.txt" \
   && grep -Fq "$logcat_start_marker" "$OUTPUT_DIR/logcat-goose-brief.txt"; then
   logcat_start_marker_result="PASS"
