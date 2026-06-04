@@ -25,7 +25,8 @@ It intentionally does not run strict PR readiness, because the full PR gate stil
 requires counted-step validation.
 
 The partial phone gate requires a clean git worktree by default, including no
-untracked non-ignored files, so the evidence bundle maps to a pushed commit.
+untracked non-ignored files, and requires HEAD to be present on the configured
+upstream branch, so the evidence bundle maps to a pushed commit.
 Use --allow-dirty only for local debugging evidence that will not be used for
 PR acceptance.
 
@@ -76,9 +77,9 @@ done
 echo "Running Goose Android partial phone gate"
 echo "output: $OUTPUT_DIR"
 if [[ "$ALLOW_DIRTY" == "1" ]]; then
-  echo "clean worktree: skipped by --allow-dirty"
+  echo "clean pushed worktree: skipped by --allow-dirty"
 else
-  echo "clean worktree: required"
+  echo "clean pushed worktree: required"
 fi
 
 phone_gate_args=("$OUTPUT_DIR")
@@ -112,6 +113,18 @@ if [[ "$ALLOW_DIRTY" != "1" ]]; then
     echo "Commit/stash changes first, or rerun with --allow-dirty for local debugging only." >&2
     exit 1
   fi
+  if ! upstream_ref="$(git -C "$APP_DIR" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)"; then
+    echo "Partial phone gate requires the current branch to have a configured upstream." >&2
+    echo "Push the branch and set upstream first, or rerun with --allow-dirty for local debugging only." >&2
+    exit 1
+  fi
+  if ! git -C "$APP_DIR" merge-base --is-ancestor HEAD '@{u}'; then
+    head_commit="$(git -C "$APP_DIR" rev-parse --short HEAD)"
+    echo "Partial phone gate requires HEAD ($head_commit) to be present on upstream $upstream_ref." >&2
+    echo "Push the current commit first, or rerun with --allow-dirty for local debugging only." >&2
+    exit 1
+  fi
+  echo "upstream: $upstream_ref"
 fi
 
 if [[ "$RUN_VALIDATE" == "1" ]]; then

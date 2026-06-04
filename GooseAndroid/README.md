@@ -55,8 +55,9 @@ step validation, then applies strict PR readiness. Add
 `--require-health-success` when the run must prove a successful Health Connect
 platform write, `--skip-validate` when local validation was already run, or
 `--dry-run` to print the command sequence without using adb. The final PR gate
-requires a clean git worktree by default so the evidence bundle maps to a
-pushed commit; `--allow-dirty` is for local debugging only.
+requires a clean git worktree whose `HEAD` is present on the configured upstream
+branch, so the evidence bundle maps to a pushed commit; `--allow-dirty` is for
+local debugging only.
 
 When counted-step validation is intentionally parked, use the partial phone gate
 to prove the real-phone BLE/capture/installed-package/Health Connect evidence
@@ -66,9 +67,10 @@ without requiring step validation or strict PR readiness:
 Scripts/android_partial_phone_gate.sh tmp/android-phone-partial-gate-real
 ```
 
-The partial gate still requires a clean git worktree and physical adb device by
-default, then prints the remaining PR-readiness blockers from the collected
-evidence bundle. Use `--allow-dirty` only for local debugging evidence.
+The partial gate still requires a clean git worktree whose `HEAD` is present on
+the configured upstream branch, plus a physical adb device by default, then
+prints the remaining PR-readiness blockers from the collected evidence bundle.
+Use `--allow-dirty` only for local debugging evidence.
 
 Manual build from Android Studio or the command line:
 
