@@ -76,6 +76,10 @@ is_positive_int() {
   [[ "${1:-}" =~ ^[0-9]+$ && "$1" -gt 0 ]]
 }
 
+is_nonnegative_int() {
+  [[ "${1:-}" =~ ^[0-9]+$ ]]
+}
+
 file_size() {
   local file="$1"
   wc -c < "$file" | tr -d ' '
@@ -749,7 +753,13 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && is_positive_int "$session_raw_rows" \
       && is_positive_int "$session_live_notification_raw_rows" \
       && is_positive_int "$session_decoded_rows" \
-      && is_positive_int "$finished_sessions"; then
+      && is_positive_int "$finished_sessions" \
+      && is_nonnegative_int "$daily_activity_metrics" \
+      && is_nonnegative_int "$daily_local_estimate_metrics" \
+      && is_nonnegative_int "$daily_device_counter_metrics" \
+      && is_nonnegative_int "$inspection_daily_activity_metrics" \
+      && is_nonnegative_int "$inspection_daily_local_estimate_metrics" \
+      && is_nonnegative_int "$inspection_daily_device_counter_metrics"; then
       evidence_capture_inspection_verified=1
       capture_verified=1
     fi
@@ -774,7 +784,13 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$health_write_succeeded" == "$inspection_health_write_succeeded" \
       && "$health_ready_write_succeeded" == "$inspection_health_ready_write_succeeded" \
       && "$health_planned_write_succeeded" == "$inspection_health_planned_write_succeeded" \
-      && "$health_records_inserted" == "$inspection_health_records_inserted" ]]; then
+      && "$health_records_inserted" == "$inspection_health_records_inserted" ]] \
+      && is_nonnegative_int "$health_steps_record_started" \
+      && is_nonnegative_int "$health_local_estimate_record_started" \
+      && is_nonnegative_int "$health_device_counter_record_started" \
+      && is_nonnegative_int "$inspection_health_steps_record_started" \
+      && is_nonnegative_int "$inspection_health_local_estimate_record_started" \
+      && is_nonnegative_int "$inspection_health_device_counter_record_started"; then
       evidence_health_inspection_verified=1
     fi
     if [[ "$evidence_result_verified" == "1" \

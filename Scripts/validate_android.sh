@@ -1412,6 +1412,7 @@ assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone evidence local
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff capture counts, including decoded frame counts, must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "daily local estimate metrics" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "daily device counter metrics" "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "is_nonnegative_int" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff BLE session counts must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff Health Connect counts must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Steps record started events" "PR readiness"
