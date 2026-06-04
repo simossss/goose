@@ -618,6 +618,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     health_planned_write_started="$(summary_bullet_value "Planned write started events" "$summary")"
     health_candidate_write_started="$(summary_bullet_value "Candidate write started events" "$summary")"
     health_records_attempted="$(summary_bullet_value "Records attempted events" "$summary")"
+    health_record_summary_write_started="$(summary_bullet_value "Record-summary write started events" "$summary")"
     health_steps_record_started="$(summary_bullet_value "Steps record started events" "$summary")"
     health_local_estimate_record_started="$(summary_bullet_value "Local estimate record started events" "$summary")"
     health_device_counter_record_started="$(summary_bullet_value "Device counter record started events" "$summary")"
@@ -630,6 +631,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     inspection_health_planned_write_started=""
     inspection_health_candidate_write_started=""
     inspection_health_records_attempted=""
+    inspection_health_record_summary_write_started=""
     inspection_health_steps_record_started=""
     inspection_health_local_estimate_record_started=""
     inspection_health_device_counter_record_started=""
@@ -643,6 +645,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       inspection_health_planned_write_started="$(status_value "health sync planned write started events" "$inspection_file")"
       inspection_health_candidate_write_started="$(status_value "health sync candidate write started events" "$inspection_file")"
       inspection_health_records_attempted="$(status_value "health sync records attempted events" "$inspection_file")"
+      inspection_health_record_summary_write_started="$(status_value "health sync record-summary write started events" "$inspection_file")"
       inspection_health_steps_record_started="$(status_value "health sync steps record started events" "$inspection_file")"
       inspection_health_local_estimate_record_started="$(status_value "health sync local estimate record started events" "$inspection_file")"
       inspection_health_device_counter_record_started="$(status_value "health sync device counter record started events" "$inspection_file")"
@@ -778,6 +781,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$health_planned_write_started" == "$inspection_health_planned_write_started" \
       && "$health_candidate_write_started" == "$inspection_health_candidate_write_started" \
       && "$health_records_attempted" == "$inspection_health_records_attempted" \
+      && "$health_record_summary_write_started" == "$inspection_health_record_summary_write_started" \
       && "$health_steps_record_started" == "$inspection_health_steps_record_started" \
       && "$health_local_estimate_record_started" == "$inspection_health_local_estimate_record_started" \
       && "$health_device_counter_record_started" == "$inspection_health_device_counter_record_started" \
@@ -786,9 +790,11 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$health_planned_write_succeeded" == "$inspection_health_planned_write_succeeded" \
       && "$health_records_inserted" == "$inspection_health_records_inserted" ]] \
       && is_nonnegative_int "$health_steps_record_started" \
+      && is_nonnegative_int "$health_record_summary_write_started" \
       && is_nonnegative_int "$health_local_estimate_record_started" \
       && is_nonnegative_int "$health_device_counter_record_started" \
       && is_nonnegative_int "$inspection_health_steps_record_started" \
+      && is_nonnegative_int "$inspection_health_record_summary_write_started" \
       && is_nonnegative_int "$inspection_health_local_estimate_record_started" \
       && is_nonnegative_int "$inspection_health_device_counter_record_started"; then
       evidence_health_inspection_verified=1
@@ -954,7 +960,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
         || { is_positive_int "$health_ready_write_started" \
           && is_positive_int "$health_planned_write_started" \
           && is_positive_int "$health_candidate_write_started" \
-          && is_positive_int "$health_records_attempted"; }; }; then
+          && is_positive_int "$health_records_attempted" \
+          && is_positive_int "$health_record_summary_write_started"; }; }; then
       health_attempt_verified=1
     fi
     if [[ "$evidence_health_inspection_verified" == "1" \
@@ -1088,6 +1095,8 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Inspect candidate write started events: $inspection_health_candidate_write_started"
     echo "- Records attempted events: $health_records_attempted"
     echo "- Inspect records attempted events: $inspection_health_records_attempted"
+    echo "- Record-summary write started events: $health_record_summary_write_started"
+    echo "- Inspect record-summary write started events: $inspection_health_record_summary_write_started"
     echo "- Steps record started events: $health_steps_record_started"
     echo "- Inspect steps record started events: $inspection_health_steps_record_started"
     echo "- Local estimate record started events: $health_local_estimate_record_started"
@@ -1278,7 +1287,7 @@ if [[ "$step_validation_verified" == "1" ]]; then
   verified_any=1
 fi
 if [[ "$health_attempt_verified" == "1" ]]; then
-  echo "- Health Connect write attempt was recorded under the required final gate with permissions-ready planned-write context."
+  echo "- Health Connect write attempt was recorded under the required final gate with permissions-ready planned-write context and record-summary provenance."
   verified_any=1
 fi
 if [[ "$health_success_verified" == "1" ]]; then
@@ -1419,7 +1428,7 @@ if [[ "$require_step_pass" == "1" && "$evidence_step_audit_manifest_verified" !=
   remaining_any=1
 fi
 if [[ "$health_attempt_verified" != "1" ]]; then
-  echo "- Health Connect permission grant and real planned write attempt on Android 14+, including permissions-ready planned-write context."
+  echo "- Health Connect permission grant and real planned write attempt on Android 14+, including permissions-ready planned-write context and record-summary provenance."
   remaining_any=1
 fi
 if [[ "$require_health_attempt" == "1" && "$evidence_health_audit_manifest_verified" != "1" ]]; then

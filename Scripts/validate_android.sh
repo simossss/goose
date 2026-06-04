@@ -195,6 +195,7 @@ write_required_evidence_artifacts() {
     printf 'health sync planned write started events: 1\n'
     printf 'health sync candidate write started events: 1\n'
     printf 'health sync records attempted events: 1\n'
+    printf 'health sync record-summary write started events: 1\n'
     printf 'health sync steps record started events: 1\n'
     printf 'health sync local estimate record started events: 1\n'
     printf 'health sync device counter record started events: 0\n'
@@ -502,6 +503,7 @@ Result: PASS
 - Planned write started events: 1
 - Candidate write started events: 1
 - Records attempted events: 1
+- Record-summary write started events: 1
 - Steps record started events: 1
 - Local estimate record started events: 1
 - Device counter record started events: 0
@@ -910,8 +912,8 @@ cp "$synthetic_evidence_dir/evidence-gates.txt" "$synthetic_health_counts_eviden
 copy_required_evidence_artifacts "$synthetic_evidence_dir" "$synthetic_health_counts_evidence_dir"
 health_counts_summary_tmp="$synthetic_health_counts_evidence_dir/phone-handoff-summary.md.tmp"
 awk '
-  $0 == "- Records attempted events: 1" && !replaced {
-    print "- Records attempted events: 0"
+  $0 == "- Record-summary write started events: 1" && !replaced {
+    print "- Record-summary write started events: 0"
     replaced = 1
     next
   }
@@ -920,7 +922,7 @@ awk '
 mv "$health_counts_summary_tmp" "$synthetic_health_counts_evidence_dir/phone-handoff-summary.md"
 write_synthetic_manifest "$synthetic_health_counts_evidence_dir"
 if "$SCRIPT_DIR/android_pr_readiness.sh" --strict "$synthetic_health_counts_evidence_dir" > "$readiness_health_counts_strict_output" 2>&1; then
-  echo "PR readiness strict mode unexpectedly passed with mismatched Health Connect count evidence" >&2
+  echo "PR readiness strict mode unexpectedly passed with mismatched Health Connect record-summary count evidence" >&2
   exit 1
 fi
 cp "$synthetic_evidence_dir/phone-handoff-summary.md" "$synthetic_health_success_evidence_dir/phone-handoff-summary.md"
@@ -1096,6 +1098,7 @@ Result: PASS
 - Planned write started events: 1
 - Candidate write started events: 1
 - Records attempted events: 1
+- Record-summary write started events: 1
 - Steps record started events: 1
 - Local estimate record started events: 1
 - Device counter record started events: 0
@@ -1212,6 +1215,8 @@ assert_file_contains "$readiness_strict_pass_output" "BLE session audit log, cur
 assert_file_contains "$readiness_strict_pass_output" "completed client hello write in command-ready rows." "PR readiness strict"
 assert_file_contains "$readiness_ble_command_ready_strict_output" "BLE session audit from the final gate must prove completed client hello write in command-ready rows." "PR readiness BLE command-ready strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect records attempted events: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Record-summary write started events: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect record-summary write started events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Steps record started events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect steps record started events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Local estimate record started events: 1" "PR readiness strict"
@@ -1222,6 +1227,7 @@ assert_file_contains "$readiness_strict_pass_output" "Inspect ready write succee
 assert_file_contains "$readiness_strict_pass_output" "Inspect planned write succeeded events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect records inserted events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff Health Connect counts, including record-summary counts, match inspect-android-capture.txt." "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Health Connect write attempt was recorded under the required final gate with permissions-ready planned-write context and record-summary provenance." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Health Connect audit log, current or rotated, is included in the evidence byte/hash manifest." "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect selected delta events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Phone handoff step-validation counts match inspect-android-capture.txt." "PR readiness strict"
@@ -1276,7 +1282,7 @@ assert_file_contains "$readiness_capture_counts_strict_output" "Phone handoff da
 assert_file_contains "$readiness_capture_counts_strict_output" "Strict PR readiness: FAIL" "PR readiness capture counts strict"
 assert_file_contains "$readiness_ble_counts_strict_output" "Phone handoff BLE session counts must match inspect-android-capture.txt." "PR readiness BLE counts strict"
 assert_file_contains "$readiness_ble_counts_strict_output" "Strict PR readiness: FAIL" "PR readiness BLE counts strict"
-assert_file_contains "$readiness_health_attempt_strict_output" "Health Connect permission grant and real planned write attempt on Android 14+, including permissions-ready planned-write context." "PR readiness Health Connect attempt strict"
+assert_file_contains "$readiness_health_attempt_strict_output" "Health Connect permission grant and real planned write attempt on Android 14+, including permissions-ready planned-write context and record-summary provenance." "PR readiness Health Connect attempt strict"
 assert_file_contains "$readiness_health_attempt_strict_output" "Strict PR readiness: FAIL" "PR readiness Health Connect attempt strict"
 assert_file_contains "$readiness_health_counts_strict_output" "Phone handoff Health Connect counts must match inspect-android-capture.txt." "PR readiness Health Connect counts strict"
 assert_file_contains "$readiness_health_counts_strict_output" "Phone handoff Health Connect record-summary counts must be present, numeric, and match inspect-android-capture.txt." "PR readiness Health Connect counts strict"
@@ -1477,6 +1483,7 @@ assert_file_contains "$SCRIPT_DIR/inspect_android_capture.sh" "Recent daily acti
 assert_file_contains "$SCRIPT_DIR/inspect_android_capture.sh" "daily local estimate metrics" "Android capture inspector"
 assert_file_contains "$SCRIPT_DIR/inspect_android_capture.sh" "daily device counter metrics" "Android capture inspector"
 assert_file_contains "$SCRIPT_DIR/inspect_android_capture.sh" "health sync local estimate record started events" "Android capture inspector"
+assert_file_contains "$SCRIPT_DIR/inspect_android_capture.sh" "record_summary provenance" "Android capture inspector"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/HealthConnectSupport.java" "record_summary" "Android Health Connect audit"
 assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "ready-plan audit missing record_summary" "Android Health Connect audit"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "attemptedManualStepDelta" "Android step-validation failure audit"
