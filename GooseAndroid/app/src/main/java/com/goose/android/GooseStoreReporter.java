@@ -360,6 +360,14 @@ final class GooseStoreReporter {
             int healthWriteSucceededEvents = countFileRowsContainingAll(healthSyncAuditFile,
                     "\"schema\":\"goose.android.health-connect-sync-audit.v1\"",
                     "\"event\":\"write_succeeded\"");
+            int healthReadyWriteSucceededEvents = countFileRowsContainingAll(healthSyncAuditFile,
+                    "\"schema\":\"goose.android.health-connect-sync-audit.v1\"",
+                    "\"event\":\"write_succeeded\"",
+                    "\"permissions_ready\":true");
+            int healthPlannedWriteSucceededEvents = countFileRowsMatching(healthSyncAuditFile,
+                    Pattern.compile(".*\"event\":\"write_succeeded\".*\"planned_write_count\":[1-9][0-9]*.*"));
+            int healthRecordsInsertedEvents = countFileRowsMatching(healthSyncAuditFile,
+                    Pattern.compile(".*\"event\":\"write_succeeded\".*\"records_inserted\":[1-9][0-9]*.*"));
             int stepValidationCompletedEvents = countFileRowsContainingAll(stepValidationAuditFile,
                     "\"schema\":\"goose.android.step-validation-audit.v1\"",
                     "\"event\":\"completed\"");
@@ -407,6 +415,9 @@ final class GooseStoreReporter {
                     + "health sync candidate write started events: " + healthCandidateWriteStartedEvents + "\n"
                     + "health sync records attempted events: " + healthRecordsAttemptedEvents + "\n"
                     + "health sync write succeeded events: " + healthWriteSucceededEvents + "\n"
+                    + "health sync ready write succeeded events: " + healthReadyWriteSucceededEvents + "\n"
+                    + "health sync planned write succeeded events: " + healthPlannedWriteSucceededEvents + "\n"
+                    + "health sync records inserted events: " + healthRecordsInsertedEvents + "\n"
                     + "step validation audit bytes: " + stepValidationAuditFile.length() + "\n"
                     + "step validation completed events: " + stepValidationCompletedEvents + "\n"
                     + "step validation passed events: " + stepValidationPassedEvents + "\n"
