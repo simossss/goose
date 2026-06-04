@@ -608,6 +608,23 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             throw new AssertionError("could not clear stale BLE session audit log: " + auditFile);
         }
         BleSessionAudit.appendProgress(context, new GooseBleClient.ConnectionProgress(
+                "operation_complete",
+                "android-smoke-device",
+                1,
+                5,
+                3,
+                6,
+                4,
+                1,
+                10,
+                6,
+                "client hello",
+                true,
+                true,
+                null,
+                1_767_225_599_000L
+        ));
+        BleSessionAudit.appendProgress(context, new GooseBleClient.ConnectionProgress(
                 "ready",
                 "android-smoke-device",
                 1,
@@ -642,6 +659,19 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         }
         if (!audit.contains("\"active_operation_label\":\"client hello\"")) {
             throw new AssertionError("BLE session audit missing active operation label: " + audit);
+        }
+        if (!fileHasLineContainingAll(auditFile,
+                "\"phase\":\"operation_complete\"",
+                "\"active_operation_label\":\"client hello\"",
+                "\"command_ready\":true",
+                "\"hello_sent\":true")) {
+            throw new AssertionError("BLE session audit missing command-ready client hello completion row: " + audit);
+        }
+        if (!fileHasLineContainingAll(auditFile,
+                "\"phase\":\"ready\"",
+                "\"command_ready\":true",
+                "\"hello_sent\":true")) {
+            throw new AssertionError("BLE session audit missing ready hello command-ready row: " + audit);
         }
     }
 
