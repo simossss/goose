@@ -170,6 +170,11 @@ remote_file_sha256() {
   "$ADB" -s "$device_serial" exec-out cat "$remote_path" | shasum -a 256 | awk '{ print $1 }'
 }
 
+android_runtime_crash_lines() {
+  local file="$1"
+  awk '/AndroidRuntime/ && /com[.]goose[.]android/ { count += 1 } END { print count + 0 }' "$file" 2>/dev/null
+}
+
 write_file_manifest() {
   local manifest="$OUTPUT_DIR/evidence-files-manifest.txt"
   local tmp_manifest="$manifest.tmp"
@@ -215,7 +220,7 @@ if [[ "$local_debug_apk_sha256" != "missing" ]] \
 fi
 printf '%s\n' "$local_debug_apk_sha256" > "$OUTPUT_DIR/goose-local-debug-apk-sha256.txt"
 printf '%s\n' "$installed_apk_sha256" > "$OUTPUT_DIR/goose-installed-apk-sha256.txt"
-android_runtime_crash_count="$(grep -c 'com.goose.android' "$OUTPUT_DIR/logcat-goose-brief.txt" 2>/dev/null || true)"
+android_runtime_crash_count="$(android_runtime_crash_lines "$OUTPUT_DIR/logcat-goose-brief.txt")"
 package_result="PASS"
 if [[ "$package_path" != package:* ]] \
   || ! grep -q 'versionName=0.1.0' "$OUTPUT_DIR/goose-package-summary.txt" 2>/dev/null \

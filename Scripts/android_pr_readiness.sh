@@ -79,6 +79,11 @@ file_sha256() {
   fi
 }
 
+android_runtime_crash_lines() {
+  local file="$1"
+  awk '/AndroidRuntime/ && /com[.]goose[.]android/ { count += 1 } END { print count + 0 }' "$file" 2>/dev/null
+}
+
 verify_evidence_manifest() {
   local dir="$1"
   local manifest="$2"
@@ -416,7 +421,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     android_runtime_crash_lines="$(summary_bullet_value "Focused AndroidRuntime crash lines" "$summary")"
     evidence_android_runtime_crash_lines=""
     if [[ -f "$focused_logcat_file" ]]; then
-      evidence_android_runtime_crash_lines="$(grep -c 'com.goose.android' "$focused_logcat_file" 2>/dev/null || true)"
+      evidence_android_runtime_crash_lines="$(android_runtime_crash_lines "$focused_logcat_file")"
     fi
     raw_rows="$(summary_bullet_value "Raw evidence rows" "$summary")"
     capture_sessions="$(summary_bullet_value "Capture sessions" "$summary")"
