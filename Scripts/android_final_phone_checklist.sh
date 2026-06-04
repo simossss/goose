@@ -55,19 +55,21 @@ Require successful Health Connect write as well:
 Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real --require-health-success
 \`\`\`
 
-For manual debugging, the wrapper runs these lower-level commands:
+For manual debugging without strict PR readiness, collect a separate diagnostic
+bundle with the lower-level command:
 
 \`\`\`sh
-Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation
+Scripts/android_phone_final_gate.sh tmp/android-phone-diagnostic-gate-real --require-step-validation
 \`\`\`
 
 Lower-level Health Connect success gate:
 
 \`\`\`sh
-Scripts/android_phone_final_gate.sh tmp/android-phone-final-gate-real --require-step-validation --require-health-success
+Scripts/android_phone_final_gate.sh tmp/android-phone-diagnostic-gate-real --require-step-validation --require-health-success
 \`\`\`
 
-Then generate the PR-ready summary:
+The final PR gate already prints strict readiness. Reprint the PR-ready summary
+from an existing final bundle with:
 
 \`\`\`sh
 Scripts/android_pr_readiness.sh tmp/android-phone-final-gate-real

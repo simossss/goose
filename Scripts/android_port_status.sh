@@ -88,8 +88,11 @@ cat <<'STATUS'
 Validation gate:
   Scripts/validate_android.sh
 
-Final phone evidence gate:
-  Scripts/android_phone_final_gate.sh
+Final PR evidence gate:
+  Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real
+
+Lower-level diagnostic phone evidence gate:
+  Scripts/android_phone_final_gate.sh tmp/android-phone-diagnostic-gate-real --require-step-validation
 
 Partial phone evidence gate while counted-step validation is parked:
   Scripts/android_partial_phone_gate.sh tmp/android-phone-partial-gate-real
