@@ -226,6 +226,9 @@ health_audit_ready_write_started=0
 health_audit_planned_write_started=0
 health_audit_candidate_write_started=0
 health_audit_records_attempted=0
+health_audit_steps_record_started=0
+health_audit_local_estimate_record_started=0
+health_audit_device_counter_record_started=0
 health_audit_write_succeeded=0
 health_audit_ready_write_succeeded=0
 health_audit_planned_write_succeeded=0
@@ -257,6 +260,9 @@ if [[ "${#health_audit_files[@]}" -gt 0 ]]; then
   health_audit_planned_write_started="$(count_regex_in_files '"event":"write_started".*"planned_write_count":[1-9][0-9]*' "${health_audit_files[@]}")"
   health_audit_candidate_write_started="$(count_regex_in_files '"event":"write_started".*"candidate_count":[1-9][0-9]*' "${health_audit_files[@]}")"
   health_audit_records_attempted="$(count_regex_in_files '"event":"write_started".*"records_attempted":[1-9][0-9]*' "${health_audit_files[@]}")"
+  health_audit_steps_record_started="$(count_regex_in_files '"event":"write_started".*"record_summary":\{[^}]*"StepsRecord":[1-9][0-9]*' "${health_audit_files[@]}")"
+  health_audit_local_estimate_record_started="$(count_regex_in_files '"event":"write_started".*"record_summary":\{[^}]*"local_estimate":[1-9][0-9]*' "${health_audit_files[@]}")"
+  health_audit_device_counter_record_started="$(count_regex_in_files '"event":"write_started".*"record_summary":\{[^}]*"device_counter":[1-9][0-9]*' "${health_audit_files[@]}")"
   health_audit_write_succeeded="$(count_fixed_in_files '"event":"write_succeeded"' "${health_audit_files[@]}")"
   health_audit_ready_write_succeeded="$(count_regex_in_files '"event":"write_succeeded".*"permissions_ready":true' "${health_audit_files[@]}")"
   health_audit_planned_write_succeeded="$(count_regex_in_files '"event":"write_succeeded".*"planned_write_count":[1-9][0-9]*' "${health_audit_files[@]}")"
@@ -314,6 +320,9 @@ echo "health sync ready write started events: $health_audit_ready_write_started"
 echo "health sync planned write started events: $health_audit_planned_write_started"
 echo "health sync candidate write started events: $health_audit_candidate_write_started"
 echo "health sync records attempted events: $health_audit_records_attempted"
+echo "health sync steps record started events: $health_audit_steps_record_started"
+echo "health sync local estimate record started events: $health_audit_local_estimate_record_started"
+echo "health sync device counter record started events: $health_audit_device_counter_record_started"
 echo "health sync write succeeded events: $health_audit_write_succeeded"
 echo "health sync ready write succeeded events: $health_audit_ready_write_succeeded"
 echo "health sync planned write succeeded events: $health_audit_planned_write_succeeded"

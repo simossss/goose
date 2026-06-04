@@ -699,6 +699,15 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         if (!audit.contains("\"candidate_count\":1")) {
             throw new AssertionError("ready-plan audit missing candidate_count: " + audit);
         }
+        if (!audit.contains("\"record_summary\"")) {
+            throw new AssertionError("ready-plan audit missing record_summary: " + audit);
+        }
+        if (!audit.contains("\"StepsRecord\":1")) {
+            throw new AssertionError("ready-plan audit missing StepsRecord count: " + audit);
+        }
+        if (!audit.contains("\"local_estimate\":1")) {
+            throw new AssertionError("ready-plan audit missing local_estimate count: " + audit);
+        }
     }
 
     private void assertClearLocalDataRemovesAuditLogs(Context context) throws Exception {
@@ -803,6 +812,9 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                 .put("destination_type", destinationType)
                 .put("source_record_id", id)
                 .put("idempotency_key", id + "-key")
+                .put("source_kind", "local_estimate")
+                .put("provenance", new JSONObject()
+                        .put("daily_metric_source_kind", "local_estimate"))
                 .put("start_time", start)
                 .put("end_time", end)
                 .put("value", value);

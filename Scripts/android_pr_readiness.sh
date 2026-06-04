@@ -614,6 +614,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     health_planned_write_started="$(summary_bullet_value "Planned write started events" "$summary")"
     health_candidate_write_started="$(summary_bullet_value "Candidate write started events" "$summary")"
     health_records_attempted="$(summary_bullet_value "Records attempted events" "$summary")"
+    health_steps_record_started="$(summary_bullet_value "Steps record started events" "$summary")"
+    health_local_estimate_record_started="$(summary_bullet_value "Local estimate record started events" "$summary")"
+    health_device_counter_record_started="$(summary_bullet_value "Device counter record started events" "$summary")"
     health_write_succeeded="$(summary_bullet_value "Write succeeded events" "$summary")"
     health_ready_write_succeeded="$(summary_bullet_value "Ready write succeeded events" "$summary")"
     health_planned_write_succeeded="$(summary_bullet_value "Planned write succeeded events" "$summary")"
@@ -623,6 +626,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     inspection_health_planned_write_started=""
     inspection_health_candidate_write_started=""
     inspection_health_records_attempted=""
+    inspection_health_steps_record_started=""
+    inspection_health_local_estimate_record_started=""
+    inspection_health_device_counter_record_started=""
     inspection_health_write_succeeded=""
     inspection_health_ready_write_succeeded=""
     inspection_health_planned_write_succeeded=""
@@ -633,6 +639,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       inspection_health_planned_write_started="$(status_value "health sync planned write started events" "$inspection_file")"
       inspection_health_candidate_write_started="$(status_value "health sync candidate write started events" "$inspection_file")"
       inspection_health_records_attempted="$(status_value "health sync records attempted events" "$inspection_file")"
+      inspection_health_steps_record_started="$(status_value "health sync steps record started events" "$inspection_file")"
+      inspection_health_local_estimate_record_started="$(status_value "health sync local estimate record started events" "$inspection_file")"
+      inspection_health_device_counter_record_started="$(status_value "health sync device counter record started events" "$inspection_file")"
       inspection_health_write_succeeded="$(status_value "health sync write succeeded events" "$inspection_file")"
       inspection_health_ready_write_succeeded="$(status_value "health sync ready write succeeded events" "$inspection_file")"
       inspection_health_planned_write_succeeded="$(status_value "health sync planned write succeeded events" "$inspection_file")"
@@ -759,6 +768,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$health_planned_write_started" == "$inspection_health_planned_write_started" \
       && "$health_candidate_write_started" == "$inspection_health_candidate_write_started" \
       && "$health_records_attempted" == "$inspection_health_records_attempted" \
+      && "$health_steps_record_started" == "$inspection_health_steps_record_started" \
+      && "$health_local_estimate_record_started" == "$inspection_health_local_estimate_record_started" \
+      && "$health_device_counter_record_started" == "$inspection_health_device_counter_record_started" \
       && "$health_write_succeeded" == "$inspection_health_write_succeeded" \
       && "$health_ready_write_succeeded" == "$inspection_health_ready_write_succeeded" \
       && "$health_planned_write_succeeded" == "$inspection_health_planned_write_succeeded" \
@@ -1060,6 +1072,12 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "- Inspect candidate write started events: $inspection_health_candidate_write_started"
     echo "- Records attempted events: $health_records_attempted"
     echo "- Inspect records attempted events: $inspection_health_records_attempted"
+    echo "- Steps record started events: $health_steps_record_started"
+    echo "- Inspect steps record started events: $inspection_health_steps_record_started"
+    echo "- Local estimate record started events: $health_local_estimate_record_started"
+    echo "- Inspect local estimate record started events: $inspection_health_local_estimate_record_started"
+    echo "- Device counter record started events: $health_device_counter_record_started"
+    echo "- Inspect device counter record started events: $inspection_health_device_counter_record_started"
     echo "- Write succeeded events: $health_write_succeeded"
     echo "- Inspect write succeeded events: $inspection_health_write_succeeded"
     echo "- Ready write succeeded events: $health_ready_write_succeeded"

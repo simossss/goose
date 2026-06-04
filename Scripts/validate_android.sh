@@ -168,7 +168,7 @@ write_required_evidence_artifacts() {
   printf '1111111111111111111111111111111111111111111111111111111111111111\n' > "$dir/goose-local-debug-apk-sha256.txt"
   printf '1111111111111111111111111111111111111111111111111111111111111111\n' > "$dir/goose-installed-apk-sha256.txt"
   printf '{"schema":"goose.android.ble-session-audit.v1","event":"connection_progress","details":{"phase":"operation_complete","active_operation_label":"client hello","command_ready":true,"hello_sent":true}}\n{"schema":"goose.android.ble-session-audit.v1","event":"connection_progress","details":{"phase":"ready","command_ready":true,"hello_sent":true}}\n' > "$dir/goose-phone-ble-session-log.jsonl"
-  printf '{"schema":"goose.android.health-connect-sync-audit.v1","event":"write_started","permissions_ready":true,"planned_write_count":1,"candidate_count":1,"records_attempted":1}\n{"schema":"goose.android.health-connect-sync-audit.v1","event":"write_succeeded","permissions_ready":true,"planned_write_count":1,"candidate_count":1,"records_attempted":1,"records_inserted":1}\n' > "$dir/goose-phone-health-connect-sync-log.jsonl"
+  printf '{"schema":"goose.android.health-connect-sync-audit.v1","event":"write_started","permissions_ready":true,"planned_write_count":1,"candidate_count":1,"records_attempted":1,"record_summary":{"StepsRecord":1,"HeartRateRecord":0,"ActiveCaloriesBurnedRecord":0,"local_estimate":1,"device_counter":0,"other_source_kind":0}}\n{"schema":"goose.android.health-connect-sync-audit.v1","event":"write_succeeded","permissions_ready":true,"planned_write_count":1,"candidate_count":1,"records_attempted":1,"records_inserted":1,"record_summary":{"StepsRecord":1,"HeartRateRecord":0,"ActiveCaloriesBurnedRecord":0,"local_estimate":1,"device_counter":0,"other_source_kind":0}}\n' > "$dir/goose-phone-health-connect-sync-log.jsonl"
   printf '{"schema":"goose.android.step-validation-audit.v1","event":"completed","pass":true,"capture_session_id":"android-session-a","capture_session_decoded_frame_count":1,"selected_delta":1}\n' > "$dir/goose-phone-step-validation-log.jsonl"
   {
     printf 'Android capture inspection\n'
@@ -195,6 +195,9 @@ write_required_evidence_artifacts() {
     printf 'health sync planned write started events: 1\n'
     printf 'health sync candidate write started events: 1\n'
     printf 'health sync records attempted events: 1\n'
+    printf 'health sync steps record started events: 1\n'
+    printf 'health sync local estimate record started events: 1\n'
+    printf 'health sync device counter record started events: 0\n'
     printf 'health sync write succeeded events: 1\n'
     printf 'health sync ready write succeeded events: 1\n'
     printf 'health sync planned write succeeded events: 1\n'
@@ -499,6 +502,9 @@ Result: PASS
 - Planned write started events: 1
 - Candidate write started events: 1
 - Records attempted events: 1
+- Steps record started events: 1
+- Local estimate record started events: 1
+- Device counter record started events: 0
 - Write succeeded events: 1
 - Ready write succeeded events: 1
 - Planned write succeeded events: 1
@@ -1090,6 +1096,9 @@ Result: PASS
 - Planned write started events: 1
 - Candidate write started events: 1
 - Records attempted events: 1
+- Steps record started events: 1
+- Local estimate record started events: 1
+- Device counter record started events: 0
 - Write succeeded events: 0
 - Ready write succeeded events: 0
 - Planned write succeeded events: 0
@@ -1203,6 +1212,12 @@ assert_file_contains "$readiness_strict_pass_output" "BLE session audit log, cur
 assert_file_contains "$readiness_strict_pass_output" "completed client hello write in command-ready rows." "PR readiness strict"
 assert_file_contains "$readiness_ble_command_ready_strict_output" "BLE session audit from the final gate must prove completed client hello write in command-ready rows." "PR readiness BLE command-ready strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect records attempted events: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Steps record started events: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect steps record started events: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Local estimate record started events: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect local estimate record started events: 1" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Device counter record started events: 0" "PR readiness strict"
+assert_file_contains "$readiness_strict_pass_output" "Inspect device counter record started events: 0" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect ready write succeeded events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect planned write succeeded events: 1" "PR readiness strict"
 assert_file_contains "$readiness_strict_pass_output" "Inspect records inserted events: 1" "PR readiness strict"
@@ -1399,6 +1414,8 @@ assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "daily local estimate
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "daily device counter metrics" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff BLE session counts must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff Health Connect counts must match inspect-android-capture.txt." "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Steps record started events" "PR readiness"
+assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Local estimate record started events" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Phone handoff step-validation counts must match inspect-android-capture.txt." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "BLE session audit log, current or rotated, must be included in the evidence byte/hash manifest." "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "Health Connect audit log, current or rotated, must be included in the evidence byte/hash manifest." "PR readiness"
@@ -1451,6 +1468,9 @@ assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStor
 assert_file_contains "$SCRIPT_DIR/inspect_android_capture.sh" "Recent daily activity metrics" "Android capture inspector"
 assert_file_contains "$SCRIPT_DIR/inspect_android_capture.sh" "daily local estimate metrics" "Android capture inspector"
 assert_file_contains "$SCRIPT_DIR/inspect_android_capture.sh" "daily device counter metrics" "Android capture inspector"
+assert_file_contains "$SCRIPT_DIR/inspect_android_capture.sh" "health sync local estimate record started events" "Android capture inspector"
+assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/HealthConnectSupport.java" "record_summary" "Android Health Connect audit"
+assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "ready-plan audit missing record_summary" "Android Health Connect audit"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "attemptedManualStepDelta" "Android step-validation failure audit"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "attemptedCaptureSessionId" "Android step-validation failure audit"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "metrics.raw_motion_step_estimate" "Android raw-motion step estimate"

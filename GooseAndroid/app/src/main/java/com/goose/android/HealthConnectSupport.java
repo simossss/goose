@@ -393,9 +393,61 @@ final class HealthConnectSupport {
     ) {
         JSONObject details = dryRunAuditDetails(dryRunReport);
         putAudit(details, "records_attempted", records.size());
+        putAudit(details, "record_summary", plannedWriteRecordSummary(dryRunReport));
         putAudit(details, "attempted", jsonArray(attempted));
         putAudit(details, "skipped", jsonArray(skipped));
         return details;
+    }
+
+    private JSONObject plannedWriteRecordSummary(JSONObject dryRunReport) {
+        JSONObject summary = auditDetails(
+                "StepsRecord", 0,
+                "HeartRateRecord", 0,
+                "ActiveCaloriesBurnedRecord", 0,
+                "local_estimate", 0,
+                "device_counter", 0,
+                "other_source_kind", 0);
+        JSONArray plannedWrites = dryRunReport.optJSONArray("planned_writes");
+        if (plannedWrites == null) {
+            return summary;
+        }
+        for (int index = 0; index < plannedWrites.length(); index += 1) {
+            JSONObject write = plannedWrites.optJSONObject(index);
+            if (write == null) {
+                continue;
+            }
+            incrementSummary(summary, write.optString("destination_type", ""));
+            String sourceKind = plannedWriteSourceKind(write);
+            if ("local_estimate".equals(sourceKind) || "device_counter".equals(sourceKind)) {
+                incrementSummary(summary, sourceKind);
+            } else if (!sourceKind.isEmpty()) {
+                incrementSummary(summary, "other_source_kind");
+            }
+        }
+        return summary;
+    }
+
+    private String plannedWriteSourceKind(JSONObject write) {
+        String sourceKind = write.optString("source_kind", "");
+        if (!sourceKind.isEmpty()) {
+            return sourceKind;
+        }
+        JSONObject provenance = write.optJSONObject("provenance");
+        if (provenance == null) {
+            return "";
+        }
+        sourceKind = provenance.optString("daily_metric_source_kind", "");
+        if (!sourceKind.isEmpty()) {
+            return sourceKind;
+        }
+        return provenance.optString("source_kind", "");
+    }
+
+    private void incrementSummary(JSONObject summary, String key) {
+        if (!summary.has(key)) {
+            return;
+        }
+        putAudit(summary, key, summary.optInt(key, 0) + 1);
     }
 
     private JSONObject putAudit(JSONObject object, String key, Object value) {
