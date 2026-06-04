@@ -54,6 +54,12 @@ or overwrite the start marker before evidence collection:
 Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real --skip-validate
 ```
 
+`Scripts/validate_android.sh` bounds adb install, launch, logcat, and
+instrumentation commands so a bad USB session fails explicitly instead of
+hanging. Tune those waits with `GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS` and
+`GOOSE_ANDROID_INSTRUMENTATION_TIMEOUT_SECONDS`; use
+`GOOSE_ANDROID_SKIP_INSTRUMENTATION=1` only for non-device validation.
+
 Without `--skip-validate`, this runs local Android validation, collects final
 phone evidence with required step validation, then applies strict PR readiness.
 Use that default only before a controlled capture. Add

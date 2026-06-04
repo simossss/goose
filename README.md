@@ -235,6 +235,10 @@ instrumentation APKs, and runs the bridge/storage/protocol/Health Connect/privac
 smoke harness when an emulator or device is online. It also checks packaged APK
 metadata, including local-first permission boundaries. Set
 `GOOSE_ANDROID_SKIP_INSTRUMENTATION=1` to skip the adb install/smoke step. Set
+`GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS` or
+`GOOSE_ANDROID_INSTRUMENTATION_TIMEOUT_SECONDS` to tune the adb install, launch,
+logcat, and instrumentation timeouts when a device is slow or a USB session is
+unstable. Set
 `ANDROID_SERIAL` when more than one adb target is online; validation refuses to
 install or launch on an arbitrary device.
 
