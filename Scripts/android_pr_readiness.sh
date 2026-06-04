@@ -278,6 +278,7 @@ evidence_device_kind_verified=0
 evidence_device_identity_verified=0
 evidence_android_version_verified=0
 evidence_adb_device_verified=0
+evidence_collect_error_free=0
 step_validation_verified=0
 health_attempt_verified=0
 health_success_verified=0
@@ -294,6 +295,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
   manifest="$PHONE_EVIDENCE_DIR/evidence-files-manifest.txt"
   inspection_file="$PHONE_EVIDENCE_DIR/inspect-android-capture.txt"
   evidence_result_file="$PHONE_EVIDENCE_DIR/evidence-result.txt"
+  collect_error_file="$PHONE_EVIDENCE_DIR/collect-error.txt"
   focused_logcat_file="$PHONE_EVIDENCE_DIR/logcat-goose-brief.txt"
   port_status="$PHONE_EVIDENCE_DIR/android-port-status.txt"
   adb_devices_file="$PHONE_EVIDENCE_DIR/adb-devices.txt"
@@ -315,6 +317,10 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     evidence_result=""
     if [[ -f "$evidence_result_file" ]]; then
       evidence_result="$(awk -F': ' '$1 == "RESULT" { print $2; exit }' "$evidence_result_file")"
+    fi
+    collect_error_bytes=0
+    if [[ -f "$collect_error_file" ]]; then
+      collect_error_bytes="$(file_size "$collect_error_file")"
     fi
     summary_commit="$(status_value "Commit" "$summary")"
     port_status_commit=""
@@ -499,6 +505,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$evidence_result" == "PASS" ]]; then
       evidence_result_verified=1
     fi
+    if [[ "$evidence_manifest_verified" == "1" && "$collect_error_bytes" == "0" ]]; then
+      evidence_collect_error_free=1
+    fi
     if [[ "$evidence_result_verified" == "1" \
       && "$inspection_result" == "PASS" \
       && "$raw_rows" == "$inspection_raw_rows" \
@@ -676,6 +685,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo "Evidence directory: $PHONE_EVIDENCE_DIR"
     echo "Result: $phone_result"
     echo "Evidence result file: $evidence_result"
+    echo "Collection error bytes: $collect_error_bytes"
     echo "Bundle profile: $bundle_profile"
     echo "Device serial: $device_serial"
     echo "Evidence serial file: $evidence_device_serial"
@@ -824,6 +834,10 @@ if [[ "$evidence_result_verified" == "1" ]]; then
   echo "- Phone handoff summary result matches evidence-result.txt."
   verified_any=1
 fi
+if [[ "$evidence_collect_error_free" == "1" ]]; then
+  echo "- Evidence bundle has no collection error diagnostics."
+  verified_any=1
+fi
 if [[ "$evidence_capture_inspection_verified" == "1" ]]; then
   echo "- Phone handoff capture counts match inspect-android-capture.txt."
   verified_any=1
@@ -937,6 +951,10 @@ if [[ "$evidence_manifest_verified" != "1" ]]; then
 fi
 if [[ "$evidence_result_verified" != "1" ]]; then
   echo "- Phone handoff summary result must match evidence-result.txt."
+  remaining_any=1
+fi
+if [[ "$evidence_collect_error_free" != "1" ]]; then
+  echo "- Evidence bundle must not contain nonempty collect-error.txt diagnostics."
   remaining_any=1
 fi
 if [[ "$evidence_capture_inspection_verified" != "1" ]]; then
