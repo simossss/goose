@@ -233,6 +233,8 @@ no_android_runtime_crash_verified=0
 evidence_manifest_verified=0
 evidence_result_verified=0
 evidence_capture_inspection_verified=0
+evidence_ble_inspection_verified=0
+evidence_health_inspection_verified=0
 evidence_commit_verified=0
 evidence_device_serial_verified=0
 evidence_device_kind_verified=0
@@ -376,12 +378,34 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     ble_ready_events="$(summary_bullet_value "Ready events" "$summary")"
     ble_hello_sent_events="$(summary_bullet_value "Hello sent events" "$summary")"
     ble_command_ready_events="$(summary_bullet_value "Command ready events" "$summary")"
+    inspection_ble_ready_events=""
+    inspection_ble_hello_sent_events=""
+    inspection_ble_command_ready_events=""
+    if [[ -f "$inspection_file" ]]; then
+      inspection_ble_ready_events="$(status_value "ble session ready events" "$inspection_file")"
+      inspection_ble_hello_sent_events="$(status_value "ble session hello sent events" "$inspection_file")"
+      inspection_ble_command_ready_events="$(status_value "ble session command ready events" "$inspection_file")"
+    fi
     health_write_started="$(summary_bullet_value "Write started events" "$summary")"
     health_ready_write_started="$(summary_bullet_value "Ready write started events" "$summary")"
     health_planned_write_started="$(summary_bullet_value "Planned write started events" "$summary")"
     health_candidate_write_started="$(summary_bullet_value "Candidate write started events" "$summary")"
     health_records_attempted="$(summary_bullet_value "Records attempted events" "$summary")"
     health_write_succeeded="$(summary_bullet_value "Write succeeded events" "$summary")"
+    inspection_health_write_started=""
+    inspection_health_ready_write_started=""
+    inspection_health_planned_write_started=""
+    inspection_health_candidate_write_started=""
+    inspection_health_records_attempted=""
+    inspection_health_write_succeeded=""
+    if [[ -f "$inspection_file" ]]; then
+      inspection_health_write_started="$(status_value "health sync write started events" "$inspection_file")"
+      inspection_health_ready_write_started="$(status_value "health sync ready write started events" "$inspection_file")"
+      inspection_health_planned_write_started="$(status_value "health sync planned write started events" "$inspection_file")"
+      inspection_health_candidate_write_started="$(status_value "health sync candidate write started events" "$inspection_file")"
+      inspection_health_records_attempted="$(status_value "health sync records attempted events" "$inspection_file")"
+      inspection_health_write_succeeded="$(status_value "health sync write succeeded events" "$inspection_file")"
+    fi
     step_completed="$(summary_bullet_value "Completed events" "$summary")"
     step_passed="$(summary_bullet_value "Passed events" "$summary")"
     step_session_bound="$(summary_bullet_value "Session-bound events" "$summary")"
@@ -422,6 +446,21 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && is_positive_int "$finished_sessions"; then
       evidence_capture_inspection_verified=1
       capture_verified=1
+    fi
+    if [[ "$evidence_result_verified" == "1" \
+      && "$ble_ready_events" == "$inspection_ble_ready_events" \
+      && "$ble_hello_sent_events" == "$inspection_ble_hello_sent_events" \
+      && "$ble_command_ready_events" == "$inspection_ble_command_ready_events" ]]; then
+      evidence_ble_inspection_verified=1
+    fi
+    if [[ "$evidence_result_verified" == "1" \
+      && "$health_write_started" == "$inspection_health_write_started" \
+      && "$health_ready_write_started" == "$inspection_health_ready_write_started" \
+      && "$health_planned_write_started" == "$inspection_health_planned_write_started" \
+      && "$health_candidate_write_started" == "$inspection_health_candidate_write_started" \
+      && "$health_records_attempted" == "$inspection_health_records_attempted" \
+      && "$health_write_succeeded" == "$inspection_health_write_succeeded" ]]; then
+      evidence_health_inspection_verified=1
     fi
     if [[ "$capture_verified" == "1" && "$device_kind" == "physical" ]]; then
       physical_capture_verified=1
@@ -485,7 +524,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
       && "$(printf '%s' "$evidence_local_debug_apk_sha" | tr 'A-F' 'a-f')" == "$(printf '%s' "$evidence_installed_apk_sha" | tr 'A-F' 'a-f')" ]]; then
       installed_package_verified=1
     fi
-    if [[ "$phone_result" == "PASS" && "$require_ble_hello" == "1" ]] \
+    if [[ "$evidence_ble_inspection_verified" == "1" && "$phone_result" == "PASS" && "$require_ble_hello" == "1" ]] \
       && is_positive_int "$ble_ready_events" \
       && is_positive_int "$ble_hello_sent_events" \
       && is_positive_int "$ble_command_ready_events"; then
@@ -500,7 +539,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
           && is_positive_int "$step_selected_delta"; }; }; then
       step_validation_verified=1
     fi
-    if [[ "$phone_result" == "PASS" && "$require_health_attempt" == "1" ]] \
+    if [[ "$evidence_health_inspection_verified" == "1" && "$phone_result" == "PASS" && "$require_health_attempt" == "1" ]] \
       && is_positive_int "$health_write_started" \
       && { [[ "$require_health_ready_plan" != "1" ]] \
         || { is_positive_int "$health_ready_write_started" \
@@ -509,7 +548,7 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
           && is_positive_int "$health_records_attempted"; }; }; then
       health_attempt_verified=1
     fi
-    if [[ "$phone_result" == "PASS" && "$require_health_success" == "1" ]] \
+    if [[ "$evidence_health_inspection_verified" == "1" && "$phone_result" == "PASS" && "$require_health_success" == "1" ]] \
       && is_positive_int "$health_write_succeeded"; then
       health_success_verified=1
     fi
@@ -568,16 +607,25 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     echo
     echo "BLE session evidence:"
     echo "- Ready events: $ble_ready_events"
+    echo "- Inspect ready events: $inspection_ble_ready_events"
     echo "- Hello sent events: $ble_hello_sent_events"
+    echo "- Inspect hello sent events: $inspection_ble_hello_sent_events"
     echo "- Command ready events: $ble_command_ready_events"
+    echo "- Inspect command ready events: $inspection_ble_command_ready_events"
     echo
     echo "Health Connect evidence:"
     echo "- Write started events: $health_write_started"
+    echo "- Inspect write started events: $inspection_health_write_started"
     echo "- Ready write started events: $health_ready_write_started"
+    echo "- Inspect ready write started events: $inspection_health_ready_write_started"
     echo "- Planned write started events: $health_planned_write_started"
+    echo "- Inspect planned write started events: $inspection_health_planned_write_started"
     echo "- Candidate write started events: $health_candidate_write_started"
+    echo "- Inspect candidate write started events: $inspection_health_candidate_write_started"
     echo "- Records attempted events: $health_records_attempted"
+    echo "- Inspect records attempted events: $inspection_health_records_attempted"
     echo "- Write succeeded events: $health_write_succeeded"
+    echo "- Inspect write succeeded events: $inspection_health_write_succeeded"
     echo "- Write failed events: $(summary_bullet_value "Write failed events" "$summary")"
     echo
     echo "Step validation evidence:"
@@ -650,6 +698,14 @@ if [[ "$evidence_result_verified" == "1" ]]; then
 fi
 if [[ "$evidence_capture_inspection_verified" == "1" ]]; then
   echo "- Phone handoff capture counts match inspect-android-capture.txt."
+  verified_any=1
+fi
+if [[ "$evidence_ble_inspection_verified" == "1" ]]; then
+  echo "- Phone handoff BLE session counts match inspect-android-capture.txt."
+  verified_any=1
+fi
+if [[ "$evidence_health_inspection_verified" == "1" ]]; then
+  echo "- Phone handoff Health Connect counts match inspect-android-capture.txt."
   verified_any=1
 fi
 if [[ "$evidence_commit_verified" == "1" ]]; then
@@ -729,6 +785,14 @@ if [[ "$evidence_result_verified" != "1" ]]; then
 fi
 if [[ "$evidence_capture_inspection_verified" != "1" ]]; then
   echo "- Phone handoff capture counts must match inspect-android-capture.txt."
+  remaining_any=1
+fi
+if [[ "$evidence_ble_inspection_verified" != "1" ]]; then
+  echo "- Phone handoff BLE session counts must match inspect-android-capture.txt."
+  remaining_any=1
+fi
+if [[ "$evidence_health_inspection_verified" != "1" ]]; then
+  echo "- Phone handoff Health Connect counts must match inspect-android-capture.txt."
   remaining_any=1
 fi
 if [[ "$evidence_commit_verified" != "1" ]]; then
