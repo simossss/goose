@@ -104,11 +104,11 @@ Phone-bound completion checks:
   1. Physical WHOOP scan/connect validation on a real Android phone.
   2. BLE session audit proving completed client hello write in command-ready rows.
   3. Installed com.goose.android package metadata and APK hash match against the local debug APK.
-  4. Controlled capture pull with decoded frames and session-tagged Android BLE live-notification raw evidence inspected with Scripts/inspect_android_capture.sh.
+  4. Controlled capture pull with decoded frames, session-tagged Android BLE live-notification raw evidence, and daily activity provenance counts inspected with Scripts/inspect_android_capture.sh.
   5. Latest raw capture timestamp is at or after the controlled-run logcat start marker.
   6. Evidence bundle manifest with path, byte count, and SHA-256 for pulled files.
   7. Step-counter decoder confirmation from real counted-step evidence bound to a decoded capture session with a nonzero selected counter delta.
-  8. Health Connect permission grant and real planned write attempt on Android 14+ with permissions-ready planned-write evidence.
+  8. Health Connect permission grant and real planned write attempt on Android 14+ with permissions-ready planned-write evidence plus record-summary provenance counts.
   9. Focused AndroidRuntime logcat has no com.goose.android crash lines.
 
 Generated artifact policy:

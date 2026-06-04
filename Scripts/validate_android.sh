@@ -1506,6 +1506,8 @@ assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/Go
 assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "Focused AndroidRuntime logcat has no com.goose.android crash lines." "Android port status"
 assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "Installed com.goose.android package metadata and APK hash match" "Android port status"
 assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "Latest raw capture timestamp is at or after the controlled-run logcat start marker." "Android port status"
+assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "daily activity provenance counts" "Android port status"
+assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "record-summary provenance counts" "Android port status"
 assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "Final PR evidence gate:" "Android port status"
 assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "Lower-level diagnostic phone evidence gate:" "Android port status"
 assert_file_contains "$inspect_session_detail_output" "Capture session evidence detail" "capture inspector session detail"
