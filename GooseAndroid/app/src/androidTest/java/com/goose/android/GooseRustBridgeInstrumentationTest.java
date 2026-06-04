@@ -154,6 +154,16 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                         .put("source_kind", "local_estimate")
                         .put("confidence", 0.74))
                 .put(new JSONObject()
+                        .put("daily_metric_id", "daily-activity-raw-motion-steps-2026-01-02-utc-local-estimate-v0")
+                        .put("date_key", "2026-01-02")
+                        .put("timezone", "UTC")
+                        .put("start_time_unix_ms", 1767312000000L)
+                        .put("end_time_unix_ms", 1767398400000L)
+                        .put("steps", 512)
+                        .put("active_kcal", JSONObject.NULL)
+                        .put("source_kind", "local_estimate")
+                        .put("confidence", 0.71))
+                .put(new JSONObject()
                         .put("daily_metric_id", "imported-steps")
                         .put("date_key", "2026-01-01")
                         .put("timezone", "UTC")
@@ -164,8 +174,11 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                         .put("confidence", 1.0));
         JSONArray candidates = new JSONArray();
         GooseStoreReporter.appendDailyActivityMetricCandidates(candidates, dailyActivityMetrics);
-        if (candidates.length() != 2) {
+        if (candidates.length() != 3) {
             throw new AssertionError("daily activity mapper produced unexpected candidates: " + candidates);
+        }
+        if (!candidates.toString().contains("goose.steps.raw_motion_estimate.v0")) {
+            throw new AssertionError("daily activity mapper missing raw-motion step candidate: " + candidates);
         }
         JSONObject plannedDailyActivity = bridge.request("health_sync.dry_run", new JSONObject()
                 .put("schema", "goose.health-sync-dry-run.v1")
@@ -175,13 +188,13 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
                         .put("ActiveCaloriesBurnedRecord"))
                 .put("backfill", new JSONObject()
                         .put("start", "2026-01-01T00:00:00.000Z")
-                        .put("end", "2026-01-02T00:00:00.000Z"))
+                        .put("end", "2026-01-03T00:00:00.000Z"))
                 .put("candidates", candidates)
                 .put("existing_records", new JSONArray())
                 .put("partial_plan_policy", "require_all_records_ready")
                 .put("delete_policy", "none"));
         if (!plannedDailyActivity.optBoolean("pass", false)
-                || plannedDailyActivity.optInt("planned_write_count", 0) != 2) {
+                || plannedDailyActivity.optInt("planned_write_count", 0) != 3) {
             throw new AssertionError("daily activity candidates did not plan cleanly: " + plannedDailyActivity);
         }
         Log.i(TAG, "checking Android Health Connect record conversion");

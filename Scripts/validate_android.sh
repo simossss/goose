@@ -1430,6 +1430,8 @@ assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStor
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "metrics.raw_motion_step_estimate" "Android raw-motion step estimate"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "daily metric written" "Android raw-motion step estimate"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" ".put(\"write_metric\", true)" "Android raw-motion step estimate"
+assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/GooseStoreReporter.java" "goose.steps.raw_motion_estimate.v0" "Android raw-motion step Health Connect candidate"
+assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "daily-activity-raw-motion-steps" "Android raw-motion step Health Connect candidate"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "rawMotionStepEstimateBlockReason" "Android raw-motion step estimate guardrail"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "secondaryButton(\"Motion\")" "Android raw-motion step estimate button"
 assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "assertRawMotionStepEstimateUiGuardrails" "Android raw-motion step estimate guardrail"

@@ -382,6 +382,11 @@ For that validation, start a capture session before the counted walk, finish it
 only after pressing step-validation `End` while the capture session is still
 active, then press `Validate`; the app reports the most recently finished
 capture session used for the check.
+The Android `Motion` action uses the same marked Start/End window and manual
+step count to run the validated raw-motion step estimator. Passing estimates can
+write local `daily_activity_metrics` rows, and Health Connect planning accepts
+those validated local-estimate step rows alongside explicit device-counter step
+rows.
 
 Run the Android bridge/storage/protocol smoke harness on an emulator or device:
 

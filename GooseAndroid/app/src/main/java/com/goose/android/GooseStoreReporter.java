@@ -607,7 +607,7 @@ final class GooseStoreReporter {
             long startTimeUnixMs,
             long endTimeUnixMs
     ) throws Exception {
-        if (metric.isNull("steps") || !"device_counter".equals(sourceKind)) {
+        if (metric.isNull("steps") || !isHealthConnectWritableStepSource(sourceKind)) {
             return;
         }
         long steps = metric.optLong("steps", 0L);
@@ -619,8 +619,19 @@ final class GooseStoreReporter {
                 .put("semantic", "steps")
                 .put("value", steps)
                 .put("unit", "count")
-                .put("algorithm_id", "goose.steps.device_counter.v0")
+                .put("algorithm_id", stepAlgorithmId(sourceKind))
                 .put("algorithm_version", "0.1.0"));
+    }
+
+    private static boolean isHealthConnectWritableStepSource(String sourceKind) {
+        return "device_counter".equals(sourceKind) || "local_estimate".equals(sourceKind);
+    }
+
+    private static String stepAlgorithmId(String sourceKind) {
+        if ("local_estimate".equals(sourceKind)) {
+            return "goose.steps.raw_motion_estimate.v0";
+        }
+        return "goose.steps.device_counter.v0";
     }
 
     private static void appendActiveEnergyHealthConnectCandidate(

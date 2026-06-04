@@ -339,8 +339,11 @@ These files are build artifacts and are ignored by git.
    validation window is marked, and a capture session is active or recently
    finished. Starting a new capture or clearing local data resets the previous
    validation window and finished-session marker.
-8. Use `Heart`, `Sensors`, `Steps`, `Blocked`, and `Sessions` for compact
-   summaries instead of dumping large raw JSON in the UI.
+8. Use `Heart`, `Sensors`, `Steps`, `Motion`, `Blocked`, and `Sessions` for
+   compact summaries instead of dumping large raw JSON in the UI. `Motion` uses
+   the marked validation window and manual step count to run the validated
+   raw-motion step estimator; passing estimates can write local
+   `daily_activity_metrics` rows.
 9. Pull and inspect the debug store:
    `Scripts/pull_android_database.sh tmp/goose-phone.sqlite`, then
    `Scripts/inspect_android_capture.sh tmp/goose-phone.sqlite`.
@@ -363,12 +366,12 @@ is bound to a capture session with decoded frames and a selected counter delta.
 
 ## Remaining Port Slices
 
-- Continue packet decoder work for step counters and other packet-derived
-  metrics.
+- Continue packet decoder work for explicit WHOOP step counters and other
+  packet-derived metrics.
 - Health Connect phone/platform permission testing with real planned writes and
   inserted-record success evidence when `--require-health-success` is used.
-  Trusted heart-rate candidate planning is implemented; daily step and
-  active-calorie candidate planning is implemented once the parked
-  decoder/rollup work produces `daily_activity_metrics` rows.
+  Trusted heart-rate candidate planning is implemented; daily step candidates
+  now include device-counter rows and validated raw-motion local-estimate rows,
+  and active-calorie candidate planning is implemented for local-estimate rows.
 - Optional Kotlin/Compose UI migration once the bridge and BLE behavior are
   stable.
