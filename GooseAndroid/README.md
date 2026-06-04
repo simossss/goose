@@ -156,12 +156,15 @@ delta.
 
 Set `ANDROID_SERIAL` when more than one adb device is online. The helper uses
 `run-as com.goose.android`, so it expects the debug APK. It also pulls the
-bounded Health Connect sync audit log when present, snapshots the installed
-`com.goose.android` package metadata, compares the installed APK hash against
-the local debug APK, and writes `evidence-gates.txt` with the effective gate
-configuration. The inspector prints table presence, row counts,
-recent raw evidence, recent capture sessions, step sample rows when available,
-recent BLE session audit rows, and recent Health Connect audit rows. For a
+bounded BLE session, Health Connect sync, and step-validation audit logs,
+snapshots the installed `com.goose.android` package metadata, compares the installed APK hash
+against the local debug APK, and writes `evidence-gates.txt`
+with the effective gate configuration. When BLE hello, Health Connect write, or
+step-validation gates are enabled, the matching audit log must be present in
+`evidence-files-manifest.txt` with valid byte counts and SHA-256 hashes. The
+inspector prints table presence, row counts, recent raw evidence, recent capture
+sessions, step sample rows when available, recent BLE session audit rows, and
+recent Health Connect audit rows. For a
 stricter post-capture gate, set
 `GOOSE_ANDROID_MIN_RAW_EVIDENCE=1`,
 `GOOSE_ANDROID_MIN_CAPTURE_SESSIONS=1`,
