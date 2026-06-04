@@ -82,6 +82,7 @@ Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
 
 - Installed com.goose.android package metadata and APK hash match: PASS.
 - Logcat start marker result: PASS.
+- Latest raw capture after marker result: PASS.
 - Focused AndroidRuntime crash lines: 0.
 - BLE session ready events: at least 1.
 - BLE session hello sent events: at least 1.

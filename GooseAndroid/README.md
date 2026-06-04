@@ -151,6 +151,9 @@ Scripts/android_phone_final_gate.sh
 Run `Scripts/prepare_android_phone_evidence.sh` immediately before the
 controlled capture. It clears logcat and writes the start marker required by
 the final gate, so AndroidRuntime crash evidence is scoped to the current run.
+The final gate also checks that the latest pulled raw capture timestamp is at
+or after that marker, so stale database rows cannot satisfy a fresh logcat
+marker.
 
 Add `--require-health-success` after granting Health Connect permissions when
 the session should prove a successful platform write, not just a write attempt.

@@ -358,8 +358,9 @@ The final gate also requires session-tagged raw evidence and a finished capture
 session with `frame_count > 0`, plus installed `com.goose.android` package
 metadata and an installed APK hash match from the device, session-tagged Android
 BLE live-notification raw evidence, a logcat start marker, no focused
-AndroidRuntime crash lines for Goose, and a BLE session audit proving completed
-client hello write in command-ready rows. The evidence bundle must also show
+AndroidRuntime crash lines for Goose, a latest raw capture timestamp at or after
+the logcat start marker, and a BLE session audit proving completed client hello
+write in command-ready rows. The evidence bundle must also show
 `adb-state-final.txt`
 as `device` so the selected phone was still online after pull/hash/logcat
 collection.
