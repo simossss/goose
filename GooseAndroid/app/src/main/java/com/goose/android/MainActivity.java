@@ -630,7 +630,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         long now = System.currentTimeMillis();
         if (now > clearLocalDataConfirmUntilMillis) {
             clearLocalDataConfirmUntilMillis = now + 15000L;
-            reportStatus.setText("Clear local data armed\nTap Clear Data again within 15s to delete local SQLite data and evidence logs.");
+            reportStatus.setText("Clear local data armed\nTap Clear Data again within 15s to delete local SQLite data, evidence logs, and generated exports.");
             return;
         }
         clearLocalDataConfirmUntilMillis = 0L;

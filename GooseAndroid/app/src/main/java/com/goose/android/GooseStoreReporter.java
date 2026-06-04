@@ -292,7 +292,7 @@ final class GooseStoreReporter {
                     .append("activity sessions: ").append(countRows(database, "activity_sessions")).append('\n')
                     .append("latest capture: ").append(latestValue(database, "raw_evidence", "captured_at")).append('\n')
                     .append("raw byte policy: local app storage; raw exports include bytes only after tapping Export\n")
-                    .append("delete controls: Clear Exports removes generated bundles; Clear Data requires a second tap");
+                    .append("delete controls: Clear Exports removes generated bundles; Clear Data requires a second tap and also removes generated bundles");
         } catch (Exception error) {
             builder.append("storage summary failed: ").append(error);
         } finally {
@@ -733,6 +733,11 @@ final class GooseStoreReporter {
         deleteFile(new File(healthSyncDatabaseAuditFile.getAbsolutePath() + ".old"), stats);
         deleteFile(stepValidationAuditFile, stats);
         deleteFile(new File(stepValidationAuditFile.getAbsolutePath() + ".old"), stats);
+        DeleteStats exportStats = deleteChildren(exportDirectory);
+        stats.merge(exportStats);
+        if (!exportDirectory.exists()) {
+            exportDirectory.mkdirs();
+        }
         if (parent != null && !parent.exists()) {
             parent.mkdirs();
         }
@@ -741,6 +746,7 @@ final class GooseStoreReporter {
                 + "database: " + databasePath + "\n"
                 + "database bytes before: " + beforeBytes + "\n"
                 + "deleted files: " + stats.deletedFiles + "\n"
+                + "deleted directories: " + stats.deletedDirectories + "\n"
                 + "freed bytes: " + stats.deletedBytes + "\n"
                 + "failed deletes: " + stats.failedDeletes + "\n\n"
                 + storageCheck;
@@ -1003,6 +1009,13 @@ final class GooseStoreReporter {
         int deletedDirectories;
         int failedDeletes;
         long deletedBytes;
+
+        void merge(DeleteStats other) {
+            deletedFiles += other.deletedFiles;
+            deletedDirectories += other.deletedDirectories;
+            failedDeletes += other.failedDeletes;
+            deletedBytes += other.deletedBytes;
+        }
     }
 
     private static String iso8601(long millis) {

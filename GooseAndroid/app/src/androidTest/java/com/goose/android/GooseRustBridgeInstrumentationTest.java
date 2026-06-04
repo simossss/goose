@@ -672,6 +672,11 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         for (File auditFile : auditFiles) {
             writeFile(auditFile, "stale audit row\n");
         }
+        File exportDir = new File(context.getFilesDir(), "exports");
+        File exportFile = new File(exportDir, "stale-export.zip");
+        File exportNestedFile = new File(new File(exportDir, "stale-export-dir"), "payload.jsonl");
+        writeFile(exportFile, "stale export bytes\n");
+        writeFile(exportNestedFile, "stale nested export bytes\n");
 
         GooseStoreReporter reporter = new GooseStoreReporter(context, databaseFile.getAbsolutePath());
         CountDownLatch latch = new CountDownLatch(1);
@@ -695,6 +700,16 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
             if (auditFile.exists()) {
                 throw new AssertionError("clear local data left stale audit file: " + auditFile);
             }
+        }
+        if (exportFile.exists() || exportNestedFile.exists()) {
+            throw new AssertionError("clear local data left stale export artifacts");
+        }
+        if (!exportDir.isDirectory()) {
+            throw new AssertionError("clear local data did not recreate export directory: " + exportDir);
+        }
+        File[] remainingExports = exportDir.listFiles();
+        if (remainingExports != null && remainingExports.length != 0) {
+            throw new AssertionError("clear local data left export entries: " + remainingExports.length);
         }
     }
 
