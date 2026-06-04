@@ -75,4 +75,9 @@ Marker file: $MARKER_FILE
 
 Now run the controlled WHOOP capture and then collect evidence with:
   Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real --skip-validate
+
+The final gate requires the latest pulled raw capture timestamp to be at or
+after this marker. If counted-step validation is parked, collect the partial
+phone bundle instead:
+  Scripts/android_partial_phone_gate.sh tmp/android-phone-partial-gate-real --skip-validate
 NEXT_STEPS

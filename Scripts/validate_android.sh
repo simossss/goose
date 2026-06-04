@@ -991,6 +991,8 @@ assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "capture_at_or_after_
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "valid_logcat_start_marker" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/collect_android_phone_evidence.sh" "latest raw capture is missing, unparseable, or older than the logcat start marker" "phone evidence collector"
 assert_file_contains "$SCRIPT_DIR/prepare_android_phone_evidence.sh" "Goose evidence start marker written" "phone evidence prep"
+assert_file_contains "$SCRIPT_DIR/prepare_android_phone_evidence.sh" "latest pulled raw capture timestamp to be at or" "phone evidence prep"
+assert_file_contains "$SCRIPT_DIR/prepare_android_phone_evidence.sh" "android_partial_phone_gate.sh tmp/android-phone-partial-gate-real --skip-validate" "phone evidence prep"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "android-port-status.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "goose-package-path.txt" "PR readiness"
 assert_file_contains "$SCRIPT_DIR/android_pr_readiness.sh" "goose-package-dumpsys.txt" "PR readiness"
