@@ -561,6 +561,13 @@ public final class GooseRustBridgeInstrumentationTest extends Instrumentation {
         if (!audit.contains("\"selected_delta\":")) {
             throw new AssertionError("step validation audit missing selected_delta: " + audit);
         }
+        if (!fileHasLineContainingAll(auditFile,
+                "\"event\":\"completed\"",
+                "\"capture_session_id\":\"" + sessionId + "\"",
+                "\"capture_session_decoded_frame_count\":",
+                "\"selected_delta\":")) {
+            throw new AssertionError("step validation audit missing session selected-delta row: " + audit);
+        }
     }
 
     private void deleteDatabaseFiles(File databaseFile) {

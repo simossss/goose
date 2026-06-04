@@ -1553,6 +1553,8 @@ assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActiv
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "Keep the capture session active until Step validation End." "Android step-validation end guardrail"
 assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "step validation audit missing selected_delta" "Android step-validation audit smoke"
 assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "step validation audit missing capture_session_decoded_frame_count" "Android step-validation audit smoke"
+assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "step validation audit missing session selected-delta row" "Android step-validation audit smoke"
+assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "capture_session_decoded_frame_count" "Android step-validation audit smoke"
 assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "assertStepValidationStartGuardrails" "Android step-validation start guardrail"
 assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "assertStepValidationEndGuardrails" "Android step-validation end guardrail"
 assert_file_contains "$SCRIPT_DIR/android_port_status.sh" "Focused AndroidRuntime logcat has no com.goose.android crash lines." "Android port status"
