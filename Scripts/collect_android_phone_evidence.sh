@@ -18,6 +18,42 @@ if [[ -z "${ADB:-}" && -x "$HOME/Library/Android/sdk/platform-tools/adb" ]]; the
 fi
 ADB="${ADB:-adb}"
 
+file_size() {
+  local file="$1"
+  wc -c < "$file" | tr -d ' '
+}
+
+file_sha256() {
+  local file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$file" | awk '{ print $1 }'
+  else
+    shasum -a 256 "$file" | awk '{ print $1 }'
+  fi
+}
+
+write_file_manifest() {
+  local manifest="$OUTPUT_DIR/evidence-files-manifest.txt"
+  local tmp_manifest="$manifest.tmp"
+
+  {
+    echo "path	bytes	sha256"
+    while IFS= read -r path; do
+      local name="${path#$OUTPUT_DIR/}"
+      if [[ "$name" == "evidence-files-manifest.txt" || "$name" == "evidence-files-manifest.txt.tmp" ]]; then
+        continue
+      fi
+      printf '%s\t%s\t%s\n' "$name" "$(file_size "$path")" "$(file_sha256 "$path")"
+    done < <(find "$OUTPUT_DIR" -maxdepth 1 -type f | sort)
+  } > "$tmp_manifest"
+  mv "$tmp_manifest" "$manifest"
+}
+
+fail_before_device_evidence() {
+  echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
+  write_file_manifest
+}
+
 if [[ -d "$OUTPUT_DIR" ]] && [[ "$ALLOW_EXISTING_OUTPUT" != "1" ]] && find "$OUTPUT_DIR" -mindepth 1 -print -quit | grep -q .; then
   echo "Evidence output directory is not empty: $OUTPUT_DIR" >&2
   echo "Use a fresh output directory, or set GOOSE_ANDROID_ALLOW_EXISTING_EVIDENCE_DIR=1 for local debugging." >&2
@@ -32,10 +68,15 @@ echo "Collecting Android phone evidence into $OUTPUT_DIR"
 
 if ! command -v "$ADB" >/dev/null 2>&1; then
   echo "adb not found. Status snapshot was written, but device evidence was not collected." | tee "$OUTPUT_DIR/collect-error.txt"
+  fail_before_device_evidence
   exit 1
 fi
 
-"$ADB" devices > "$OUTPUT_DIR/adb-devices.txt"
+if ! "$ADB" devices > "$OUTPUT_DIR/adb-devices.txt" 2>&1; then
+  echo "adb devices failed. Status snapshot was written, but device evidence was not collected." | tee "$OUTPUT_DIR/collect-error.txt"
+  fail_before_device_evidence
+  exit 1
+fi
 
 device_serial="${ANDROID_SERIAL:-}"
 if [[ -z "$device_serial" ]]; then
@@ -47,23 +88,26 @@ if [[ -z "$device_serial" ]]; then
     device_serial="${devices[0]}"
   elif [[ "${#devices[@]}" -eq 0 ]]; then
     echo "No adb device online. Status snapshot was written, but device evidence was not collected." | tee "$OUTPUT_DIR/collect-error.txt"
+    fail_before_device_evidence
     exit 1
   else
     {
       echo "Multiple adb devices are online. Set ANDROID_SERIAL to one of:"
       printf '  %s\n' "${devices[@]}"
     } | tee "$OUTPUT_DIR/collect-error.txt"
+    fail_before_device_evidence
     exit 1
   fi
 fi
 
+echo "$device_serial" > "$OUTPUT_DIR/android-serial.txt"
 device_state="$("$ADB" -s "$device_serial" get-state 2>/dev/null || true)"
 if [[ "$device_state" != "device" ]]; then
   echo "adb target is not online: $device_serial ($device_state)" | tee "$OUTPUT_DIR/collect-error.txt"
+  fail_before_device_evidence
   exit 1
 fi
 
-echo "$device_serial" > "$OUTPUT_DIR/android-serial.txt"
 "$ADB" -s "$device_serial" shell getprop ro.product.manufacturer > "$OUTPUT_DIR/device-manufacturer.txt" 2>&1 || true
 "$ADB" -s "$device_serial" shell getprop ro.product.model > "$OUTPUT_DIR/device-model.txt" 2>&1 || true
 "$ADB" -s "$device_serial" shell getprop ro.build.version.release > "$OUTPUT_DIR/android-version.txt" 2>&1 || true
@@ -167,20 +211,6 @@ first_line() {
   fi
 }
 
-file_size() {
-  local file="$1"
-  wc -c < "$file" | tr -d ' '
-}
-
-file_sha256() {
-  local file="$1"
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$file" | awk '{ print $1 }'
-  else
-    shasum -a 256 "$file" | awk '{ print $1 }'
-  fi
-}
-
 remote_file_sha256() {
   local remote_path="$1"
   "$ADB" -s "$device_serial" exec-out cat "$remote_path" | shasum -a 256 | awk '{ print $1 }'
@@ -235,23 +265,6 @@ capture_at_or_after_marker() {
   start_stamp="$(marker_stamp "$marker")"
   [[ -n "$capture_stamp" && -n "$start_stamp" ]] || return 1
   [[ "$capture_stamp" > "$start_stamp" || "$capture_stamp" == "$start_stamp" ]]
-}
-
-write_file_manifest() {
-  local manifest="$OUTPUT_DIR/evidence-files-manifest.txt"
-  local tmp_manifest="$manifest.tmp"
-
-  {
-    echo "path	bytes	sha256"
-    while IFS= read -r path; do
-      local name="${path#$OUTPUT_DIR/}"
-      if [[ "$name" == "evidence-files-manifest.txt" || "$name" == "evidence-files-manifest.txt.tmp" ]]; then
-        continue
-      fi
-      printf '%s\t%s\t%s\n' "$name" "$(file_size "$path")" "$(file_sha256 "$path")"
-    done < <(find "$OUTPUT_DIR" -maxdepth 1 -type f | sort)
-  } > "$tmp_manifest"
-  mv "$tmp_manifest" "$manifest"
 }
 
 port_commit="$(summary_value "commit")"
