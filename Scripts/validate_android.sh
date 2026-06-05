@@ -1587,6 +1587,7 @@ assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActiv
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "Start a capture session before Step validation Start." "Android step-validation start guardrail"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "stepValidationEndBlockReason" "Android step-validation end guardrail"
 assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "Keep the capture session active until Step validation End." "Android step-validation end guardrail"
+assert_file_contains "$ANDROID_DIR/app/src/main/java/com/goose/android/MainActivity.java" "Tap Finish again to retry." "Android capture finish retry copy"
 assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "step validation audit missing selected_delta" "Android step-validation audit smoke"
 assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "step validation audit missing capture_session_decoded_frame_count" "Android step-validation audit smoke"
 assert_file_contains "$ANDROID_DIR/app/src/androidTest/java/com/goose/android/GooseRustBridgeInstrumentationTest.java" "step validation audit missing session selected-delta row" "Android step-validation audit smoke"

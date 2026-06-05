@@ -920,7 +920,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             } catch (Exception error) {
                 runOnUiThreadIfAlive(() -> sessionStatus.setText("Capture session finish failed\n"
                         + sessionId
-                        + "\nTap End again to retry.\n"
+                        + "\nTap Finish again to retry.\n"
                         + error));
             } finally {
                 runOnUiThreadIfAlive(() -> captureSessionFinishInProgress = false);
