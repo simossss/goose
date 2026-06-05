@@ -360,7 +360,7 @@ echo
 echo "## Validation Commands"
 echo
 echo "- \`Scripts/validate_android.sh\`"
-echo "- \`Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real\`"
+echo "- \`Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real --skip-validate\` after \`Scripts/prepare_android_phone_evidence.sh\` and the controlled capture."
 echo "- Add \`--require-health-success\` only when the final phone run must prove a successful Health Connect platform write; the standard write-attempt gate already requires record-summary provenance."
 echo "- \`Scripts/android_phone_final_gate.sh tmp/android-phone-diagnostic-gate-real --require-step-validation\` only for a lower-level diagnostic bundle."
 echo "- \`Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real\` to reprint readiness for an existing final bundle."
