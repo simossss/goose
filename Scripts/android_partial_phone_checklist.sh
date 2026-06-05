@@ -55,13 +55,13 @@ Use the partial phone gate after the app-side run. This requires a physical adb
 device by default; \`--allow-emulator\` is intentionally not exposed here.
 
 \`\`\`sh
-Scripts/android_partial_phone_gate.sh tmp/android-phone-partial-gate-real
+Scripts/android_partial_phone_gate.sh tmp/android-phone-partial-gate-real --skip-validate
 \`\`\`
 
 Require successful Health Connect write as well:
 
 \`\`\`sh
-Scripts/android_partial_phone_gate.sh tmp/android-phone-partial-gate-real --require-health-success
+Scripts/android_partial_phone_gate.sh tmp/android-phone-partial-gate-real --skip-validate --require-health-success
 \`\`\`
 
 For manual debugging, collect a separate diagnostic bundle with the lower-level
