@@ -1178,6 +1178,7 @@ assert_file_contains "$checklist_output" "without strict PR readiness" "final ph
 assert_file_contains "$checklist_output" "Reprint the PR-ready summary" "final phone checklist"
 assert_file_contains "$checklist_output" "Focused AndroidRuntime crash lines: 0." "final phone checklist"
 assert_file_contains "$checklist_output" "Installed com.goose.android package metadata and APK hash match: PASS." "final phone checklist"
+assert_file_contains "$checklist_output" "Device kind: physical." "final phone checklist"
 assert_file_contains "$checklist_output" "Daily local estimate metrics" "final phone checklist"
 assert_file_contains "$checklist_output" "Daily device counter metrics" "final phone checklist"
 assert_file_contains "$checklist_output" "Motion" "final phone checklist"

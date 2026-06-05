@@ -91,6 +91,7 @@ Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-real
 ## Evidence Expected To Pass
 
 - Installed com.goose.android package metadata and APK hash match: PASS.
+- Device kind: physical.
 - Logcat start marker result: PASS.
 - Latest raw capture after marker result: PASS.
 - Focused AndroidRuntime crash lines: 0.
