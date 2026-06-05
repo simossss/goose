@@ -362,8 +362,11 @@ These files are build artifacts and are ignored by git.
     PR checklist summary, then
     `Scripts/android_pr_readiness.sh --strict tmp/android-phone-final-gate-...`
     for a nonzero exit if any final acceptance item is still missing. The
-    composed command is
-    `Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real`.
+    composed post-capture command is
+    `Scripts/android_final_pr_gate.sh tmp/android-phone-final-gate-real --skip-validate`.
+    Use `--skip-validate` after `Scripts/prepare_android_phone_evidence.sh`
+    and the controlled capture so validation does not clear the scoped logcat
+    marker before evidence collection.
     Final evidence must come from a physical adb device; emulator evidence is
     accepted only for development smoke tests with `--allow-emulator`.
 
@@ -372,10 +375,13 @@ historical data from a physical WHOOP 5.0. Explicit step-counter extraction is
 not confirmed yet; final step acceptance now requires a passing validation that
 is bound to a capture session with decoded frames and a selected counter delta.
 
-## Remaining Port Slices
+## Remaining Phone-Bound Proof
 
-- Continue packet decoder work for explicit WHOOP step counters and other
-  packet-derived metrics.
+- Physical WHOOP strap validation with a command-ready BLE hello audit, a
+  controlled capture, decoded/session-tagged live-notification evidence, and a
+  clean focused AndroidRuntime logcat.
+- Final counted-step validation from real phone evidence, bound to a decoded
+  capture session with a nonzero selected counter delta.
 - Health Connect phone/platform permission testing with real planned writes and
   inserted-record success evidence when `--require-health-success` is used.
   Trusted heart-rate candidate planning is implemented; daily step candidates
