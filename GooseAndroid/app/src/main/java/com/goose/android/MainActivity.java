@@ -43,6 +43,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private static final int COLOR_MUTED = Color.rgb(71, 85, 105);
     private static final int COLOR_BORDER = Color.rgb(203, 213, 225);
     private static final int COLOR_PRIMARY = Color.rgb(37, 99, 235);
+    private static final int COLOR_SLEEP = Color.rgb(99, 102, 241);
+    private static final int COLOR_RECOVERY = Color.rgb(22, 163, 74);
+    private static final int COLOR_STRAIN = Color.rgb(249, 115, 22);
+    private static final int COLOR_STRESS = Color.rgb(14, 165, 233);
     private static final int COLOR_DANGER = Color.rgb(185, 28, 28);
     private static final String UNSET_VALIDATION_START = "0000";
     private static final String UNSET_VALIDATION_END = "9999";
@@ -71,10 +75,11 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private TextView healthConnectStatus;
     private TextView reportStatus;
     private TextView notificationLog;
+    private LinearLayout homeSection;
     private LinearLayout captureSection;
     private LinearLayout reportsSection;
+    private LinearLayout coachSection;
     private LinearLayout opsSection;
-    private LinearLayout logSection;
     private final List<Button> modeButtons = new ArrayList<>();
     private EditText manualStepsInput;
     private String validationStart = UNSET_VALIDATION_START;
@@ -257,60 +262,85 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         scroll.setBackgroundColor(COLOR_BACKGROUND);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(40, 40, 40, 40);
+        root.setPadding(dp(18), dp(52), dp(18), dp(28));
         scroll.addView(root);
 
         TextView title = new TextView(this);
-        title.setText("Goose");
-        title.setTextSize(32);
+        title.setText("Today");
+        title.setTextSize(30);
         title.setTextColor(COLOR_TEXT);
         title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         title.setGravity(Gravity.START);
         root.addView(title);
 
+        TextView subtitle = bodyText("Goose health dashboard");
+        subtitle.setPadding(0, dp(3), 0, 0);
+        root.addView(subtitle);
+
         LinearLayout modeActions = new LinearLayout(this);
         modeActions.setOrientation(LinearLayout.HORIZONTAL);
-        modeActions.setPadding(0, 18, 0, 0);
-        Button captureModeButton = modeButton("Capture");
-        captureModeButton.setOnClickListener(view -> showMode(captureSection, captureModeButton));
-        modeActions.addView(captureModeButton, weightWrap());
-        Button reportsModeButton = modeButton("Insights");
+        modeActions.setPadding(0, dp(18), 0, 0);
+        Button homeModeButton = modeButton("Home");
+        homeModeButton.setOnClickListener(view -> showMode(homeSection, homeModeButton));
+        modeActions.addView(homeModeButton, weightWrap());
+        Button reportsModeButton = modeButton("Health");
         reportsModeButton.setOnClickListener(view -> showMode(reportsSection, reportsModeButton));
         modeActions.addView(reportsModeButton, weightWrap());
+        Button captureModeButton = modeButton("Device");
+        captureModeButton.setOnClickListener(view -> showMode(captureSection, captureModeButton));
+        modeActions.addView(captureModeButton, weightWrap());
+        Button coachModeButton = modeButton("Coach");
+        coachModeButton.setOnClickListener(view -> showMode(coachSection, coachModeButton));
+        modeActions.addView(coachModeButton, weightWrap());
         Button opsModeButton = modeButton("More");
         opsModeButton.setOnClickListener(view -> showMode(opsSection, opsModeButton));
         modeActions.addView(opsModeButton, weightWrap());
-        Button logModeButton = modeButton("Log");
-        logModeButton.setOnClickListener(view -> showMode(logSection, logModeButton));
-        modeActions.addView(logModeButton, weightWrap());
         root.addView(modeActions);
 
-        reportStatus = statusText("No report run");
-        LinearLayout.LayoutParams reportStatusParams = matchWrap();
-        reportStatusParams.setMargins(0, 12, 0, 0);
-        root.addView(reportStatus, reportStatusParams);
-
+        homeSection = sectionContainer();
+        root.addView(homeSection);
         captureSection = sectionContainer();
         reportsSection = sectionContainer();
+        coachSection = sectionContainer();
         opsSection = sectionContainer();
-        logSection = sectionContainer();
-        root.addView(captureSection);
         root.addView(reportsSection);
+        root.addView(captureSection);
+        root.addView(coachSection);
         root.addView(opsSection);
-        root.addView(logSection);
 
+        homeSection.addView(scoreOverviewCard());
+        homeSection.addView(coachHomeCard());
+        LinearLayout homeSummaryGrid = new LinearLayout(this);
+        homeSummaryGrid.setOrientation(LinearLayout.VERTICAL);
+        homeSummaryGrid.addView(metricCard("Stress", "--", "Waiting for local stress inputs", COLOR_STRESS));
+        homeSummaryGrid.addView(metricCard("Energy", "--", "Local estimate not available yet", COLOR_RECOVERY));
+        homeSummaryGrid.addView(metricCard("Steps", "Candidate", "K18 body_u16le_36 needs WHOOP label comparison", COLOR_STRAIN));
+        homeSection.addView(homeSummaryGrid);
+
+        reportsSection.addView(sectionText("Health"));
+        reportsSection.addView(metricCard("Sleep", "--", "No band sleep import yet", COLOR_SLEEP));
+        reportsSection.addView(metricCard("Recovery", "--", "Recovery packet proof pending", COLOR_RECOVERY));
+        reportsSection.addView(metricCard("Strain", "--", "Activity score inputs pending", COLOR_STRAIN));
+        reportsSection.addView(metricCard("Step counter", "K18", "body_u16le_36 is the current diagnostic candidate", COLOR_PRIMARY));
+        reportsSection.addView(actionRow(new Button[]{
+                reportButton("Heart", storeReporter::heartRateFeatures),
+                reportButton("Steps", storeReporter::stepDiscovery),
+                reportButton("Sensors", storeReporter::recoverySensors)
+        }));
+        reportsSection.addView(actionRow(new Button[]{
+                secondaryAction("Motion", view -> runRawMotionStepEstimate()),
+                reportButton("Timeline", storeReporter::captureTimeline),
+                reportButton("Readiness", storeReporter::readiness)
+        }));
+
+        captureSection.addView(sectionText("Device"));
         bridgeStatus = bodyText("Checking Rust bridge");
-        bridgeStatus.setPadding(0, 24, 0, 0);
-        captureSection.addView(bridgeStatus);
-
         storeStatus = bodyText("Checking local store");
-        storeStatus.setPadding(0, 18, 0, 0);
-        captureSection.addView(storeStatus);
+        captureSection.addView(statusCluster("App", bridgeStatus, storeStatus));
 
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
-        actions.setPadding(0, 24, 0, 0);
-        captureSection.addView(sectionText("Connection"));
+        actions.setPadding(0, dp(8), 0, 0);
 
         Button refreshButton = secondaryButton("Refresh");
         refreshButton.setOnClickListener(view -> refreshAllStatus());
@@ -326,85 +356,28 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         actions.addView(stopButton, weightWrap());
         captureSection.addView(actions);
 
-        bleStatus = sectionText("Bluetooth: not started");
-        captureSection.addView(bleStatus);
-
+        bleStatus = bodyText("Bluetooth: not started");
         metadataStatus = bodyText("No device metadata read");
-        metadataStatus.setPadding(0, 8, 0, 0);
-        captureSection.addView(metadataStatus);
-
         connectionStatus = bodyText("Connection progress\nphase: not started");
-        connectionStatus.setPadding(0, 8, 0, 0);
-        captureSection.addView(connectionStatus);
+        captureSection.addView(statusCluster("Connection", bleStatus, metadataStatus, connectionStatus));
 
-        TextView devicesTitle = sectionText("Devices");
-        captureSection.addView(devicesTitle);
+        captureSection.addView(sectionText("WHOOP"));
         deviceList = new LinearLayout(this);
         deviceList.setOrientation(LinearLayout.VERTICAL);
         deviceList.addView(bodyText("No WHOOP devices discovered"));
         captureSection.addView(deviceList);
 
-        packetStatus = sectionText("Packets: waiting");
-        captureSection.addView(packetStatus);
-
+        packetStatus = bodyText("Packets: waiting");
         transferStatus = bodyText(transferProgress.summary());
-        transferStatus.setPadding(0, 8, 0, 0);
-        captureSection.addView(transferStatus);
-
         sessionStatus = bodyText("Capture session: none");
-        sessionStatus.setPadding(0, 8, 0, 0);
-        captureSection.addView(sessionStatus);
-
         evidenceGuideStatus = bodyText(evidenceGuideSummary());
-        evidenceGuideStatus.setPadding(0, 12, 0, 0);
-        captureSection.addView(evidenceGuideStatus);
+        captureSection.addView(statusCluster("Live capture", packetStatus, transferStatus, sessionStatus));
 
         healthConnectStatus = bodyText("Health Connect: not checked");
-        healthConnectStatus.setPadding(0, 8, 0, 0);
-        opsSection.addView(healthConnectStatus);
-
-        TextView reportsTitle = sectionText("Insights");
-        reportsSection.addView(reportsTitle);
-
-        LinearLayout reportActionsTop = new LinearLayout(this);
-        reportActionsTop.setOrientation(LinearLayout.HORIZONTAL);
-        Button readinessButton = secondaryButton("Readiness");
-        readinessButton.setOnClickListener(view -> runReport(storeReporter::readiness));
-        reportActionsTop.addView(readinessButton, weightWrap());
-        Button timelineButton = secondaryButton("Timeline");
-        timelineButton.setOnClickListener(view -> runReport(storeReporter::captureTimeline));
-        reportActionsTop.addView(timelineButton, weightWrap());
-        reportsSection.addView(reportActionsTop);
-
-        LinearLayout reportActionsBottom = new LinearLayout(this);
-        reportActionsBottom.setOrientation(LinearLayout.HORIZONTAL);
-        Button commandsButton = secondaryButton("Commands");
-        commandsButton.setOnClickListener(view -> runReport(storeReporter::commandDefinitions));
-        reportActionsBottom.addView(commandsButton, weightWrap());
-        Button exportButton = primaryButton("Export");
-        exportButton.setOnClickListener(view -> runReport(storeReporter::rawExport));
-        reportActionsBottom.addView(exportButton, weightWrap());
-        Button backfillButton = secondaryButton("Backfill");
-        backfillButton.setOnClickListener(view -> runReport(storeReporter::decodeBackfill));
-        reportActionsBottom.addView(backfillButton, weightWrap());
-        opsSection.addView(reportActionsBottom);
-
-        LinearLayout commandActions = new LinearLayout(this);
-        commandActions.setOrientation(LinearLayout.HORIZONTAL);
-        Button gateButton = secondaryButton("Gate");
-        gateButton.setOnClickListener(view -> runReport(storeReporter::commandGate));
-        commandActions.addView(gateButton, weightWrap());
-        Button preflightButton = secondaryButton("Preflight");
-        preflightButton.setOnClickListener(view -> runReport(storeReporter::commandPreflight));
-        commandActions.addView(preflightButton, weightWrap());
-        Button recordsButton = secondaryButton("Records");
-        recordsButton.setOnClickListener(view -> runReport(storeReporter::commandValidationRecords));
-        commandActions.addView(recordsButton, weightWrap());
-        opsSection.addView(commandActions);
 
         LinearLayout physicalCommandActions = new LinearLayout(this);
         physicalCommandActions.setOrientation(LinearLayout.HORIZONTAL);
-        captureSection.addView(sectionText("Commands"));
+        captureSection.addView(sectionText("Sync"));
         Button rangeButton = primaryButton("Range");
         rangeButton.setOnClickListener(view -> sendBuiltCommand("get_data_range", ""));
         physicalCommandActions.addView(rangeButton, weightWrap());
@@ -416,13 +389,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         physicalCommandActions.addView(abortHistoryButton, weightWrap());
         captureSection.addView(physicalCommandActions);
 
-        commandStatus = bodyText("Command results: none");
-        commandStatus.setPadding(0, 8, 0, 0);
-        captureSection.addView(commandStatus);
-
         LinearLayout captureActions = new LinearLayout(this);
         captureActions.setOrientation(LinearLayout.HORIZONTAL);
-        captureSection.addView(sectionText("Capture session"));
+        captureSection.addView(sectionText("Activity capture"));
         Button captureStartButton = primaryButton("Start");
         captureStartButton.setOnClickListener(view -> startCaptureSession());
         captureActions.addView(captureStartButton, weightWrap());
@@ -435,30 +404,38 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         captureActions.addView(captureListButton, weightWrap());
         captureSection.addView(captureActions);
 
-        LinearLayout metricActions = new LinearLayout(this);
-        metricActions.setOrientation(LinearLayout.HORIZONTAL);
-        Button heartRateButton = secondaryButton("Heart");
-        heartRateButton.setOnClickListener(view -> runReport(storeReporter::heartRateFeatures));
-        metricActions.addView(heartRateButton, weightWrap());
-        Button stepsButton = secondaryButton("Steps");
-        stepsButton.setOnClickListener(view -> runReport(storeReporter::stepDiscovery));
-        metricActions.addView(stepsButton, weightWrap());
-        Button motionStepsButton = secondaryButton("Motion");
-        motionStepsButton.setOnClickListener(view -> runRawMotionStepEstimate());
-        metricActions.addView(motionStepsButton, weightWrap());
-        reportsSection.addView(metricActions);
+        LinearLayout validationActions = new LinearLayout(this);
+        validationActions.setOrientation(LinearLayout.HORIZONTAL);
+        captureSection.addView(sectionText("Step comparison"));
+        manualStepsInput = new EditText(this);
+        manualStepsInput.setSingleLine(true);
+        manualStepsInput.setText("100");
+        manualStepsInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED);
+        validationActions.addView(manualStepsInput, weightWrap());
+        Button validationStartButton = secondaryButton("Start");
+        validationStartButton.setOnClickListener(view -> markValidationStart());
+        validationActions.addView(validationStartButton, weightWrap());
+        Button validationEndButton = secondaryButton("End");
+        validationEndButton.setOnClickListener(view -> markValidationEnd());
+        validationActions.addView(validationEndButton, weightWrap());
+        Button validationRunButton = primaryButton("Compare");
+        validationRunButton.setOnClickListener(view -> runStepValidation());
+        validationActions.addView(validationRunButton, weightWrap());
+        captureSection.addView(validationActions);
+        captureSection.addView(statusCluster("Evidence", evidenceGuideStatus));
 
-        LinearLayout metricActionsSecondary = new LinearLayout(this);
-        metricActionsSecondary.setOrientation(LinearLayout.HORIZONTAL);
-        Button sensorsButton = secondaryButton("Sensors");
-        sensorsButton.setOnClickListener(view -> runReport(storeReporter::recoverySensors));
-        metricActionsSecondary.addView(sensorsButton, weightWrap());
-        Button blockedButton = secondaryButton("Blocked");
-        blockedButton.setOnClickListener(view -> runReport(storeReporter::unavailableStatuses));
-        metricActionsSecondary.addView(blockedButton, weightWrap());
-        reportsSection.addView(metricActionsSecondary);
+        coachSection.addView(sectionText("Coach"));
+        coachSection.addView(coachPromptCard());
+        coachSection.addView(metricCard("Daily guidance", "--", "Connect WHOOP and sync history to unlock context-aware guidance", COLOR_PRIMARY));
 
         opsSection.addView(sectionText("More"));
+        opsSection.addView(statusCluster("Health Connect", healthConnectStatus));
+
+        reportStatus = statusText("Reports and diagnostics will appear here.");
+        opsSection.addView(reportStatus, matchWrap());
+
+        commandStatus = bodyText("Command results: none");
+        opsSection.addView(statusCluster("Command log", commandStatus));
 
         LinearLayout opsActions = new LinearLayout(this);
         opsActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -475,6 +452,17 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         healthConnectSyncButton.setOnClickListener(view -> runHealthConnectSync());
         opsActions.addView(healthConnectSyncButton, weightWrap());
         opsSection.addView(opsActions);
+
+        opsSection.addView(actionRow(new Button[]{
+                reportButton("Commands", storeReporter::commandDefinitions),
+                reportButton("Gate", storeReporter::commandGate),
+                reportButton("Preflight", storeReporter::commandPreflight)
+        }));
+        opsSection.addView(actionRow(new Button[]{
+                reportButton("Records", storeReporter::commandValidationRecords),
+                reportButton("Blocked", storeReporter::unavailableStatuses),
+                reportButton("Backfill", storeReporter::decodeBackfill)
+        }));
 
         LinearLayout evidenceActions = new LinearLayout(this);
         evidenceActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -509,30 +497,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         healthConnectActions.addView(healthConnectSettingsButton, weightWrap());
         opsSection.addView(healthConnectActions);
 
-        LinearLayout validationActions = new LinearLayout(this);
-        validationActions.setOrientation(LinearLayout.HORIZONTAL);
-        captureSection.addView(sectionText("Step validation"));
-        manualStepsInput = new EditText(this);
-        manualStepsInput.setSingleLine(true);
-        manualStepsInput.setText("100");
-        manualStepsInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED);
-        validationActions.addView(manualStepsInput, weightWrap());
-        Button validationStartButton = secondaryButton("Start");
-        validationStartButton.setOnClickListener(view -> markValidationStart());
-        validationActions.addView(validationStartButton, weightWrap());
-        Button validationEndButton = secondaryButton("End");
-        validationEndButton.setOnClickListener(view -> markValidationEnd());
-        validationActions.addView(validationEndButton, weightWrap());
-        Button validationRunButton = primaryButton("Validate");
-        validationRunButton.setOnClickListener(view -> runStepValidation());
-        validationActions.addView(validationRunButton, weightWrap());
-        captureSection.addView(validationActions);
-
         notificationLog = bodyText("No notifications");
-        notificationLog.setPadding(0, 16, 0, 0);
-        logSection.addView(notificationLog);
+        opsSection.addView(statusCluster("Notification log", notificationLog));
 
-        showMode(captureSection, captureModeButton);
+        showMode(homeSection, homeModeButton);
         refreshHealthConnectStatus();
 
         return scroll;
@@ -1605,6 +1573,154 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         }
     }
 
+    private LinearLayout scoreOverviewCard() {
+        LinearLayout card = cardContainer();
+        TextView label = eyebrowText("Daily scores");
+        card.addView(label);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, dp(12), 0, 0);
+        row.addView(scoreDial("Sleep", "--", COLOR_SLEEP), weightWrap());
+        row.addView(scoreDial("Recovery", "--", COLOR_RECOVERY), weightWrap());
+        row.addView(scoreDial("Strain", "--", COLOR_STRAIN), weightWrap());
+        card.addView(row);
+        return card;
+    }
+
+    private LinearLayout coachHomeCard() {
+        LinearLayout card = cardContainer();
+        TextView title = cardTitle("Coach");
+        title.setText("Coach");
+        card.addView(title);
+        TextView body = bodyText("Connect WHOOP and sync history to build daily recommendations from your local metrics.");
+        body.setPadding(0, dp(6), 0, dp(12));
+        card.addView(body);
+        Button openCoach = primaryButton("Open Coach");
+        openCoach.setOnClickListener(view -> {
+            if (coachSection != null && modeButtons.size() >= 4) {
+                showMode(coachSection, modeButtons.get(3));
+            }
+        });
+        card.addView(openCoach, matchWrap());
+        return card;
+    }
+
+    private LinearLayout coachPromptCard() {
+        LinearLayout card = cardContainer();
+        card.addView(cardTitle("Ask Goose"));
+        TextView body = bodyText("Daily coaching will use local sleep, recovery, strain, stress, and activity context once those rows are populated.");
+        body.setPadding(0, dp(6), 0, 0);
+        card.addView(body);
+        return card;
+    }
+
+    private LinearLayout metricCard(String title, String value, String caption, int tint) {
+        LinearLayout card = cardContainer();
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        TextView dot = new TextView(this);
+        dot.setText(" ");
+        dot.setBackground(ovalBackground(tint, tint));
+        LinearLayout.LayoutParams dotParams = new LinearLayout.LayoutParams(dp(10), dp(10));
+        dotParams.setMargins(0, 0, dp(10), 0);
+        row.addView(dot, dotParams);
+        TextView heading = cardTitle(title);
+        row.addView(heading, weightWrap());
+        TextView metricValue = new TextView(this);
+        metricValue.setText(value);
+        metricValue.setTextSize(22);
+        metricValue.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        metricValue.setTextColor(COLOR_TEXT);
+        metricValue.setGravity(Gravity.END);
+        row.addView(metricValue);
+        card.addView(row);
+        TextView sub = bodyText(caption);
+        sub.setPadding(dp(20), dp(8), 0, 0);
+        card.addView(sub);
+        return card;
+    }
+
+    private LinearLayout statusCluster(String title, TextView... rows) {
+        LinearLayout card = cardContainer();
+        card.addView(cardTitle(title));
+        for (TextView row : rows) {
+            row.setPadding(0, dp(8), 0, 0);
+            card.addView(row);
+        }
+        return card;
+    }
+
+    private LinearLayout scoreDial(String title, String value, int tint) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setGravity(Gravity.CENTER);
+        TextView dial = new TextView(this);
+        dial.setText(value);
+        dial.setTextSize(22);
+        dial.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        dial.setTextColor(COLOR_TEXT);
+        dial.setGravity(Gravity.CENTER);
+        dial.setBackground(ovalBackground(Color.TRANSPARENT, tint));
+        item.addView(dial, new LinearLayout.LayoutParams(dp(82), dp(82)));
+        TextView label = bodyText(title);
+        label.setTextColor(COLOR_TEXT);
+        label.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        label.setGravity(Gravity.CENTER);
+        label.setPadding(0, dp(8), 0, 0);
+        item.addView(label, matchWrap());
+        return item;
+    }
+
+    private LinearLayout actionRow(Button[] buttons) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, dp(8), 0, 0);
+        for (Button button : buttons) {
+            row.addView(button, weightWrap());
+        }
+        return row;
+    }
+
+    private Button reportButton(String label, ReportRunner runner) {
+        Button button = secondaryButton(label);
+        button.setOnClickListener(view -> runReport(runner));
+        return button;
+    }
+
+    private Button secondaryAction(String label, View.OnClickListener listener) {
+        Button button = secondaryButton(label);
+        button.setOnClickListener(listener);
+        return button;
+    }
+
+    private LinearLayout cardContainer() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(16), dp(15), dp(16), dp(15));
+        card.setBackground(panelBackground(COLOR_PANEL, COLOR_BORDER, 18));
+        LinearLayout.LayoutParams params = matchWrap();
+        params.setMargins(0, dp(12), 0, 0);
+        card.setLayoutParams(params);
+        return card;
+    }
+
+    private TextView eyebrowText(String value) {
+        TextView view = bodyText(value);
+        view.setTextSize(12);
+        view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        view.setTextColor(COLOR_MUTED);
+        return view;
+    }
+
+    private TextView cardTitle(String value) {
+        TextView view = bodyText(value);
+        view.setTextSize(17);
+        view.setTextColor(COLOR_TEXT);
+        view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        return view;
+    }
+
     private TextView sectionText(String value) {
         TextView view = bodyText(value);
         view.setTextSize(18);
@@ -1685,14 +1801,24 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         return drawable;
     }
 
+    private GradientDrawable ovalBackground(int fillColor, int strokeColor) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.OVAL);
+        drawable.setColor(fillColor);
+        drawable.setStroke(dp(7), strokeColor);
+        return drawable;
+    }
+
     private void showMode(LinearLayout visibleSection, Button activeButton) {
-        if (captureSection == null || reportsSection == null || opsSection == null || logSection == null) {
+        if (homeSection == null || captureSection == null || reportsSection == null
+                || coachSection == null || opsSection == null) {
             return;
         }
+        homeSection.setVisibility(visibleSection == homeSection ? View.VISIBLE : View.GONE);
         captureSection.setVisibility(visibleSection == captureSection ? View.VISIBLE : View.GONE);
         reportsSection.setVisibility(visibleSection == reportsSection ? View.VISIBLE : View.GONE);
+        coachSection.setVisibility(visibleSection == coachSection ? View.VISIBLE : View.GONE);
         opsSection.setVisibility(visibleSection == opsSection ? View.VISIBLE : View.GONE);
-        logSection.setVisibility(visibleSection == logSection ? View.VISIBLE : View.GONE);
         for (Button button : modeButtons) {
             button.setTextColor(button == activeButton ? Color.WHITE : COLOR_TEXT);
             button.setBackground(button == activeButton

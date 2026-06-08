@@ -255,11 +255,11 @@ These files are build artifacts and are ignored by git.
 - Shows structured connection progress across scanning, device selection,
   service discovery, notification/read candidate discovery, queued/completed GATT
   operations, subscription count, command readiness, and client-hello state.
-- Keeps the default Capture tab status compact; full JSON-heavy storage,
-  privacy, export, and bridge reports live behind Insights and More.
-- Replaces the initial debug-only surface with a styled Android utility UI:
-  Capture, Insights, More, and Log tabs with primary and destructive actions
-  visually separated.
+- Replaces the initial debug-only surface with an iOS-inspired Android product
+  shell: Home, Health, Device, Coach, and More. Daily score cards and coaching
+  entry points are the default surface, while BLE sync, step comparison,
+  Health Connect, storage/privacy, evidence, and JSON-heavy diagnostics are
+  separated into Device and More.
 - Keeps the capture activity alive across orientation and screen-size changes
   so a controlled BLE capture is not torn down by accidental rotation.
 - Exposes Android storage/privacy controls for export inventory, export cache
