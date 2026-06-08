@@ -255,11 +255,12 @@ These files are build artifacts and are ignored by git.
 - Shows structured connection progress across scanning, device selection,
   service discovery, notification/read candidate discovery, queued/completed GATT
   operations, subscription count, command readiness, and client-hello state.
-- Replaces the initial debug-only surface with an iOS-inspired Android product
-  shell: Home, Health, Device, Coach, and More. Daily score cards and coaching
-  entry points are the default surface, while BLE sync, step comparison,
-  Health Connect, storage/privacy, evidence, and JSON-heavy diagnostics are
-  separated into Device and More.
+- Replaces the initial debug-only surface with an iOS-matched Android product
+  shell: Home, Health, Coach, and More primary tabs, with Device opened from
+  the Home toolbar or More. Home follows the iOS Today order: daily scores,
+  stress/energy, cardio load, health monitor, timeline, coach entry, and start
+  activity. BLE sync, step comparison, Health Connect, storage/privacy,
+  evidence, and JSON-heavy diagnostics are separated into Device and More.
 - Keeps the capture activity alive across orientation and screen-size changes
   so a controlled BLE capture is not torn down by accidental rotation.
 - Exposes Android storage/privacy controls for export inventory, export cache

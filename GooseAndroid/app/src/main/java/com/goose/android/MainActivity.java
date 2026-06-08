@@ -75,6 +75,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private TextView healthConnectStatus;
     private TextView reportStatus;
     private TextView notificationLog;
+    private TextView screenTitle;
+    private TextView screenSubtitle;
+    private Button deviceToolbarButton;
     private LinearLayout homeSection;
     private LinearLayout captureSection;
     private LinearLayout reportsSection;
@@ -258,44 +261,44 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     }
 
     private View buildContentView() {
+        LinearLayout appRoot = new LinearLayout(this);
+        appRoot.setOrientation(LinearLayout.VERTICAL);
+        appRoot.setBackgroundColor(COLOR_BACKGROUND);
+
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(COLOR_BACKGROUND);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(18), dp(52), dp(18), dp(28));
+        root.setPadding(dp(16), dp(44), dp(16), dp(92));
         scroll.addView(root);
+        appRoot.addView(scroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+        ));
 
-        TextView title = new TextView(this);
-        title.setText("Today");
-        title.setTextSize(30);
-        title.setTextColor(COLOR_TEXT);
-        title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        title.setGravity(Gravity.START);
-        root.addView(title);
+        LinearLayout topBar = new LinearLayout(this);
+        topBar.setOrientation(LinearLayout.HORIZONTAL);
+        topBar.setGravity(Gravity.CENTER_VERTICAL);
+        root.addView(topBar);
 
-        TextView subtitle = bodyText("Goose health dashboard");
-        subtitle.setPadding(0, dp(3), 0, 0);
-        root.addView(subtitle);
+        LinearLayout titleStack = new LinearLayout(this);
+        titleStack.setOrientation(LinearLayout.VERTICAL);
+        screenTitle = new TextView(this);
+        screenTitle.setText("Today");
+        screenTitle.setTextSize(30);
+        screenTitle.setTextColor(COLOR_TEXT);
+        screenTitle.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        screenTitle.setGravity(Gravity.START);
+        titleStack.addView(screenTitle);
+        screenSubtitle = bodyText("Daily Scores");
+        screenSubtitle.setPadding(0, dp(3), 0, 0);
+        titleStack.addView(screenSubtitle);
+        topBar.addView(titleStack, weightWrap());
 
-        LinearLayout modeActions = new LinearLayout(this);
-        modeActions.setOrientation(LinearLayout.HORIZONTAL);
-        modeActions.setPadding(0, dp(18), 0, 0);
-        Button homeModeButton = modeButton("Home");
-        homeModeButton.setOnClickListener(view -> showMode(homeSection, homeModeButton));
-        modeActions.addView(homeModeButton, weightWrap());
-        Button reportsModeButton = modeButton("Health");
-        reportsModeButton.setOnClickListener(view -> showMode(reportsSection, reportsModeButton));
-        modeActions.addView(reportsModeButton, weightWrap());
-        Button captureModeButton = modeButton("Device");
-        captureModeButton.setOnClickListener(view -> showMode(captureSection, captureModeButton));
-        modeActions.addView(captureModeButton, weightWrap());
-        Button coachModeButton = modeButton("Coach");
-        coachModeButton.setOnClickListener(view -> showMode(coachSection, coachModeButton));
-        modeActions.addView(coachModeButton, weightWrap());
-        Button opsModeButton = modeButton("More");
-        opsModeButton.setOnClickListener(view -> showMode(opsSection, opsModeButton));
-        modeActions.addView(opsModeButton, weightWrap());
-        root.addView(modeActions);
+        deviceToolbarButton = secondaryButton("Device");
+        deviceToolbarButton.setOnClickListener(view -> showMode(captureSection, null));
+        topBar.addView(deviceToolbarButton, new LinearLayout.LayoutParams(dp(86), dp(44)));
 
         homeSection = sectionContainer();
         root.addView(homeSection);
@@ -309,18 +312,28 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         root.addView(opsSection);
 
         homeSection.addView(scoreOverviewCard());
+        homeSection.addView(homeStressEnergyCard());
+        homeSection.addView(cardioLoadCard());
+        homeSection.addView(healthMonitorCard());
+        homeSection.addView(timelineCard());
         homeSection.addView(coachHomeCard());
-        LinearLayout homeSummaryGrid = new LinearLayout(this);
-        homeSummaryGrid.setOrientation(LinearLayout.VERTICAL);
-        homeSummaryGrid.addView(metricCard("Stress", "--", "Waiting for local stress inputs", COLOR_STRESS));
-        homeSummaryGrid.addView(metricCard("Energy", "--", "Local estimate not available yet", COLOR_RECOVERY));
-        homeSummaryGrid.addView(metricCard("Steps", "Candidate", "K18 body_u16le_36 needs WHOOP label comparison", COLOR_STRAIN));
-        homeSection.addView(homeSummaryGrid);
+        homeSection.addView(startActivityCard());
 
         reportsSection.addView(sectionText("Health"));
+        reportsSection.addView(statusCluster(
+                "Activity overview",
+                bodyText("Steps: waiting for WHOOP counter validation"),
+                bodyText("Active energy: waiting for decoded activity rows"),
+                bodyText("Heart rate: live stream appears here after BLE connection")
+        ));
+        reportsSection.addView(sectionText("Explore Health"));
         reportsSection.addView(metricCard("Sleep", "--", "No band sleep import yet", COLOR_SLEEP));
         reportsSection.addView(metricCard("Recovery", "--", "Recovery packet proof pending", COLOR_RECOVERY));
         reportsSection.addView(metricCard("Strain", "--", "Activity score inputs pending", COLOR_STRAIN));
+        reportsSection.addView(metricCard("Stress", "--", "Waiting for local stress inputs", COLOR_STRESS));
+        reportsSection.addView(metricCard("Cardio Load", "--", "Activity load inputs pending", COLOR_DANGER));
+        reportsSection.addView(metricCard("Energy Bank", "--", "Local energy estimate unavailable", COLOR_RECOVERY));
+        reportsSection.addView(sectionText("Data & Algorithms"));
         reportsSection.addView(metricCard("Step counter", "K18", "body_u16le_36 is the current diagnostic candidate", COLOR_PRIMARY));
         reportsSection.addView(actionRow(new Button[]{
                 reportButton("Heart", storeReporter::heartRateFeatures),
@@ -333,7 +346,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 reportButton("Readiness", storeReporter::readiness)
         }));
 
-        captureSection.addView(sectionText("Device"));
+        captureSection.addView(deviceHeaderCard());
+        captureSection.addView(sectionText("Status"));
+        captureSection.addView(deviceBatteryCard());
         bridgeStatus = bodyText("Checking Rust bridge");
         storeStatus = bodyText("Checking local store");
         captureSection.addView(statusCluster("App", bridgeStatus, storeStatus));
@@ -361,7 +376,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         connectionStatus = bodyText("Connection progress\nphase: not started");
         captureSection.addView(statusCluster("Connection", bleStatus, metadataStatus, connectionStatus));
 
-        captureSection.addView(sectionText("WHOOP"));
+        captureSection.addView(sectionText("Discovered"));
         deviceList = new LinearLayout(this);
         deviceList.setOrientation(LinearLayout.VERTICAL);
         deviceList.addView(bodyText("No WHOOP devices discovered"));
@@ -377,7 +392,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
         LinearLayout physicalCommandActions = new LinearLayout(this);
         physicalCommandActions.setOrientation(LinearLayout.HORIZONTAL);
-        captureSection.addView(sectionText("Sync"));
+        captureSection.addView(sectionText("Advanced"));
         Button rangeButton = primaryButton("Range");
         rangeButton.setOnClickListener(view -> sendBuiltCommand("get_data_range", ""));
         physicalCommandActions.addView(rangeButton, weightWrap());
@@ -425,10 +440,22 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         captureSection.addView(statusCluster("Evidence", evidenceGuideStatus));
 
         coachSection.addView(sectionText("Coach"));
+        coachSection.addView(coachRecommendationCard());
         coachSection.addView(coachPromptCard());
-        coachSection.addView(metricCard("Daily guidance", "--", "Connect WHOOP and sync history to unlock context-aware guidance", COLOR_PRIMARY));
+        coachSection.addView(metricCard("Sleep", "--", "Unavailable until sleep rows are populated", COLOR_SLEEP));
+        coachSection.addView(metricCard("Recovery", "--", "Unavailable until recovery rows are populated", COLOR_RECOVERY));
+        coachSection.addView(metricCard("Strain", "--", "Unavailable until activity rows are populated", COLOR_STRAIN));
+        coachSection.addView(metricCard("Live HR", "--", "Connect WHOOP for live heart-rate context", COLOR_DANGER));
 
         opsSection.addView(sectionText("More"));
+        opsSection.addView(moreProfileCard());
+        opsSection.addView(sectionText("Device"));
+        opsSection.addView(actionRow(new Button[]{
+                secondaryAction("Device", view -> showMode(captureSection, null)),
+                secondaryAction("Connection", view -> showMode(captureSection, null)),
+                secondaryAction("Capture", view -> showMode(captureSection, null))
+        }));
+        opsSection.addView(sectionText("App"));
         opsSection.addView(statusCluster("Health Connect", healthConnectStatus));
 
         reportStatus = statusText("Reports and diagnostics will appear here.");
@@ -500,10 +527,28 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         notificationLog = bodyText("No notifications");
         opsSection.addView(statusCluster("Notification log", notificationLog));
 
+        LinearLayout bottomNav = new LinearLayout(this);
+        bottomNav.setOrientation(LinearLayout.HORIZONTAL);
+        bottomNav.setPadding(dp(8), dp(6), dp(8), dp(6));
+        bottomNav.setBackground(panelBackground(COLOR_PANEL, COLOR_BORDER, 0));
+        Button homeModeButton = modeButton("Home");
+        homeModeButton.setOnClickListener(view -> showMode(homeSection, homeModeButton));
+        bottomNav.addView(homeModeButton, weightWrap());
+        Button reportsModeButton = modeButton("Health");
+        reportsModeButton.setOnClickListener(view -> showMode(reportsSection, reportsModeButton));
+        bottomNav.addView(reportsModeButton, weightWrap());
+        Button coachModeButton = modeButton("Coach");
+        coachModeButton.setOnClickListener(view -> showMode(coachSection, coachModeButton));
+        bottomNav.addView(coachModeButton, weightWrap());
+        Button opsModeButton = modeButton("More");
+        opsModeButton.setOnClickListener(view -> showMode(opsSection, opsModeButton));
+        bottomNav.addView(opsModeButton, weightWrap());
+        appRoot.addView(bottomNav);
+
         showMode(homeSection, homeModeButton);
         refreshHealthConnectStatus();
 
-        return scroll;
+        return appRoot;
     }
 
     private void refreshBridgeStatus() {
@@ -1575,6 +1620,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     private LinearLayout scoreOverviewCard() {
         LinearLayout card = cardContainer();
+        card.setOnClickListener(view -> showMode(reportsSection, modeButtons.size() > 1 ? modeButtons.get(1) : null));
         TextView label = eyebrowText("Daily scores");
         card.addView(label);
         LinearLayout row = new LinearLayout(this);
@@ -1583,6 +1629,99 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         row.addView(scoreDial("Sleep", "--", COLOR_SLEEP), weightWrap());
         row.addView(scoreDial("Recovery", "--", COLOR_RECOVERY), weightWrap());
         row.addView(scoreDial("Strain", "--", COLOR_STRAIN), weightWrap());
+        card.addView(row);
+        return card;
+    }
+
+    private LinearLayout homeStressEnergyCard() {
+        LinearLayout card = cardContainer();
+        card.setOnClickListener(view -> showMode(reportsSection, modeButtons.size() > 1 ? modeButtons.get(1) : null));
+        card.addView(cardTitle("Stress & Energy"));
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout stats = new LinearLayout(this);
+        stats.setOrientation(LinearLayout.VERTICAL);
+        TextView title = bodyText("Today's stress");
+        title.setTextColor(COLOR_TEXT);
+        title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        stats.addView(title);
+        stats.addView(bodyText("Highest --   Lowest --   Average --"));
+        TextView energy = bodyText("Energy Bank: --");
+        energy.setPadding(0, dp(10), 0, 0);
+        stats.addView(energy);
+        row.addView(stats, weightWrap());
+        row.addView(scoreDial("Stress", "--", COLOR_STRESS), new LinearLayout.LayoutParams(dp(100), dp(126)));
+        card.addView(row);
+        return card;
+    }
+
+    private LinearLayout cardioLoadCard() {
+        LinearLayout card = cardContainer();
+        card.setOnClickListener(view -> showMode(reportsSection, modeButtons.size() > 1 ? modeButtons.get(1) : null));
+        card.addView(cardTitle("Cardio Load"));
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.BOTTOM);
+        TextView value = new TextView(this);
+        value.setText("--");
+        value.setTextSize(34);
+        value.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        value.setTextColor(COLOR_TEXT);
+        row.addView(value, new LinearLayout.LayoutParams(dp(86), LinearLayout.LayoutParams.WRAP_CONTENT));
+        row.addView(sparklinePlaceholder(), weightWrap());
+        card.addView(row);
+        TextView status = bodyText("No activity load data yet");
+        status.setPadding(0, dp(8), 0, 0);
+        card.addView(status);
+        return card;
+    }
+
+    private LinearLayout healthMonitorCard() {
+        LinearLayout section = new LinearLayout(this);
+        section.setOrientation(LinearLayout.VERTICAL);
+        section.setOnClickListener(view -> showMode(reportsSection, modeButtons.size() > 1 ? modeButtons.get(1) : null));
+        section.addView(sectionText("Health Monitor"));
+        LinearLayout rowOne = new LinearLayout(this);
+        rowOne.setOrientation(LinearLayout.HORIZONTAL);
+        rowOne.addView(compactMetricCard("Resting HR", "--", "Waiting", COLOR_DANGER), weightWrap());
+        rowOne.addView(compactMetricCard("HRV", "--", "Waiting", COLOR_PRIMARY), weightWrap());
+        section.addView(rowOne);
+        LinearLayout rowTwo = new LinearLayout(this);
+        rowTwo.setOrientation(LinearLayout.HORIZONTAL);
+        rowTwo.addView(compactMetricCard("Respiratory", "--", "Waiting", COLOR_STRESS), weightWrap());
+        rowTwo.addView(compactMetricCard("SpO2", "--", "Waiting", COLOR_RECOVERY), weightWrap());
+        section.addView(rowTwo);
+        return section;
+    }
+
+    private LinearLayout timelineCard() {
+        LinearLayout section = new LinearLayout(this);
+        section.setOrientation(LinearLayout.VERTICAL);
+        section.setOnClickListener(view -> showMode(reportsSection, modeButtons.size() > 1 ? modeButtons.get(1) : null));
+        section.addView(sectionText("Timeline"));
+        section.addView(timelineRow("Sleep summary", "06:34", "-- - unavailable", COLOR_SLEEP));
+        section.addView(timelineRow("Activity load", "12:30", "-- - waiting for activity rows", COLOR_STRAIN));
+        section.addView(timelineRow("Recovery update", "17:00", "-- - unavailable", COLOR_RECOVERY));
+        return section;
+    }
+
+    private LinearLayout startActivityCard() {
+        LinearLayout card = cardContainer();
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout copy = new LinearLayout(this);
+        copy.setOrientation(LinearLayout.VERTICAL);
+        copy.addView(cardTitle("Start Activity"));
+        copy.addView(bodyText("Begin a local capture session for workout or step comparison evidence."));
+        row.addView(copy, weightWrap());
+        Button start = primaryButton("Start");
+        start.setOnClickListener(view -> {
+            showMode(captureSection, null);
+            startCaptureSession();
+        });
+        row.addView(start, new LinearLayout.LayoutParams(dp(96), dp(48)));
         card.addView(row);
         return card;
     }
@@ -1614,6 +1753,70 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         return card;
     }
 
+    private LinearLayout coachRecommendationCard() {
+        LinearLayout card = cardContainer();
+        card.addView(cardTitle("Close the data gaps first"));
+        TextView body = bodyText("Connect WHOOP, sync history, and validate steps before changing training or sleep plans.");
+        body.setPadding(0, dp(6), 0, dp(12));
+        card.addView(body);
+        Button review = primaryButton("Review Inputs");
+        review.setOnClickListener(view -> showMode(reportsSection, modeButtons.size() > 1 ? modeButtons.get(1) : null));
+        card.addView(review, matchWrap());
+        return card;
+    }
+
+    private LinearLayout deviceHeaderCard() {
+        LinearLayout card = cardContainer();
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.BOTTOM);
+        LinearLayout copy = new LinearLayout(this);
+        copy.setOrientation(LinearLayout.VERTICAL);
+        TextView status = eyebrowText("NOT CONNECTED");
+        status.setTextColor(COLOR_DANGER);
+        copy.addView(status);
+        copy.addView(cardTitle("WHOOP"));
+        copy.addView(bodyText("Last sync: not synced"));
+        row.addView(copy, weightWrap());
+        Button refresh = secondaryButton("Refresh");
+        refresh.setOnClickListener(view -> refreshAllStatus());
+        row.addView(refresh, new LinearLayout.LayoutParams(dp(100), dp(46)));
+        card.addView(row);
+        return card;
+    }
+
+    private LinearLayout deviceBatteryCard() {
+        LinearLayout card = cardContainer();
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        TextView battery = new TextView(this);
+        battery.setText("--%");
+        battery.setTextSize(54);
+        battery.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        battery.setTextColor(COLOR_TEXT);
+        row.addView(battery, weightWrap());
+        TextView rail = new TextView(this);
+        rail.setText(" ");
+        rail.setBackground(panelBackground(Color.rgb(234, 179, 8), Color.rgb(234, 179, 8), 8));
+        row.addView(rail, new LinearLayout.LayoutParams(dp(10), dp(138)));
+        card.addView(row);
+        TextView caption = bodyText("Battery appears after a connected device reports power state.");
+        caption.setPadding(0, dp(10), 0, 0);
+        card.addView(caption);
+        return card;
+    }
+
+    private LinearLayout moreProfileCard() {
+        LinearLayout card = cardContainer();
+        card.setOnClickListener(view -> reportStatus.setText("Profile setup is not implemented on Android yet."));
+        card.addView(cardTitle("Profile"));
+        TextView body = bodyText("Update profile");
+        body.setPadding(0, dp(6), 0, 0);
+        card.addView(body);
+        return card;
+    }
+
     private LinearLayout metricCard(String title, String value, String caption, int tint) {
         LinearLayout card = cardContainer();
         LinearLayout row = new LinearLayout(this);
@@ -1639,6 +1842,57 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         sub.setPadding(dp(20), dp(8), 0, 0);
         card.addView(sub);
         return card;
+    }
+
+    private LinearLayout compactMetricCard(String title, String value, String status, int tint) {
+        LinearLayout card = cardContainer();
+        LinearLayout.LayoutParams params = matchWrap();
+        params.setMargins(dp(4), dp(6), dp(4), dp(4));
+        card.setLayoutParams(params);
+        TextView heading = eyebrowText(title);
+        card.addView(heading);
+        TextView metricValue = cardTitle(value);
+        metricValue.setTextSize(22);
+        metricValue.setPadding(0, dp(8), 0, 0);
+        card.addView(metricValue);
+        TextView sub = bodyText(status);
+        sub.setTextColor(tint);
+        sub.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        sub.setPadding(0, dp(6), 0, 0);
+        card.addView(sub);
+        return card;
+    }
+
+    private LinearLayout timelineRow(String title, String time, String subtitle, int tint) {
+        LinearLayout card = cardContainer();
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        TextView dot = new TextView(this);
+        dot.setText(" ");
+        dot.setBackground(ovalBackground(tint, tint));
+        LinearLayout.LayoutParams dotParams = new LinearLayout.LayoutParams(dp(34), dp(34));
+        dotParams.setMargins(0, 0, dp(12), 0);
+        row.addView(dot, dotParams);
+        LinearLayout copy = new LinearLayout(this);
+        copy.setOrientation(LinearLayout.VERTICAL);
+        copy.addView(cardTitle(title));
+        copy.addView(bodyText(subtitle));
+        row.addView(copy, weightWrap());
+        TextView timeView = bodyText(time);
+        timeView.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        row.addView(timeView);
+        card.addView(row);
+        return card;
+    }
+
+    private TextView sparklinePlaceholder() {
+        TextView view = bodyText("No data");
+        view.setGravity(Gravity.CENTER);
+        view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        view.setBackground(panelBackground(Color.rgb(253, 242, 248), Color.rgb(249, 168, 212), 10));
+        view.setMinHeight(dp(82));
+        return view;
     }
 
     private LinearLayout statusCluster(String title, TextView... rows) {
@@ -1755,7 +2009,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     }
 
     private Button modeButton(String label) {
-        Button button = secondaryButton(label);
+        Button button = baseButton(label);
+        button.setTextColor(COLOR_MUTED);
+        button.setBackground(panelBackground(COLOR_PANEL, COLOR_PANEL, 0));
         modeButtons.add(button);
         return button;
     }
@@ -1819,11 +2075,31 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         reportsSection.setVisibility(visibleSection == reportsSection ? View.VISIBLE : View.GONE);
         coachSection.setVisibility(visibleSection == coachSection ? View.VISIBLE : View.GONE);
         opsSection.setVisibility(visibleSection == opsSection ? View.VISIBLE : View.GONE);
+        if (screenTitle != null && screenSubtitle != null) {
+            if (visibleSection == homeSection) {
+                screenTitle.setText("Today");
+                screenSubtitle.setText("Daily Scores");
+            } else if (visibleSection == reportsSection) {
+                screenTitle.setText("Health");
+                screenSubtitle.setText("Activity, vitals, and algorithms");
+            } else if (visibleSection == captureSection) {
+                screenTitle.setText("Device");
+                screenSubtitle.setText("WHOOP status and advanced sync");
+            } else if (visibleSection == coachSection) {
+                screenTitle.setText("Coach");
+                screenSubtitle.setText("Recommendations from local context");
+            } else if (visibleSection == opsSection) {
+                screenTitle.setText("More");
+                screenSubtitle.setText("Profile, settings, support, developer");
+            }
+        }
+        if (deviceToolbarButton != null) {
+            deviceToolbarButton.setVisibility(visibleSection == homeSection ? View.VISIBLE : View.GONE);
+        }
         for (Button button : modeButtons) {
-            button.setTextColor(button == activeButton ? Color.WHITE : COLOR_TEXT);
-            button.setBackground(button == activeButton
-                    ? panelBackground(COLOR_PRIMARY, COLOR_PRIMARY, 14)
-                    : panelBackground(COLOR_PANEL, COLOR_BORDER, 14));
+            button.setTextColor(button == activeButton ? COLOR_PRIMARY : COLOR_TEXT);
+            button.setTypeface(Typeface.DEFAULT, button == activeButton ? Typeface.BOLD : Typeface.NORMAL);
+            button.setBackground(panelBackground(COLOR_PANEL, COLOR_PANEL, 0));
         }
     }
 
