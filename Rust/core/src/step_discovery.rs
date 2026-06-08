@@ -225,6 +225,11 @@ pub fn run_step_packet_discovery(
             &mut numeric_counter_observations,
             options.max_candidate_fields,
         );
+        scan_hidden_body_counter_observations(
+            &parsed_payload,
+            &context,
+            &mut numeric_counter_observations,
+        );
     }
 
     let (monotonic_counter_candidate_count, monotonic_counter_samples) =
@@ -661,6 +666,71 @@ fn is_hidden_counter_candidate_field(key: &str, path: &str, value: &Value) -> bo
     !excluded_fragments
         .iter()
         .any(|fragment| key_lower.contains(fragment) || path_lower.contains(fragment))
+}
+
+fn scan_hidden_body_counter_observations(
+    payload: &Value,
+    context: &FrameContext<'_>,
+    numeric_counter_observations: &mut Vec<StepPacketDiscoveryCandidate>,
+) {
+    if !matches!(context.packet_k, Some(18 | 26)) {
+        return;
+    }
+    let Some(body_hex) = payload.get("body_hex").and_then(Value::as_str) else {
+        return;
+    };
+    let Some(body) = decode_hex(body_hex) else {
+        return;
+    };
+    for offset in 0..body.len().saturating_sub(1) {
+        let value = u16::from_le_bytes([body[offset], body[offset + 1]]);
+        numeric_counter_observations.push(hidden_body_counter_candidate(
+            context,
+            offset,
+            "u16le",
+            i64::from(value),
+        ));
+    }
+}
+
+fn hidden_body_counter_candidate(
+    context: &FrameContext<'_>,
+    offset: usize,
+    encoding: &str,
+    value: i64,
+) -> StepPacketDiscoveryCandidate {
+    let field_name = format!("body_{encoding}_{offset}");
+    StepPacketDiscoveryCandidate {
+        frame_id: context.row.frame_id.clone(),
+        evidence_id: context.row.evidence_id.clone(),
+        captured_at: context.row.captured_at.clone(),
+        packet_type_name: context.row.packet_type_name.clone(),
+        packet_k: context.packet_k,
+        domain: context.domain.clone(),
+        body_summary_kind: context.body_summary_kind.clone(),
+        packet_family: context.packet_family.clone(),
+        json_path: format!("$.body_hex.{encoding}[{offset}]"),
+        field_name,
+        value: Value::from(value),
+        match_kind: "monotonic_counter_candidate".to_string(),
+        source_kind_inference: "hidden_body_counter_candidate".to_string(),
+        reason: "raw body offset is monotonic non-decreasing with positive delta across the capture window".to_string(),
+    }
+}
+
+fn decode_hex(value: &str) -> Option<Vec<u8>> {
+    let hex = value.trim();
+    if hex.len() % 2 != 0 {
+        return None;
+    }
+    let mut bytes = Vec::with_capacity(hex.len() / 2);
+    let mut index = 0;
+    while index < hex.len() {
+        let byte = u8::from_str_radix(&hex[index..index + 2], 16).ok()?;
+        bytes.push(byte);
+        index += 2;
+    }
+    Some(bytes)
 }
 
 fn candidate_from_match(

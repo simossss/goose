@@ -103,20 +103,32 @@ fi
 
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 marker="goose-evidence-start $stamp $PACKAGE $device_serial"
+remote_marker_file="${MARKER_FILE//\'/\'\\\'\'}"
+remote_marker="${marker//\'/\'\\\'\'}"
 
 echo "==> Clearing logcat on $device_serial"
 run_with_timeout \
   "Android logcat clear" \
   "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
   "$ADB" -s "$device_serial" logcat -c
-printf '%s\n' "$marker" | run_with_timeout \
+run_with_timeout \
   "Android evidence marker file write" \
   "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
-  "$ADB" -s "$device_serial" shell "cat > '$MARKER_FILE'"
+  "$ADB" -s "$device_serial" shell "printf '%s\n' '$remote_marker' > '$remote_marker_file'"
 run_with_timeout \
   "Android evidence marker log write" \
   "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
   "$ADB" -s "$device_serial" shell log -t GooseEvidenceStart "$marker"
+written_marker="$(run_with_timeout \
+  "Android evidence marker file verify" \
+  "$GOOSE_ANDROID_ADB_COMMAND_TIMEOUT_SECONDS" \
+  "$ADB" -s "$device_serial" exec-out cat "$MARKER_FILE" | tr -d '\r')"
+if [[ "$written_marker" != "$marker" ]]; then
+  echo "Evidence marker verification failed." >&2
+  echo "Expected: $marker" >&2
+  echo "Actual: $written_marker" >&2
+  exit 1
+fi
 
 cat <<NEXT_STEPS
 ==> Goose evidence start marker written

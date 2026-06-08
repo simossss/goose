@@ -372,8 +372,11 @@ These files are build artifacts and are ignored by git.
 
 The current build has captured live heart-rate packets and imported WHOOP
 historical data from a physical WHOOP 5.0. Explicit step-counter extraction is
-not confirmed yet; final step acceptance now requires a passing validation that
-is bound to a capture session with decoded frames and a selected counter delta.
+not confirmed yet; the leading raw candidate is K18 `body_u16le_36`, which is
+monotonic in counted-step sessions but remains diagnostic-only until it is
+validated against manual counts and WHOOP app labels. Final step acceptance now
+requires a passing validation that is bound to a capture session with decoded
+frames and a selected counter delta that matches the supplied labels.
 
 ## Remaining Phone-Bound Proof
 
@@ -381,7 +384,9 @@ is bound to a capture session with decoded frames and a selected counter delta.
   controlled capture, decoded/session-tagged live-notification evidence, and a
   clean focused AndroidRuntime logcat.
 - Final counted-step validation from real phone evidence, bound to a decoded
-  capture session with a nonzero selected counter delta.
+  capture session with a selected counter delta that matches the supplied
+  validation labels. K18 `body_u16le_36` is the current candidate to compare
+  against WHOOP app step deltas before parser promotion.
 - Health Connect phone/platform permission testing with real planned writes and
   inserted-record success evidence when `--require-health-success` is used.
   Trusted heart-rate candidate planning is implemented; daily step candidates

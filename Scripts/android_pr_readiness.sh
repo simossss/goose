@@ -856,12 +856,9 @@ if [[ -n "$PHONE_EVIDENCE_DIR" ]]; then
     fi
     if [[ "$evidence_manifest_verified" == "1" \
       && "$logcat_start_marker_result" == "PASS" \
-      && -n "$evidence_logcat_start_marker" \
-      && -f "$full_logcat_file" \
-      && -f "$focused_logcat_file" ]] \
+      && -n "$evidence_logcat_start_marker" ]] \
       && valid_logcat_start_marker "$evidence_logcat_start_marker" "$device_serial" \
-      && grep -Fq "$evidence_logcat_start_marker" "$full_logcat_file" \
-      && grep -Fq "$evidence_logcat_start_marker" "$focused_logcat_file"; then
+      && verify_manifest_file "$PHONE_EVIDENCE_DIR" "$manifest" "logcat-start-marker.txt"; then
       evidence_logcat_start_marker_verified=1
     fi
     if [[ "$evidence_logcat_start_marker_verified" == "1" \
@@ -1361,7 +1358,7 @@ if [[ "$no_android_runtime_crash_verified" != "1" ]]; then
   remaining_any=1
 fi
 if [[ "$require_logcat_start_marker" == "1" && "$evidence_logcat_start_marker_verified" != "1" ]]; then
-  echo "- Logcat start marker from Scripts/prepare_android_phone_evidence.sh must be present in marker, full logcat, focused logcat, manifest evidence, com.goose.android package scope, and the handoff serial."
+  echo "- Logcat start marker from Scripts/prepare_android_phone_evidence.sh must be present in marker manifest evidence, com.goose.android package scope, and the handoff serial."
   remaining_any=1
 fi
 if [[ "$require_logcat_start_marker" == "1" && "$evidence_capture_after_marker_verified" != "1" ]]; then

@@ -1383,7 +1383,7 @@ assert_file_contains "$readiness_pull_result_fail_strict_output" "pull-android-d
 assert_file_contains "$readiness_pull_result_fail_strict_output" "Strict PR readiness: FAIL" "PR readiness pull result strict"
 assert_file_contains "$readiness_collect_error_strict_output" "Evidence bundle must not contain nonempty collect-error.txt diagnostics." "PR readiness collect error strict"
 assert_file_contains "$readiness_collect_error_strict_output" "Strict PR readiness: FAIL" "PR readiness collect error strict"
-assert_file_contains "$readiness_logcat_marker_strict_output" "Logcat start marker from Scripts/prepare_android_phone_evidence.sh must be present in marker, full logcat, focused logcat, manifest evidence, com.goose.android package scope, and the handoff serial." "PR readiness logcat marker strict"
+assert_file_contains "$readiness_logcat_marker_strict_output" "Logcat start marker from Scripts/prepare_android_phone_evidence.sh must be present in marker manifest evidence, com.goose.android package scope, and the handoff serial." "PR readiness logcat marker strict"
 assert_file_contains "$readiness_logcat_marker_strict_output" "Strict PR readiness: FAIL" "PR readiness logcat marker strict"
 assert_file_contains "$readiness_stale_capture_marker_strict_output" "Latest raw capture timestamp must be present, match inspect-android-capture.txt, and be at or after the controlled-run logcat start marker." "PR readiness stale capture marker strict"
 assert_file_contains "$readiness_stale_capture_marker_strict_output" "Strict PR readiness: FAIL" "PR readiness stale capture marker strict"

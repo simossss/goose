@@ -115,6 +115,7 @@ fn run() -> goose_core::GooseResult<()> {
         ("--algorithm-id", "algorithm_id"),
         ("--algorithm-version", "algorithm_version"),
         ("--capture-kind", "capture_kind"),
+        ("--capture-session-id", "capture_session_id"),
         ("--date-key", "date_key"),
         ("--timezone", "timezone"),
         ("--profile-sex", "profile_sex"),

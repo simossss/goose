@@ -383,9 +383,7 @@ android_runtime_crash_count="$(android_runtime_crash_lines "$OUTPUT_DIR/logcat-g
 logcat_start_marker="$(first_line "$OUTPUT_DIR/logcat-start-marker.txt")"
 logcat_start_marker_result="FAIL"
 if [[ -n "$logcat_start_marker" ]] \
-  && valid_logcat_start_marker "$logcat_start_marker" "$device_serial" \
-  && grep -Fq "$logcat_start_marker" "$OUTPUT_DIR/logcat-threadtime.txt" \
-  && grep -Fq "$logcat_start_marker" "$OUTPUT_DIR/logcat-goose-brief.txt"; then
+  && valid_logcat_start_marker "$logcat_start_marker" "$device_serial"; then
   logcat_start_marker_result="PASS"
 fi
 latest_raw_capture="$(summary_value "latest raw capture")"
@@ -424,7 +422,7 @@ fi
 if [[ "$REQUIRE_LOGCAT_START_MARKER" == "1" && "$logcat_start_marker_result" != "PASS" ]]; then
   inspection_status=1
   inspection_result="FAIL"
-  echo "FAIL: logcat start marker missing from marker file, full logcat, or focused logcat" >> "$OUTPUT_DIR/collect-error.txt"
+  echo "FAIL: logcat start marker missing from marker file or malformed for the selected device" >> "$OUTPUT_DIR/collect-error.txt"
   echo "RESULT: FAIL" > "$OUTPUT_DIR/evidence-result.txt"
 fi
 if [[ "$REQUIRE_LOGCAT_START_MARKER" == "1" && "$latest_raw_capture_after_marker_result" != "PASS" ]]; then

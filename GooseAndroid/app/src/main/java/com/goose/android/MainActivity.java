@@ -67,6 +67,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private TextView transferStatus;
     private TextView commandStatus;
     private TextView sessionStatus;
+    private TextView evidenceGuideStatus;
     private TextView healthConnectStatus;
     private TextView reportStatus;
     private TextView notificationLog;
@@ -91,6 +92,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private boolean captureSessionStartInProgress;
     private boolean captureSessionFinishInProgress;
     private boolean healthConnectSyncInProgress;
+    private boolean lastCommandReady;
+    private boolean lastHelloSent;
+    private String lastStepValidationSummary = "not run";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -194,6 +198,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             transferProgress.recordPacket(result, notification.capturedAtMillis);
             transferStatus.setText(transferProgress.summary());
             appendNotificationLog(stamp, notification.characteristicUuid, result.frameHex);
+            updateEvidenceGuideStatus();
         }));
     }
 
@@ -219,6 +224,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             if (connectionStatus != null) {
                 connectionStatus.setText(connectionProgressSummary(progress));
             }
+            lastCommandReady = progress.commandReady;
+            lastHelloSent = progress.helloSent;
+            updateEvidenceGuideStatus();
         });
     }
 
@@ -346,6 +354,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         sessionStatus = bodyText("Capture session: none");
         sessionStatus.setPadding(0, 8, 0, 0);
         captureSection.addView(sessionStatus);
+
+        evidenceGuideStatus = bodyText(evidenceGuideSummary());
+        evidenceGuideStatus.setPadding(0, 12, 0, 0);
+        captureSection.addView(evidenceGuideStatus);
 
         healthConnectStatus = bodyText("Health Connect: not checked");
         healthConnectStatus.setPadding(0, 8, 0, 0);
@@ -565,6 +577,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         if (healthConnectStatus != null) {
             healthConnectStatus.setText(healthConnectSupport.status());
         }
+        updateEvidenceGuideStatus();
     }
 
     private void runReport(ReportRunner runner) {
@@ -588,6 +601,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             return;
         }
         healthConnectSyncInProgress = true;
+        updateEvidenceGuideStatus();
         reportStatus.setText("Planning Health Connect sync...");
         refreshHealthConnectStatus();
         storeReporter.healthConnectDryRunPlan(
@@ -596,6 +610,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                     if (report == null) {
                         healthConnectSyncInProgress = false;
                         reportStatus.setText(truncateForDisplay(summary));
+                        updateEvidenceGuideStatus();
                         return;
                     }
                     String blockReason = healthConnectSyncBlockReason(report);
@@ -607,6 +622,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                             healthConnectSupport.requestPermissions(this);
                             refreshHealthConnectStatus();
                         }
+                        updateEvidenceGuideStatus();
                         return;
                     }
                     reportStatus.setText(truncateForDisplay(summary + "\n\nWriting Health Connect records..."));
@@ -615,6 +631,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                                 healthConnectSyncInProgress = false;
                                 reportStatus.setText(truncateForDisplay(summary + "\n\n" + writeReport));
                                 refreshHealthConnectStatus();
+                                updateEvidenceGuideStatus();
                             }));
                 })
         );
@@ -840,11 +857,13 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 runOnUiThreadIfAlive(() -> {
                     captureSessionStartInProgress = false;
                     sessionStatus.setText("Capture session active\n" + sessionId);
+                    updateEvidenceGuideStatus();
                 });
             } catch (Exception error) {
                 runOnUiThreadIfAlive(() -> {
                     captureSessionStartInProgress = false;
                     sessionStatus.setText("Capture session start failed\n" + error);
+                    updateEvidenceGuideStatus();
                 });
             }
         });
@@ -917,6 +936,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                         + sessionId
                         + "\nframes: " + frameCount
                         + "\n" + summarizeSession(report.optJSONObject("session"))));
+                runOnUiThreadIfAlive(this::updateEvidenceGuideStatus);
             } catch (Exception error) {
                 runOnUiThreadIfAlive(() -> sessionStatus.setText("Capture session finish failed\n"
                         + sessionId
@@ -960,6 +980,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         validationStart = iso8601(System.currentTimeMillis());
         validationEnd = UNSET_VALIDATION_END;
         reportStatus.setText("Step validation start\n" + validationStart);
+        updateEvidenceGuideStatus();
     }
 
     private void markValidationEnd() {
@@ -974,6 +995,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         }
         validationEnd = iso8601(System.currentTimeMillis());
         reportStatus.setText("Step validation end\n" + validationEnd);
+        updateEvidenceGuideStatus();
     }
 
     private void runStepValidation() {
@@ -1001,10 +1023,15 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             reportStatus.setText("Step validation blocked\n" + blockReason);
             return;
         }
+        String validationEvidenceEnd = iso8601(System.currentTimeMillis());
         reportStatus.setText("Running step validation...\n"
                 + "capture session: " + captureSessionId);
-        storeReporter.stepValidation(validationStart, validationEnd, manualSteps, captureSessionId,
-                report -> runOnUiThreadIfAlive(() -> reportStatus.setText(truncateForDisplay(report))));
+        storeReporter.stepValidation(validationStart, validationEvidenceEnd, manualSteps, captureSessionId,
+                report -> runOnUiThreadIfAlive(() -> {
+                    lastStepValidationSummary = stepValidationEvidenceSummary(report);
+                    reportStatus.setText(truncateForDisplay(report));
+                    updateEvidenceGuideStatus();
+                }));
     }
 
     private void runRawMotionStepEstimate() {
@@ -1023,7 +1050,11 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         }
         reportStatus.setText("Running raw-motion step estimate...");
         storeReporter.rawMotionStepEstimate(validationStart, validationEnd, manualSteps,
-                report -> runOnUiThreadIfAlive(() -> reportStatus.setText(truncateForDisplay(report))));
+                report -> runOnUiThreadIfAlive(() -> {
+                    lastStepValidationSummary = rawMotionEvidenceSummary(report);
+                    reportStatus.setText(truncateForDisplay(report));
+                    updateEvidenceGuideStatus();
+                }));
     }
 
     static String stepValidationBlockReason(
@@ -1120,6 +1151,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private void resetValidationWindow() {
         validationStart = UNSET_VALIDATION_START;
         validationEnd = UNSET_VALIDATION_END;
+        lastStepValidationSummary = "not run";
     }
 
     private void updateActiveCaptureSessionStatus() {
@@ -1130,6 +1162,83 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         sessionStatus.setText("Capture session active\n"
                 + sessionId
                 + "\nframes: " + packetIngestor.activeCaptureSessionFrameCount());
+        updateEvidenceGuideStatus();
+    }
+
+    private void updateEvidenceGuideStatus() {
+        if (evidenceGuideStatus != null) {
+            evidenceGuideStatus.setText(evidenceGuideSummary());
+        }
+    }
+
+    private String evidenceGuideSummary() {
+        String sessionState;
+        if (activeCaptureSessionId != null && !activeCaptureSessionId.trim().isEmpty()) {
+            sessionState = "active, frames " + packetIngestor.activeCaptureSessionFrameCount();
+        } else if (lastFinishedCaptureSessionId != null && !lastFinishedCaptureSessionId.trim().isEmpty()) {
+            sessionState = "finished, frames " + lastFinishedCaptureFrameCount;
+        } else {
+            sessionState = "not started";
+        }
+        return "Evidence run"
+                + "\nBLE: command ready " + lastCommandReady + ", hello sent " + lastHelloSent
+                + "\nCapture: " + sessionState
+                + "\nDecoded packets: " + transferProgress.decodedInserted()
+                + ", history: " + transferProgress.normalHistoryCount()
+                + ", motion: " + transferProgress.rawMotionCount()
+                + "\nStep window: " + validationWindowState()
+                + "\nStep result: " + lastStepValidationSummary
+                + "\nHealth Connect: " + healthConnectStatusText();
+    }
+
+    private String validationWindowState() {
+        boolean hasStart = validationStart != null
+                && !validationStart.trim().isEmpty()
+                && !UNSET_VALIDATION_START.equals(validationStart);
+        boolean hasEnd = validationEnd != null
+                && !validationEnd.trim().isEmpty()
+                && !UNSET_VALIDATION_END.equals(validationEnd);
+        if (hasStart && hasEnd) {
+            return "marked";
+        }
+        if (hasStart) {
+            return "started";
+        }
+        return "not started";
+    }
+
+    private String healthConnectStatusText() {
+        if (healthConnectSyncInProgress) {
+            return "sync running";
+        }
+        return healthConnectSupport != null ? healthConnectSupport.status() : "not checked";
+    }
+
+    private String stepValidationEvidenceSummary(String report) {
+        if (report.contains("pass: true")) {
+            return "counter delta found";
+        }
+        if (report.contains("no_explicit_step_counter_field_found")
+                || report.contains("no_step_or_pedometer_fields_in_decoded_frames")
+                || report.contains("counter deltas: 0")) {
+            return "no explicit step counter in decoded frames";
+        }
+        if (report.contains("session decoded frames: 0")) {
+            return "no decoded frames in capture session";
+        }
+        return firstLine(report);
+    }
+
+    private String rawMotionEvidenceSummary(String report) {
+        if (report.contains("pass: true")) {
+            return "raw-motion estimate accepted";
+        }
+        return firstLine(report);
+    }
+
+    private String firstLine(String value) {
+        int newline = value.indexOf('\n');
+        return newline >= 0 ? value.substring(0, newline) : value;
     }
 
     private void appendNotificationLog(String stamp, String characteristicUuid, String frameHex) {
@@ -1415,6 +1524,18 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                     + ", existing decoded: " + existingDecoded
                     + "\nlast packet: " + lastPacket
                     + (lastPacketAtMillis > 0 ? " at " + time(lastPacketAtMillis) : "");
+        }
+
+        int decodedInserted() {
+            return decodedInserted;
+        }
+
+        int normalHistoryCount() {
+            return normalHistoryCount;
+        }
+
+        int rawMotionCount() {
+            return rawMotionCount;
         }
 
         private void updateHistoryMarkers(String eventName) {

@@ -102,6 +102,81 @@ fn step_packet_discovery_blocks_when_motion_decode_exposes_no_pedometer_fields()
 }
 
 #[test]
+fn step_packet_discovery_surfaces_hidden_history_body_counter_candidates() {
+    let rows = vec![
+        decoded_frame_row(
+            "history-frame-1",
+            "2026-06-02T12:00:00Z",
+            "HISTORICAL_DATA",
+            json!({
+                "kind": "data_packet",
+                "packet_k": 18,
+                "domain": "normal_history_with_hr_marker",
+                "body_hex": "0000000000000000000000000000000000000000000000000000000000000000000000001027000000",
+                "body_summary": {
+                    "kind": "normal_history",
+                    "hr_present": true,
+                    "marker_offset": 14,
+                    "marker_value": 72
+                },
+                "warnings": []
+            }),
+        ),
+        decoded_frame_row(
+            "history-frame-2",
+            "2026-06-02T12:01:00Z",
+            "HISTORICAL_DATA",
+            json!({
+                "kind": "data_packet",
+                "packet_k": 18,
+                "domain": "normal_history_with_hr_marker",
+                "body_hex": "0000000000000000000000000000000000000000000000000000000000000000000000002a27000000",
+                "body_summary": {
+                    "kind": "normal_history",
+                    "hr_present": true,
+                    "marker_offset": 14,
+                    "marker_value": 72
+                },
+                "warnings": []
+            }),
+        ),
+    ];
+
+    let report = run_step_capture_validation(
+        &rows,
+        "synthetic.sqlite",
+        "2026-06-02T12:00:00Z",
+        "2026-06-02T12:10:00Z",
+        StepCaptureValidationOptions {
+            manual_step_delta: Some(26),
+            tolerance_steps: 0,
+            ..StepCaptureValidationOptions::default()
+        },
+    )
+    .unwrap();
+
+    assert!(!report.pass);
+    assert!(report.counter_delta_candidate_count >= 1);
+    let delta = report
+        .counter_deltas
+        .iter()
+        .find(|delta| delta.field_name == "body_u16le_36")
+        .expect("body offset counter delta");
+    assert_eq!(delta.match_kind, "monotonic_counter_candidate");
+    assert_eq!(delta.field_name, "body_u16le_36");
+    assert_eq!(delta.delta, 26);
+    assert_eq!(
+        delta.selection_reason,
+        "hidden_counter_matches_labels_requires_parser_mapping"
+    );
+    assert!(
+        report
+            .issues
+            .contains(&"matching_counter_delta_requires_parser_mapping".to_string())
+    );
+}
+
+#[test]
 fn step_packet_discovery_skips_unrelated_command_frames() {
     let rows = vec![decoded_frame_row(
         "command-frame-1",

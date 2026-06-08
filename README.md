@@ -408,7 +408,10 @@ The remaining phone-dependent work is physical WHOOP strap validation with a
 command-ready BLE hello audit, final capture-session-bound step-counter decoder
 confirmation, and Health Connect permission/write testing with real planned
 writes plus permissions-ready write-attempt and record-summary evidence on a
-real Android device.
+real Android device. K18 `body_u16le_36` is the current monotonic diagnostic
+step-counter candidate; keep it gated until a full app comparison against WHOOP
+step labels confirms that its selected deltas match the supplied validation
+labels.
 
 ## Data And Privacy
 

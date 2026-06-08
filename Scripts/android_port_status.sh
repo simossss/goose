@@ -107,7 +107,7 @@ Phone-bound completion checks:
   4. Controlled capture pull with decoded frames, session-tagged Android BLE live-notification raw evidence, and daily activity provenance counts inspected with Scripts/inspect_android_capture.sh.
   5. Latest raw capture timestamp is at or after the controlled-run logcat start marker.
   6. Evidence bundle manifest with path, byte count, and SHA-256 for pulled files.
-  7. Step-counter decoder confirmation from real counted-step evidence bound to a decoded capture session with a nonzero selected counter delta.
+  7. Step-counter decoder confirmation from real counted-step evidence bound to a decoded capture session with a selected counter delta that matches supplied validation labels. K18 body_u16le_36 is the current diagnostic candidate, not promoted.
   8. Health Connect permission grant and real planned write attempt on Android 14+ with permissions-ready planned-write evidence plus record-summary provenance counts.
   9. Focused AndroidRuntime logcat has no com.goose.android crash lines.
 
