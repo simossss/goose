@@ -78,6 +78,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private TextView screenTitle;
     private TextView screenSubtitle;
     private Button deviceToolbarButton;
+    private TextView deviceHeaderStatus;
+    private TextView deviceHeaderName;
+    private TextView deviceHeaderLastSync;
+    private TextView deviceBatteryValue;
     private LinearLayout homeSection;
     private LinearLayout captureSection;
     private LinearLayout reportsSection;
@@ -103,6 +107,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private boolean lastCommandReady;
     private boolean lastHelloSent;
     private String lastStepValidationSummary = "not run";
+    private String lastBleStatus = "Not connected";
+    private String selectedDeviceName = "WHOOP";
+    private String selectedDeviceAddress = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -167,6 +174,8 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 pendingCommand = null;
             }
             bleStatus.setText(status);
+            lastBleStatus = status;
+            updateDeviceHeader();
         });
     }
 
@@ -212,7 +221,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     @Override
     public void onMetadataChanged(String metadata) {
-        runOnUiThreadIfAlive(() -> metadataStatus.setText(metadata));
+        runOnUiThreadIfAlive(() -> {
+            metadataStatus.setText(metadata);
+            updateDeviceHeader();
+        });
     }
 
     @Override
@@ -234,6 +246,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             }
             lastCommandReady = progress.commandReady;
             lastHelloSent = progress.helloSent;
+            updateDeviceHeader();
             updateEvidenceGuideStatus();
         });
     }
@@ -335,16 +348,6 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         reportsSection.addView(metricCard("Energy Bank", "--", "Local energy estimate unavailable", COLOR_RECOVERY));
         reportsSection.addView(sectionText("Data & Algorithms"));
         reportsSection.addView(metricCard("Step counter", "K18", "body_u16le_36 is the current diagnostic candidate", COLOR_PRIMARY));
-        reportsSection.addView(actionRow(new Button[]{
-                reportButton("Heart", storeReporter::heartRateFeatures),
-                reportButton("Steps", storeReporter::stepDiscovery),
-                reportButton("Sensors", storeReporter::recoverySensors)
-        }));
-        reportsSection.addView(actionRow(new Button[]{
-                secondaryAction("Motion", view -> runRawMotionStepEstimate()),
-                reportButton("Timeline", storeReporter::captureTimeline),
-                reportButton("Readiness", storeReporter::readiness)
-        }));
 
         captureSection.addView(deviceHeaderCard());
         captureSection.addView(sectionText("Status"));
@@ -490,6 +493,17 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 reportButton("Blocked", storeReporter::unavailableStatuses),
                 reportButton("Backfill", storeReporter::decodeBackfill)
         }));
+        opsSection.addView(sectionText("Developer"));
+        opsSection.addView(actionRow(new Button[]{
+                reportButton("Heart", storeReporter::heartRateFeatures),
+                reportButton("Steps", storeReporter::stepDiscovery),
+                reportButton("Sensors", storeReporter::recoverySensors)
+        }));
+        opsSection.addView(actionRow(new Button[]{
+                secondaryAction("Motion", view -> runRawMotionStepEstimate()),
+                reportButton("Timeline", storeReporter::captureTimeline),
+                reportButton("Readiness", storeReporter::readiness)
+        }));
 
         LinearLayout evidenceActions = new LinearLayout(this);
         evidenceActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -566,6 +580,8 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
 
     private void refreshPermissionState() {
         bleStatus.setText(ble.hasRuntimePermissions() ? "Bluetooth permissions granted" : "Bluetooth permissions required");
+        lastBleStatus = ble.hasRuntimePermissions() ? "Bluetooth permissions granted" : "Bluetooth permissions required";
+        updateDeviceHeader();
         refreshStoreStatus();
     }
 
@@ -574,7 +590,67 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         requestPermissions(permissions.toArray(new String[0]), PERMISSION_REQUEST_BLE);
     }
 
+    private void updateDeviceHeader() {
+        if (deviceHeaderStatus == null || deviceHeaderName == null || deviceHeaderLastSync == null) {
+            return;
+        }
+        String status = deviceConnectionHeadline();
+        boolean connected = status.equals("CONNECTED");
+        boolean connecting = status.equals("CONNECTING") || status.equals("SCANNING");
+        deviceHeaderStatus.setText(status);
+        deviceHeaderStatus.setTextColor(connected ? COLOR_RECOVERY : (connecting ? COLOR_STRAIN : COLOR_DANGER));
+        deviceHeaderName.setText(selectedDeviceName == null || selectedDeviceName.trim().isEmpty()
+                ? "WHOOP"
+                : selectedDeviceName);
+        String detail = selectedDeviceAddress == null || selectedDeviceAddress.isEmpty()
+                ? "Last sync: not synced"
+                : "Selected: " + selectedDeviceAddress;
+        if (lastCommandReady && lastHelloSent) {
+            detail = "Ready; hello sent";
+        } else if (lastCommandReady) {
+            detail = "Ready; hello pending";
+        }
+        deviceHeaderLastSync.setText(detail);
+        if (deviceBatteryValue != null) {
+            deviceBatteryValue.setText(metadataValue("Battery", "--%"));
+        }
+    }
+
+    private String deviceConnectionHeadline() {
+        String value = lastBleStatus == null ? "" : lastBleStatus.toLowerCase(Locale.US);
+        if (lastCommandReady || value.startsWith("ready") || value.startsWith("connected")
+                || value.contains("subscribed")) {
+            return "CONNECTED";
+        }
+        if (value.contains("connecting") || value.contains("discover")) {
+            return "CONNECTING";
+        }
+        if (value.contains("scan")) {
+            return "SCANNING";
+        }
+        return "NOT CONNECTED";
+    }
+
+    private String metadataValue(String key, String fallback) {
+        if (metadataStatus == null) {
+            return fallback;
+        }
+        String metadata = metadataStatus.getText().toString();
+        String prefix = key + ": ";
+        for (String line : metadata.split("\\R")) {
+            if (line.startsWith(prefix)) {
+                String value = line.substring(prefix.length()).trim();
+                return value.isEmpty() ? fallback : value;
+            }
+        }
+        return fallback;
+    }
+
     private void connectToDevice(GooseBleClient.DeviceRow device) {
+        selectedDeviceName = device.name;
+        selectedDeviceAddress = device.address;
+        lastBleStatus = "Connecting " + device.name;
+        updateDeviceHeader();
         bleStatus.setText("Connecting " + device.name);
         if (connectionStatus != null) {
             connectionStatus.setText("Connection progress\nphase: connecting\nselected: " + device.address);
@@ -1772,11 +1848,13 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         row.setGravity(Gravity.BOTTOM);
         LinearLayout copy = new LinearLayout(this);
         copy.setOrientation(LinearLayout.VERTICAL);
-        TextView status = eyebrowText("NOT CONNECTED");
-        status.setTextColor(COLOR_DANGER);
-        copy.addView(status);
-        copy.addView(cardTitle("WHOOP"));
-        copy.addView(bodyText("Last sync: not synced"));
+        deviceHeaderStatus = eyebrowText("NOT CONNECTED");
+        deviceHeaderStatus.setTextColor(COLOR_DANGER);
+        copy.addView(deviceHeaderStatus);
+        deviceHeaderName = cardTitle("WHOOP");
+        copy.addView(deviceHeaderName);
+        deviceHeaderLastSync = bodyText("Last sync: not synced");
+        copy.addView(deviceHeaderLastSync);
         row.addView(copy, weightWrap());
         Button refresh = secondaryButton("Refresh");
         refresh.setOnClickListener(view -> refreshAllStatus());
@@ -1790,12 +1868,12 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        TextView battery = new TextView(this);
-        battery.setText("--%");
-        battery.setTextSize(54);
-        battery.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        battery.setTextColor(COLOR_TEXT);
-        row.addView(battery, weightWrap());
+        deviceBatteryValue = new TextView(this);
+        deviceBatteryValue.setText("--%");
+        deviceBatteryValue.setTextSize(54);
+        deviceBatteryValue.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        deviceBatteryValue.setTextColor(COLOR_TEXT);
+        row.addView(deviceBatteryValue, weightWrap());
         TextView rail = new TextView(this);
         rail.setText(" ");
         rail.setBackground(panelBackground(Color.rgb(234, 179, 8), Color.rgb(234, 179, 8), 8));
