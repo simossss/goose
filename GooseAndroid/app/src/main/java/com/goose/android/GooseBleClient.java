@@ -209,6 +209,8 @@ final class GooseBleClient {
     private static final int MAX_ADVERTISEMENT_DISPLAY_LINES = 4;
     private static final int MAX_ADVERTISEMENT_DISPLAY_CHARS = 220;
     private static final long DEVICE_PUBLISH_INTERVAL_MS = 750;
+    private static final String PREFS_NAME = "goose_ble";
+    private static final String PREF_REMEMBERED_DEVICE_ID = "remembered_device_id";
 
     private final Context context;
     private final Listener listener;
@@ -226,6 +228,10 @@ final class GooseBleClient {
     private boolean closed;
     private long lastDevicePublishAtMillis;
     private boolean clientHelloSent;
+    private boolean autoReconnectEnabled;
+    private boolean reconnectScheduled;
+    private int reconnectAttempt;
+    private String rememberedDeviceId;
     private int subscriptionCount;
     private int completedOperationCount;
     private int serviceCount;
@@ -253,6 +259,9 @@ final class GooseBleClient {
         if (manager != null) {
             adapter = manager.getAdapter();
         }
+        rememberedDeviceId = this.context
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(PREF_REMEMBERED_DEVICE_ID, null);
     }
 
     boolean hasRuntimePermissions() {
@@ -317,7 +326,27 @@ final class GooseBleClient {
 
     @SuppressLint("MissingPermission")
     void connect(String address) {
+        rememberedDeviceId = address;
+        saveRememberedDevice(address);
+        autoReconnectEnabled = true;
+        reconnectAttempt = 0;
+        connectInternal(address, false, "Connecting");
+    }
+
+    @SuppressLint("MissingPermission")
+    void reconnectRemembered() {
+        if (rememberedDeviceId == null || rememberedDeviceId.isEmpty()) {
+            listener.onStateChanged("Reconnect blocked: no remembered WHOOP");
+            return;
+        }
+        autoReconnectEnabled = true;
+        connectInternal(rememberedDeviceId, true, "Reconnecting");
+    }
+
+    @SuppressLint("MissingPermission")
+    private void connectInternal(String address, boolean autoConnect, String labelPrefix) {
         closed = false;
+        reconnectScheduled = false;
         if (!hasRuntimePermissions()) {
             listener.onStateChanged("Bluetooth permissions required");
             return;
@@ -332,18 +361,22 @@ final class GooseBleClient {
             gatt = null;
         }
         BluetoothDevice device = adapter.getRemoteDevice(address);
-        listener.onStateChanged("Connecting " + displayName(device));
+        listener.onStateChanged(labelPrefix + " " + displayName(device));
         activeDeviceId = address;
         clientHelloSent = false;
         commandCharacteristic = null;
         resetOperations();
         resetDiscoveryCounts();
-        emitConnectionProgress("connecting", null);
-        gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE);
+        emitConnectionProgress(autoConnect ? "reconnecting" : "connecting", null);
+        gatt = device.connectGatt(context, autoConnect, gattCallback, BluetoothDevice.TRANSPORT_LE);
     }
 
     String activeDeviceId() {
         return activeDeviceId;
+    }
+
+    boolean hasRememberedDevice() {
+        return rememberedDeviceId != null && !rememberedDeviceId.isEmpty();
     }
 
     boolean commandReady() {
@@ -415,6 +448,8 @@ final class GooseBleClient {
     @SuppressLint("MissingPermission")
     void close() {
         closed = true;
+        autoReconnectEnabled = false;
+        reconnectScheduled = false;
         mainHandler.removeCallbacksAndMessages(null);
         stopScan();
         if (gatt != null && hasRuntimePermissions()) {
@@ -644,6 +679,32 @@ final class GooseBleClient {
         }
     }
 
+    private void scheduleReconnect(String address) {
+        if (closed || !autoReconnectEnabled || address == null || address.isEmpty() || reconnectScheduled) {
+            return;
+        }
+        rememberedDeviceId = address;
+        saveRememberedDevice(address);
+        reconnectScheduled = true;
+        reconnectAttempt += 1;
+        long delayMillis = Math.min(30000L, 3000L * reconnectAttempt);
+        listener.onStateChanged("Disconnected; reconnecting in " + (delayMillis / 1000) + "s");
+        mainHandler.postDelayed(() -> {
+            reconnectScheduled = false;
+            if (closed || !autoReconnectEnabled || rememberedDeviceId == null || gatt != null) {
+                return;
+            }
+            reconnectRemembered();
+        }, delayMillis);
+    }
+
+    private void saveRememberedDevice(String address) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString(PREF_REMEMBERED_DEVICE_ID, address)
+                .apply();
+    }
+
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
         @Override
         @SuppressLint("MissingPermission")
@@ -652,6 +713,8 @@ final class GooseBleClient {
                 return;
             }
             if (newState == BluetoothProfile.STATE_CONNECTED) {
+                reconnectAttempt = 0;
+                reconnectScheduled = false;
                 listener.onStateChanged("Connected; discovering services");
                 clientHelloSent = false;
                 commandCharacteristic = null;
@@ -660,13 +723,21 @@ final class GooseBleClient {
                 emitConnectionProgress("connected", null);
                 gatt.discoverServices();
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                String reconnectAddress = activeDeviceId != null ? activeDeviceId : rememberedDeviceId;
                 clientHelloSent = false;
                 commandCharacteristic = null;
                 activeDeviceId = null;
+                if (GooseBleClient.this.gatt != null && hasRuntimePermissions()) {
+                    GooseBleClient.this.gatt.close();
+                }
+                GooseBleClient.this.gatt = null;
                 resetOperations();
                 resetDiscoveryCounts();
-                listener.onStateChanged("Disconnected");
+                listener.onStateChanged(autoReconnectEnabled && reconnectAddress != null
+                        ? "Disconnected; reconnect scheduled"
+                        : "Disconnected");
                 emitConnectionProgress("disconnected", null);
+                scheduleReconnect(reconnectAddress);
             }
         }
 

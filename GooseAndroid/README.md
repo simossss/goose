@@ -255,6 +255,10 @@ These files are build artifacts and are ignored by git.
 - Shows structured connection progress across scanning, device selection,
   service discovery, notification/read candidate discovery, queued/completed GATT
   operations, subscription count, command readiness, and client-hello state.
+- Remembers the last tapped WHOOP and schedules bounded auto-reconnect attempts
+  after BLE disconnects, with a foreground connected-device keep-alive service
+  started after Bluetooth permissions are granted so long activity captures are
+  not dependent on manually babysitting the screen.
 - Replaces the initial debug-only surface with an iOS-matched Android product
   shell: Home, Health, Coach, and More primary tabs, with Device opened from
   the Home toolbar or More. Home follows the iOS Today order: daily scores,

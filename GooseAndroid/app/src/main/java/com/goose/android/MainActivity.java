@@ -1,9 +1,11 @@
 package com.goose.android;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
@@ -123,6 +125,14 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         setContentView(buildContentView());
         refreshBridgeStatus();
         refreshPermissionState();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (ble != null && ble.hasRememberedDevice()) {
+            ble.reconnectRemembered();
+        }
     }
 
     @Override
@@ -581,8 +591,27 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private void refreshPermissionState() {
         bleStatus.setText(ble.hasRuntimePermissions() ? "Bluetooth permissions granted" : "Bluetooth permissions required");
         lastBleStatus = ble.hasRuntimePermissions() ? "Bluetooth permissions granted" : "Bluetooth permissions required";
+        startBleKeepAliveIfPermitted();
         updateDeviceHeader();
         refreshStoreStatus();
+    }
+
+    private void startBleKeepAliveIfPermitted() {
+        if (!ble.hasRuntimePermissions()) {
+            return;
+        }
+        Intent keepAliveIntent = new Intent(this, GooseBleKeepAliveService.class);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(keepAliveIntent);
+            } else {
+                startService(keepAliveIntent);
+            }
+        } catch (RuntimeException error) {
+            if (bleStatus != null) {
+                bleStatus.setText("BLE keep-alive unavailable: " + error.getClass().getSimpleName());
+            }
+        }
     }
 
     private void requestBlePermissions() {
@@ -647,6 +676,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     }
 
     private void connectToDevice(GooseBleClient.DeviceRow device) {
+        startBleKeepAliveIfPermitted();
         selectedDeviceName = device.name;
         selectedDeviceAddress = device.address;
         lastBleStatus = "Connecting " + device.name;
