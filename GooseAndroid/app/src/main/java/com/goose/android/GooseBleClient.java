@@ -27,11 +27,13 @@ import android.os.Looper;
 import java.util.ArrayList;
 import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.UUID;
 
 final class GooseBleClient {
@@ -209,6 +211,13 @@ final class GooseBleClient {
     private static final int MAX_ADVERTISEMENT_DISPLAY_LINES = 4;
     private static final int MAX_ADVERTISEMENT_DISPLAY_CHARS = 220;
     private static final long DEVICE_PUBLISH_INTERVAL_MS = 750;
+    private static final long KEEPALIVE_INTERVAL_MS = 30000L;
+    private static final long KEEPALIVE_QUIET_MS = 45000L;
+    private static final long KEEPALIVE_STALL_MS = 120000L;
+    private static final long STALLED_DISCONNECT_GRACE_MS = 5000L;
+    private static final long GATT_OPERATION_TIMEOUT_MS = 20000L;
+    private static final long GATT_RETRY_DELAY_MS = 350L;
+    private static final int MAX_CCCD_START_RETRIES = 3;
     private static final String PREFS_NAME = "goose_ble";
     private static final String PREF_REMEMBERED_DEVICE_ID = "remembered_device_id";
 
@@ -238,7 +247,11 @@ final class GooseBleClient {
     private int interestingServiceCount;
     private int notificationCandidateCount;
     private int readCandidateCount;
+    private long lastGattActivityAtMillis;
+    private long lastNotificationAtMillis;
+    private long activeOperationStartedAtMillis;
     private final Map<String, String> metadata = new LinkedHashMap<>();
+    private final Set<String> subscribedCharacteristicKeys = new HashSet<>();
 
     private interface GattOperation {
         boolean start(BluetoothGatt gatt);
@@ -249,6 +262,14 @@ final class GooseBleClient {
         }
 
         default void onComplete(String error) {
+        }
+
+        default boolean shouldRetryStartFailure() {
+            return false;
+        }
+
+        default long retryDelayMillis() {
+            return GATT_RETRY_DELAY_MS;
         }
     }
 
@@ -368,7 +389,10 @@ final class GooseBleClient {
         resetOperations();
         resetDiscoveryCounts();
         emitConnectionProgress(autoConnect ? "reconnecting" : "connecting", null);
-        gatt = device.connectGatt(context, autoConnect, gattCallback, BluetoothDevice.TRANSPORT_LE);
+        stopKeepAlive();
+        lastGattActivityAtMillis = System.currentTimeMillis();
+        lastNotificationAtMillis = lastGattActivityAtMillis;
+        gatt = connectGatt(device, autoConnect);
     }
 
     String activeDeviceId() {
@@ -463,6 +487,32 @@ final class GooseBleClient {
         resetOperations();
         resetDiscoveryCounts();
         emitConnectionProgress("closed", null);
+    }
+
+    @SuppressLint("MissingPermission")
+    private BluetoothGatt connectGatt(BluetoothDevice device, boolean autoConnect) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            return device.connectGatt(
+                    context,
+                    autoConnect,
+                    gattCallback,
+                    BluetoothDevice.TRANSPORT_LE,
+                    BluetoothDevice.PHY_LE_1M_MASK,
+                    mainHandler
+            );
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return device.connectGatt(context, autoConnect, gattCallback, BluetoothDevice.TRANSPORT_LE);
+        }
+        return device.connectGatt(context, autoConnect, gattCallback);
+    }
+
+    private void runOnMain(Runnable runnable) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            runnable.run();
+        } else {
+            mainHandler.post(runnable);
+        }
     }
 
     private final ScanCallback scanCallback = new ScanCallback() {
@@ -709,12 +759,18 @@ final class GooseBleClient {
         @Override
         @SuppressLint("MissingPermission")
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+            if (Looper.myLooper() != Looper.getMainLooper()) {
+                runOnMain(() -> onConnectionStateChange(gatt, status, newState));
+                return;
+            }
             if (!isCurrentGattCallback(gatt, GooseBleClient.this.gatt)) {
                 return;
             }
+            lastGattActivityAtMillis = System.currentTimeMillis();
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 reconnectAttempt = 0;
                 reconnectScheduled = false;
+                lastNotificationAtMillis = System.currentTimeMillis();
                 listener.onStateChanged("Connected; discovering services");
                 clientHelloSent = false;
                 commandCharacteristic = null;
@@ -723,6 +779,7 @@ final class GooseBleClient {
                 emitConnectionProgress("connected", null);
                 gatt.discoverServices();
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                stopKeepAlive();
                 String reconnectAddress = activeDeviceId != null ? activeDeviceId : rememberedDeviceId;
                 clientHelloSent = false;
                 commandCharacteristic = null;
@@ -743,9 +800,14 @@ final class GooseBleClient {
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            if (Looper.myLooper() != Looper.getMainLooper()) {
+                runOnMain(() -> onServicesDiscovered(gatt, status));
+                return;
+            }
             if (!isCurrentGattCallback(gatt, GooseBleClient.this.gatt)) {
                 return;
             }
+            lastGattActivityAtMillis = System.currentTimeMillis();
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 listener.onStateChanged("Service discovery failed: " + status);
                 emitConnectionProgress("service_discovery_failed", "status " + status);
@@ -780,9 +842,16 @@ final class GooseBleClient {
 
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
+            if (Looper.myLooper() != Looper.getMainLooper()) {
+                byte[] valueCopy = value != null ? value.clone() : new byte[0];
+                runOnMain(() -> onCharacteristicChanged(gatt, characteristic, valueCopy));
+                return;
+            }
             if (!isCurrentGattCallback(gatt, GooseBleClient.this.gatt)) {
                 return;
             }
+            lastGattActivityAtMillis = System.currentTimeMillis();
+            lastNotificationAtMillis = lastGattActivityAtMillis;
             listener.onNotification(new GooseNotification(
                     characteristic.getService().getUuid().toString(),
                     characteristic.getUuid().toString(),
@@ -805,25 +874,41 @@ final class GooseBleClient {
 
         @Override
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+            if (Looper.myLooper() != Looper.getMainLooper()) {
+                runOnMain(() -> onDescriptorWrite(gatt, descriptor, status));
+                return;
+            }
             if (!isCurrentGattCallback(gatt, GooseBleClient.this.gatt)) {
                 return;
             }
+            lastGattActivityAtMillis = System.currentTimeMillis();
             finishActiveOperation(gatt, status == BluetoothGatt.GATT_SUCCESS ? null : "Descriptor write failed: " + status);
         }
 
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            if (Looper.myLooper() != Looper.getMainLooper()) {
+                runOnMain(() -> onCharacteristicWrite(gatt, characteristic, status));
+                return;
+            }
             if (!isCurrentGattCallback(gatt, GooseBleClient.this.gatt)) {
                 return;
             }
+            lastGattActivityAtMillis = System.currentTimeMillis();
             finishActiveOperation(gatt, status == BluetoothGatt.GATT_SUCCESS ? null : "Characteristic write failed: " + status);
         }
 
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value, int status) {
+            if (Looper.myLooper() != Looper.getMainLooper()) {
+                byte[] valueCopy = value != null ? value.clone() : new byte[0];
+                runOnMain(() -> onCharacteristicRead(gatt, characteristic, valueCopy, status));
+                return;
+            }
             if (!isCurrentGattCallback(gatt, GooseBleClient.this.gatt)) {
                 return;
             }
+            lastGattActivityAtMillis = System.currentTimeMillis();
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 handleReadValue(characteristic, value);
             }
@@ -854,16 +939,18 @@ final class GooseBleClient {
         }
         BluetoothGattDescriptor descriptor = characteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
         operationQueue.add(new GattOperation() {
+            private int startFailures;
+
             @Override
             @SuppressLint("MissingPermission")
             public boolean start(BluetoothGatt gatt) {
                 if (!gatt.setCharacteristicNotification(characteristic, true)) {
                     return false;
                 }
-                subscriptionCount += 1;
                 if (descriptor == null) {
-                    listener.onStateChanged("Subscribed " + subscriptionCount + " characteristics");
-                    return false;
+                    rememberSubscription(characteristic);
+                    mainHandler.post(() -> finishActiveOperation(gatt, null));
+                    return true;
                 }
                 byte[] value = supportsNotify
                         ? BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
@@ -878,6 +965,19 @@ final class GooseBleClient {
             @Override
             public String label() {
                 return "subscribe " + characteristic.getUuid();
+            }
+
+            @Override
+            public void onComplete(String error) {
+                if (error == null) {
+                    rememberSubscription(characteristic);
+                }
+            }
+
+            @Override
+            public boolean shouldRetryStartFailure() {
+                startFailures += 1;
+                return startFailures <= MAX_CCCD_START_RETRIES;
             }
         });
     }
@@ -919,6 +1019,10 @@ final class GooseBleClient {
     }
 
     private void drainOperationQueue(BluetoothGatt gatt) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            runOnMain(() -> drainOperationQueue(gatt));
+            return;
+        }
         if (activeOperation != null) {
             return;
         }
@@ -928,7 +1032,16 @@ final class GooseBleClient {
             emitConnectionProgress("operation_start", null);
             boolean async = next.start(gatt);
             if (async) {
+                activeOperationStartedAtMillis = System.currentTimeMillis();
                 next.onStarted();
+                return;
+            }
+            if (next.shouldRetryStartFailure()) {
+                long retryDelayMillis = next.retryDelayMillis();
+                activeOperation = null;
+                operationQueue.add(next);
+                emitConnectionProgress("operation_retry", "not started", next.label());
+                mainHandler.postDelayed(() -> drainOperationQueue(gatt), retryDelayMillis);
                 return;
             }
             next.onComplete("not started");
@@ -936,9 +1049,14 @@ final class GooseBleClient {
         }
         listener.onStateChanged("Ready; subscribed " + subscriptionCount + " characteristics; hello " + (clientHelloSent ? "sent" : "not sent"));
         emitConnectionProgress("ready", null);
+        startKeepAlive();
     }
 
     private void finishActiveOperation(BluetoothGatt gatt, String error) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            runOnMain(() -> finishActiveOperation(gatt, error));
+            return;
+        }
         String label = activeOperation != null ? activeOperation.label() : "unknown";
         GattOperation completedOperation = activeOperation;
         activeOperation = null;
@@ -953,11 +1071,121 @@ final class GooseBleClient {
         drainOperationQueue(gatt);
     }
 
+    private void startKeepAlive() {
+        stopKeepAlive();
+        if (closed || gatt == null) {
+            return;
+        }
+        if (lastGattActivityAtMillis <= 0) {
+            lastGattActivityAtMillis = System.currentTimeMillis();
+        }
+        mainHandler.postDelayed(keepAliveRunnable, KEEPALIVE_INTERVAL_MS);
+    }
+
+    private void stopKeepAlive() {
+        mainHandler.removeCallbacks(keepAliveRunnable);
+    }
+
+    private final Runnable keepAliveRunnable = new Runnable() {
+        @Override
+        public void run() {
+            keepAlive();
+        }
+    };
+
+    @SuppressLint("MissingPermission")
+    private void keepAlive() {
+        if (closed || gatt == null || !hasRuntimePermissions()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (activeOperation != null && now - activeOperationStartedAtMillis > GATT_OPERATION_TIMEOUT_MS) {
+            bounceStalledConnection("GATT operation '" + activeOperation.label() + "' stuck for "
+                    + ((now - activeOperationStartedAtMillis) / 1000) + "s");
+            return;
+        }
+        long linkSilentMillis = now - lastGattActivityAtMillis;
+        if (linkSilentMillis > KEEPALIVE_STALL_MS) {
+            bounceStalledConnection("No WHOOP data for " + (linkSilentMillis / 1000) + "s");
+            return;
+        }
+        // Reschedule before queueing work so the watchdog keeps running even if a
+        // GATT operation never calls back and the queue stays jammed.
+        mainHandler.postDelayed(keepAliveRunnable, KEEPALIVE_INTERVAL_MS);
+        long streamQuietMillis = now - lastNotificationAtMillis;
+        if (streamQuietMillis > KEEPALIVE_QUIET_MS) {
+            enqueueLiveSubscriptions(gatt);
+            enqueueBatteryRead(gatt);
+            listener.onStateChanged("WHOOP stream quiet; refreshing subscriptions");
+            emitConnectionProgress("keepalive_refresh", null);
+            drainOperationQueue(gatt);
+        } else {
+            enqueueBatteryRead(gatt);
+            drainOperationQueue(gatt);
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private void bounceStalledConnection(String reason) {
+        BluetoothGatt stalledGatt = gatt;
+        if (stalledGatt == null) {
+            return;
+        }
+        String reconnectAddress = activeDeviceId != null ? activeDeviceId : rememberedDeviceId;
+        listener.onStateChanged(reason + "; reconnecting");
+        emitConnectionProgress("stalled_link_reconnect", reason);
+        stalledGatt.disconnect();
+        mainHandler.postDelayed(() -> {
+            if (gatt != stalledGatt) {
+                return;
+            }
+            stalledGatt.close();
+            gatt = null;
+            clientHelloSent = false;
+            commandCharacteristic = null;
+            activeDeviceId = null;
+            resetOperations();
+            resetDiscoveryCounts();
+            scheduleReconnect(reconnectAddress);
+        }, STALLED_DISCONNECT_GRACE_MS);
+    }
+
+    private void enqueueLiveSubscriptions(BluetoothGatt gatt) {
+        for (BluetoothGattService service : gatt.getServices()) {
+            if (!interestingService(service.getUuid())) {
+                continue;
+            }
+            for (BluetoothGattCharacteristic characteristic : service.getCharacteristics()) {
+                if (notificationCandidate(characteristic)) {
+                    enqueueSubscribe(characteristic);
+                }
+            }
+        }
+    }
+
+    private void enqueueBatteryRead(BluetoothGatt gatt) {
+        BluetoothGattService service = gatt.getService(BATTERY_SERVICE);
+        if (service == null) {
+            return;
+        }
+        BluetoothGattCharacteristic battery = service.getCharacteristic(BATTERY_LEVEL);
+        if (battery != null && readCandidate(battery)) {
+            enqueueRead(battery);
+        }
+    }
+
+    private void rememberSubscription(BluetoothGattCharacteristic characteristic) {
+        String key = characteristic.getService().getUuid() + "/" + characteristic.getUuid();
+        subscribedCharacteristicKeys.add(key);
+        subscriptionCount = subscribedCharacteristicKeys.size();
+    }
+
     private void resetOperations() {
         operationQueue.clear();
         activeOperation = null;
         subscriptionCount = 0;
         completedOperationCount = 0;
+        subscribedCharacteristicKeys.clear();
     }
 
     private void resetDiscoveryCounts() {

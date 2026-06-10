@@ -15,7 +15,10 @@ use goose_core::{
         algorithm_run_record, built_in_algorithm_definitions, goose_hrv_v0, goose_sleep_v1,
         hrv_run_record,
     },
-    protocol::{DeviceType, PACKET_TYPE_REALTIME_RAW_DATA, build_v5_payload_frame},
+    protocol::{
+        DeviceType, PACKET_TYPE_HISTORICAL_DATA, PACKET_TYPE_REALTIME_RAW_DATA,
+        build_v5_payload_frame,
+    },
     store::{
         ActivityIntervalInput, ActivityLabelInput, ActivityMetricInput, ActivitySessionInput,
         AlgorithmDefinitionRecord, AlgorithmRunRecord, CalibrationLabelInput, CalibrationRunRecord,
@@ -911,6 +914,72 @@ fn raw_export_can_select_sensor_samples_only() {
     assert_eq!(validation.content.sensor_sample_rows, 19);
     assert_eq!(validation.content.raw_evidence_rows, 0);
     assert_eq!(validation.content.decoded_frame_rows, 0);
+}
+
+#[test]
+fn raw_export_sensor_samples_include_whoop5_historical_v18_fields() {
+    let tempdir = tempfile::tempdir().unwrap();
+    let db_path = tempdir.path().join("goose.sqlite");
+    let export_dir = tempdir.path().join("whoop5-v18-sensor-samples.goosebundle");
+    let store = GooseStore::open(&db_path).unwrap();
+
+    let frames = vec![CapturedFrameInput {
+        evidence_id: "whoop5-v18-history".to_string(),
+        frame_id: Some("whoop5-v18-history.frame.0".to_string()),
+        source: "goose-android/live-notification".to_string(),
+        captured_at: "2026-01-01T20:00:00Z".to_string(),
+        device_model: "WHOOP 5.0 Goose".to_string(),
+        frame_hex: whoop5_v18_history_frame_hex(1_767_304_800),
+        sensitivity: "user-owned-live-notification".to_string(),
+        capture_session_id: None,
+        device_type: DeviceType::Goose,
+    }];
+    let import_report = import_captured_frame_batch(
+        &store,
+        &frames,
+        CapturedFrameBatchOptions {
+            parser_version: "goose-core/test",
+        },
+    )
+    .unwrap();
+    assert!(import_report.pass, "{:?}", import_report.issues);
+
+    let report = export_raw_timeframe(
+        &store,
+        RawExportOptions {
+            output_dir: &export_dir,
+            start: "2026-01-01T19:00:00Z",
+            end: "2026-01-01T21:00:00Z",
+            app_version: "goose-app/test",
+            core_version: "goose-core/test",
+            data_families: vec!["sensor_samples".to_string()],
+            filters: Default::default(),
+            sqlite_source_path: Some(&db_path),
+            zip_output_path: None,
+        },
+    )
+    .unwrap();
+
+    assert!(report.pass, "{:?}", report.issues);
+    assert_eq!(report.sensor_sample_rows, 4);
+    let sensor_samples = fs::read_to_string(export_dir.join("data/sensor_samples.jsonl")).unwrap();
+    assert!(sensor_samples.contains("\"source_signal\":\"whoop5_historical_v18_heart_rate\""));
+    assert!(sensor_samples.contains("\"raw_u8\":132"));
+    assert!(
+        sensor_samples.contains("\"source_signal\":\"whoop5_historical_v18_step_motion_counter\"")
+    );
+    assert!(sensor_samples.contains("\"series_name\":\"step_motion_counter\""));
+    assert!(sensor_samples.contains("\"sample_value\":4321"));
+    assert!(sensor_samples.contains("\"payload_offset\":49"));
+    assert!(sensor_samples.contains("\"unit\":\"step_count_candidate\""));
+    assert!(
+        sensor_samples.contains("\"source_signal\":\"whoop5_historical_v18_motion_wear_quality\"")
+    );
+    assert!(sensor_samples.contains("\"source_signal\":\"whoop5_historical_v18_skin_temp_raw\""));
+    assert!(sensor_samples.contains("\"sample_value\":3350"));
+
+    let validation = validate_export_bundle(&export_dir).unwrap();
+    assert!(validation.pass, "{:?}", validation.issues);
 }
 
 #[test]
@@ -3645,6 +3714,19 @@ fn k10_motion_frame_hex_with_timestamp_subseconds(
     for offset in [85, 285, 485, 688, 888, 1088] {
         put_i16(&mut payload, offset, -2);
     }
+    hex::encode(build_v5_payload_frame(&payload))
+}
+
+fn whoop5_v18_history_frame_hex(timestamp_seconds: u32) -> String {
+    let mut payload = vec![0; 76];
+    payload[0] = PACKET_TYPE_HISTORICAL_DATA;
+    payload[1] = 18;
+    payload[2] = 1;
+    put_u32(&mut payload, 7, timestamp_seconds);
+    payload[14] = 132;
+    put_u16(&mut payload, 49, 4321);
+    payload[55] = 2;
+    put_u16(&mut payload, 65, 3350);
     hex::encode(build_v5_payload_frame(&payload))
 }
 

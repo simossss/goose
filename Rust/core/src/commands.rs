@@ -3897,6 +3897,7 @@ fn payload_kind(payload: &ParsedPayload) -> &'static str {
         ParsedPayload::Command { .. } => "command",
         ParsedPayload::CommandResponse { .. } => "command_response",
         ParsedPayload::Event { .. } => "event",
+        ParsedPayload::Metadata { .. } => "metadata",
         ParsedPayload::DataPacket { .. } => "data_packet",
         ParsedPayload::Raw { .. } => "raw",
     }

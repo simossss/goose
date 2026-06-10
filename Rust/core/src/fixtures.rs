@@ -650,6 +650,7 @@ fn parsed_payload_kind(payload: &crate::protocol::ParsedPayload) -> String {
         crate::protocol::ParsedPayload::Command { .. } => "command",
         crate::protocol::ParsedPayload::CommandResponse { .. } => "command_response",
         crate::protocol::ParsedPayload::Event { .. } => "event",
+        crate::protocol::ParsedPayload::Metadata { .. } => "metadata",
         crate::protocol::ParsedPayload::DataPacket { .. } => "data_packet",
         crate::protocol::ParsedPayload::Raw { .. } => "raw",
     }

@@ -264,6 +264,39 @@ fn timeline_row_from_decoded_frame(row: &DecodedFrameRow) -> GooseResult<PacketT
                     }),
                 )
             }
+            Some(ParsedPayload::Metadata {
+                meta_type,
+                meta_type_name,
+                unix,
+                subsec,
+                trim_cursor,
+                ack_end_data_hex,
+                data_offset,
+                data_hex,
+                ..
+            }) => {
+                let label = meta_type_name
+                    .clone()
+                    .or_else(|| meta_type.map(|value| format!("metadata_{value}")))
+                    .unwrap_or_else(|| "unknown_metadata".to_string());
+                (
+                    "metadata".to_string(),
+                    format!("Metadata {label}"),
+                    unix,
+                    subsec,
+                    non_empty(data_hex.clone()),
+                    json!({
+                        "meta_type": meta_type,
+                        "meta_type_name": meta_type_name,
+                        "unix": unix,
+                        "subsec": subsec,
+                        "trim_cursor": trim_cursor,
+                        "ack_end_data_hex": ack_end_data_hex,
+                        "data_offset": data_offset,
+                        "data_hex": data_hex,
+                    }),
+                )
+            }
             Some(ParsedPayload::DataPacket {
                 packet_k,
                 domain,

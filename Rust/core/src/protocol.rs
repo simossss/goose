@@ -104,6 +104,17 @@ pub enum ParsedPayload {
         data_hex: String,
         warnings: Vec<String>,
     },
+    Metadata {
+        meta_type: Option<u8>,
+        meta_type_name: Option<String>,
+        unix: Option<u32>,
+        subsec: Option<u16>,
+        trim_cursor: Option<u32>,
+        ack_end_data_hex: Option<String>,
+        data_offset: usize,
+        data_hex: String,
+        warnings: Vec<String>,
+    },
     DataPacket {
         packet_k: Option<u8>,
         domain: Option<String>,
@@ -152,6 +163,14 @@ pub enum DataPacketBodySummary {
         group_1_count: Option<u16>,
         group_2_count: Option<u16>,
         axes: Vec<I16SeriesSummary>,
+        warnings: Vec<String>,
+    },
+    Whoop5HistoricalV18 {
+        heart_rate: Option<u8>,
+        step_motion_counter: Option<u16>,
+        step_motion_counter_offset: usize,
+        motion_wear_quality: Option<u8>,
+        skin_temp_raw: Option<u16>,
         warnings: Vec<String>,
     },
 }
@@ -403,6 +422,7 @@ fn parse_payload(payload: &[u8]) -> Option<ParsedPayload> {
         PACKET_TYPE_EVENT
         | PACKET_TYPE_RELATIVE_PUFFIN_EVENTS
         | PACKET_TYPE_PUFFIN_EVENTS_FROM_STRAP => Some(parse_event_payload(payload)),
+        PACKET_TYPE_METADATA | PACKET_TYPE_PUFFIN_METADATA => Some(parse_metadata_payload(payload)),
         PACKET_TYPE_REALTIME_DATA
         | PACKET_TYPE_REALTIME_RAW_DATA
         | PACKET_TYPE_HISTORICAL_DATA
@@ -413,6 +433,32 @@ fn parse_payload(payload: &[u8]) -> Option<ParsedPayload> {
             data_hex: hex::encode(&payload[1.min(payload.len())..]),
             warnings: Vec::new(),
         }),
+    }
+}
+
+fn parse_metadata_payload(payload: &[u8]) -> ParsedPayload {
+    let mut warnings = Vec::new();
+    if payload.len() < 3 {
+        warnings.push("metadata_payload_header_too_short".to_string());
+    }
+    let meta_type = payload.get(2).copied();
+    if matches!(meta_type, Some(2)) && payload.len() < 21 {
+        warnings.push("history_end_payload_too_short".to_string());
+    }
+    ParsedPayload::Metadata {
+        meta_type,
+        meta_type_name: meta_type.and_then(metadata_type_name).map(str::to_string),
+        unix: read_u32_le(payload, 3),
+        subsec: read_u16_le(payload, 7),
+        trim_cursor: read_u32_le(payload, 13),
+        ack_end_data_hex: if matches!(meta_type, Some(2)) && payload.len() >= 21 {
+            Some(hex::encode(&payload[13..21]))
+        } else {
+            None
+        },
+        data_offset: 3.min(payload.len()),
+        data_hex: hex::encode(&payload[3.min(payload.len())..]),
+        warnings,
     }
 }
 
@@ -520,6 +566,9 @@ fn parse_data_packet_body_summary(
     };
 
     match packet_k {
+        18 if payload.len() >= WHOOP5_V18_STEP_MOTION_COUNTER_OFFSET + 2 => {
+            parse_whoop5_historical_v18_summary(payload)
+        }
         7 | 9 | 12 | 18 | 24 => (
             Some(DataPacketBodySummary::NormalHistory {
                 hr_present: hr_present_marker.map(|marker| marker != 0),
@@ -533,6 +582,32 @@ fn parse_data_packet_body_summary(
         21 => parse_k21_raw_motion_summary(payload),
         _ => (None, Vec::new()),
     }
+}
+
+pub const WHOOP5_V18_HEART_RATE_OFFSET: usize = 14;
+pub const WHOOP5_V18_STEP_MOTION_COUNTER_OFFSET: usize = 49;
+pub const WHOOP5_V18_MOTION_WEAR_QUALITY_OFFSET: usize = 55;
+pub const WHOOP5_V18_SKIN_TEMP_RAW_OFFSET: usize = 65;
+
+fn parse_whoop5_historical_v18_summary(
+    payload: &[u8],
+) -> (Option<DataPacketBodySummary>, Vec<String>) {
+    let motion_wear_quality =
+        read_u8_in_range(payload, WHOOP5_V18_MOTION_WEAR_QUALITY_OFFSET, 0..=2);
+    let skin_temp_raw = read_u16_le(payload, WHOOP5_V18_SKIN_TEMP_RAW_OFFSET)
+        .filter(|value| (20.0..=45.0).contains(&(*value as f32 / 100.0)));
+
+    (
+        Some(DataPacketBodySummary::Whoop5HistoricalV18 {
+            heart_rate: payload.get(WHOOP5_V18_HEART_RATE_OFFSET).copied(),
+            step_motion_counter: read_u16_le(payload, WHOOP5_V18_STEP_MOTION_COUNTER_OFFSET),
+            step_motion_counter_offset: WHOOP5_V18_STEP_MOTION_COUNTER_OFFSET,
+            motion_wear_quality,
+            skin_temp_raw,
+            warnings: Vec::new(),
+        }),
+        Vec::new(),
+    )
 }
 
 fn parse_r17_body_summary(payload: &[u8]) -> (Option<DataPacketBodySummary>, Vec<String>) {
@@ -691,6 +766,7 @@ fn parsed_payload_warnings(payload: &ParsedPayload) -> &[String] {
         ParsedPayload::Command { warnings, .. }
         | ParsedPayload::CommandResponse { warnings, .. }
         | ParsedPayload::Event { warnings, .. }
+        | ParsedPayload::Metadata { warnings, .. }
         | ParsedPayload::DataPacket { warnings, .. }
         | ParsedPayload::Raw { warnings, .. } => warnings,
     }
@@ -742,6 +818,15 @@ fn strap_event_name(event_id: u16) -> Option<&'static str> {
     })
 }
 
+fn metadata_type_name(meta_type: u8) -> Option<&'static str> {
+    Some(match meta_type {
+        1 => "HISTORY_START",
+        2 => "HISTORY_END",
+        3 => "HISTORY_COMPLETE",
+        _ => return None,
+    })
+}
+
 fn data_packet_domain(packet_k: u8) -> Option<&'static str> {
     Some(match packet_k {
         7 => "legacy_raw_or_research_counted",
@@ -771,6 +856,17 @@ fn read_u16_le(bytes: &[u8], offset: usize) -> Option<u16> {
         *bytes.get(offset)?,
         *bytes.get(offset + 1)?,
     ]))
+}
+
+fn read_u8_in_range(
+    bytes: &[u8],
+    offset: usize,
+    range: std::ops::RangeInclusive<u8>,
+) -> Option<u8> {
+    bytes
+        .get(offset)
+        .copied()
+        .filter(|value| range.contains(value))
 }
 
 fn read_u32_le(bytes: &[u8], offset: usize) -> Option<u32> {

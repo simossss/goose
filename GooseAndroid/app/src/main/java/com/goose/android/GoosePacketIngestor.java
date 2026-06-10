@@ -31,6 +31,8 @@ final class GoosePacketIngestor {
         final String payloadKind;
         final String bodyKind;
         final String eventName;
+        final String metadataTypeName;
+        final String ackEndDataHex;
         final int sequence;
         final int rawInserted;
         final int directRawInserted;
@@ -47,6 +49,8 @@ final class GoosePacketIngestor {
                 String payloadKind,
                 String bodyKind,
                 String eventName,
+                String metadataTypeName,
+                String ackEndDataHex,
                 int sequence,
                 int rawInserted,
                 int directRawInserted,
@@ -62,6 +66,8 @@ final class GoosePacketIngestor {
             this.payloadKind = payloadKind;
             this.bodyKind = bodyKind;
             this.eventName = eventName;
+            this.metadataTypeName = metadataTypeName;
+            this.ackEndDataHex = ackEndDataHex;
             this.sequence = sequence;
             this.rawInserted = rawInserted;
             this.directRawInserted = directRawInserted;
@@ -216,6 +222,8 @@ final class GoosePacketIngestor {
                     parsedFrame != null ? parsedPayloadKind(parsedFrame) : standardPayloadKind(characteristicUuid, value),
                     parsedFrame != null ? bodyKind(parsedFrame) : "",
                     parsedFrame != null ? eventName(parsedFrame) : "",
+                    parsedFrame != null ? metadataTypeName(parsedFrame) : "",
+                    parsedFrame != null ? ackEndDataHex(parsedFrame) : "",
                     parsedFrame != null ? parsedFrame.optInt("sequence", -1) : -1,
                     rawInserted,
                     directRawInserted,
@@ -225,7 +233,7 @@ final class GoosePacketIngestor {
                     null
             );
         } catch (Exception error) {
-            return new Result(frameHex, "", "", "", "", "", "", -1, 0, 0, 0, 0, captureSessionId, error.toString());
+            return new Result(frameHex, "", "", "", "", "", "", "", "", -1, 0, 0, 0, 0, captureSessionId, error.toString());
         }
     }
 
@@ -276,6 +284,14 @@ final class GoosePacketIngestor {
         if (!eventName.isEmpty()) {
             builder.append(" event=").append(eventName);
         }
+        String metadataTypeName = metadataTypeName(parsed);
+        if (!metadataTypeName.isEmpty()) {
+            builder.append(" metadata=").append(metadataTypeName);
+        }
+        String ackEndDataHex = ackEndDataHex(parsed);
+        if (!ackEndDataHex.isEmpty()) {
+            builder.append(" ack=").append(ackEndDataHex);
+        }
         JSONArray warnings = parsed.optJSONArray("warnings");
         builder.append(" warnings=").append(warnings != null ? warnings.length() : 0);
         return builder.toString();
@@ -298,6 +314,16 @@ final class GoosePacketIngestor {
     private String eventName(JSONObject parsed) {
         JSONObject payload = parsed.optJSONObject("parsed_payload");
         return payload != null ? payload.optString("event_name", "") : "";
+    }
+
+    private String metadataTypeName(JSONObject parsed) {
+        JSONObject payload = parsed.optJSONObject("parsed_payload");
+        return payload != null ? payload.optString("meta_type_name", "") : "";
+    }
+
+    private String ackEndDataHex(JSONObject parsed) {
+        JSONObject payload = parsed.optJSONObject("parsed_payload");
+        return payload != null ? payload.optString("ack_end_data_hex", "") : "";
     }
 
     private JSONObject importFrame(

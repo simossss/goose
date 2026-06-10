@@ -2,9 +2,11 @@ package com.goose.android;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
@@ -83,7 +85,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private TextView deviceHeaderStatus;
     private TextView deviceHeaderName;
     private TextView deviceHeaderLastSync;
+    private TextView deviceHeaderHr;
     private TextView deviceBatteryValue;
+    private int liveHeartRate = -1;
+    private long liveHeartRateAtMillis;
     private LinearLayout homeSection;
     private LinearLayout captureSection;
     private LinearLayout reportsSection;
@@ -112,6 +117,8 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private String lastBleStatus = "Not connected";
     private String selectedDeviceName = "WHOOP";
     private String selectedDeviceAddress = "";
+    private String lastHistoryEndAckPayloadHex = "";
+    private boolean autoAckHistoryEnd;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -122,6 +129,14 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         packetIngestor = new GoosePacketIngestor(this);
         storeReporter = new GooseStoreReporter(this, packetIngestor.databasePath());
         healthConnectSupport = new HealthConnectSupport(this);
+        getWindow().setStatusBarColor(COLOR_BACKGROUND);
+        getWindow().setNavigationBarColor(COLOR_PANEL);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getWindow().getDecorView().setSystemUiVisibility(
+                    getWindow().getDecorView().getSystemUiVisibility()
+                            | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                            | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        }
         setContentView(buildContentView());
         refreshBridgeStatus();
         refreshPermissionState();
@@ -222,6 +237,8 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                     : result.parseSummary + "\n" + result.importSummary;
             packetStatus.setText("Notifications: " + notificationCount + "\n" + summary);
             updateActiveCaptureSessionStatus();
+            updateLiveHeartRate(result, notification.capturedAtMillis);
+            rememberHistoryEndAckPayload(result);
             transferProgress.recordPacket(result, notification.capturedAtMillis);
             transferStatus.setText(transferProgress.summary());
             appendNotificationLog(stamp, notification.characteristicUuid, result.frameHex);
@@ -357,7 +374,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         reportsSection.addView(metricCard("Cardio Load", "--", "Activity load inputs pending", COLOR_DANGER));
         reportsSection.addView(metricCard("Energy Bank", "--", "Local energy estimate unavailable", COLOR_RECOVERY));
         reportsSection.addView(sectionText("Data & Algorithms"));
-        reportsSection.addView(metricCard("Step counter", "K18", "body_u16le_36 is the current diagnostic candidate", COLOR_PRIMARY));
+        reportsSection.addView(metricCard("Step counter", "v18", "WHOOP 5 historical step_motion_counter at body offset 36, confirmed on-device", COLOR_PRIMARY));
 
         captureSection.addView(deviceHeaderCard());
         captureSection.addView(sectionText("Status"));
@@ -412,6 +429,18 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         Button historyButton = primaryButton("History");
         historyButton.setOnClickListener(view -> sendBuiltCommand("send_historical_data", ""));
         physicalCommandActions.addView(historyButton, weightWrap());
+        Button ackHistoryButton = secondaryButton("Ack");
+        ackHistoryButton.setOnClickListener(view -> sendHistoryEndAck());
+        physicalCommandActions.addView(ackHistoryButton, weightWrap());
+        Button autoAckButton = secondaryButton("Auto-ack: off");
+        autoAckButton.setOnClickListener(view -> {
+            autoAckHistoryEnd = !autoAckHistoryEnd;
+            autoAckButton.setText(autoAckHistoryEnd ? "Auto-ack: on" : "Auto-ack: off");
+            packetStatus.setText(autoAckHistoryEnd
+                    ? "Auto-ack enabled: HISTORY_END metadata will be acked automatically"
+                    : "Auto-ack disabled: use Ack to send historical_data_result manually");
+        });
+        physicalCommandActions.addView(autoAckButton, weightWrap());
         Button abortHistoryButton = dangerButton("Abort");
         abortHistoryButton.setOnClickListener(view -> sendBuiltCommand("abort_historical_transmits", ""));
         physicalCommandActions.addView(abortHistoryButton, weightWrap());
@@ -549,12 +578,15 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         opsSection.addView(healthConnectActions);
 
         notificationLog = bodyText("No notifications");
+        notificationLog.setTypeface(Typeface.MONOSPACE);
+        notificationLog.setTextSize(11);
         opsSection.addView(statusCluster("Notification log", notificationLog));
 
         LinearLayout bottomNav = new LinearLayout(this);
         bottomNav.setOrientation(LinearLayout.HORIZONTAL);
         bottomNav.setPadding(dp(8), dp(6), dp(8), dp(6));
         bottomNav.setBackground(panelBackground(COLOR_PANEL, COLOR_BORDER, 0));
+        bottomNav.setElevation(dp(8));
         Button homeModeButton = modeButton("Home");
         homeModeButton.setOnClickListener(view -> showMode(homeSection, homeModeButton));
         bottomNav.addView(homeModeButton, weightWrap());
@@ -640,6 +672,12 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             detail = "Ready; hello pending";
         }
         deviceHeaderLastSync.setText(detail);
+        if (deviceHeaderHr != null) {
+            boolean fresh = liveHeartRate > 0
+                    && System.currentTimeMillis() - liveHeartRateAtMillis < 15000L;
+            deviceHeaderHr.setText(fresh ? "Live HR: " + liveHeartRate + " bpm" : "Live HR: -- bpm");
+            deviceHeaderHr.setTextColor(fresh ? COLOR_DANGER : COLOR_MUTED);
+        }
         if (deviceBatteryValue != null) {
             deviceBatteryValue.setText(metadataValue("Battery", "--%"));
         }
@@ -793,6 +831,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         clearLocalDataConfirmUntilMillis = 0L;
         commandBuildGeneration += 1;
         pendingCommand = null;
+        lastHistoryEndAckPayloadHex = "";
         packetIngestor.clearCaptureSession();
         activeCaptureSessionId = null;
         lastFinishedCaptureSessionId = null;
@@ -842,6 +881,55 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             }
             prepareCommandConfirmation(result, payloadHex);
         }));
+    }
+
+    private void sendHistoryEndAck() {
+        if (lastHistoryEndAckPayloadHex == null || lastHistoryEndAckPayloadHex.trim().isEmpty()) {
+            packetStatus.setText("Ack blocked: no HISTORY_END metadata with ack payload captured yet");
+            transferProgress.recordBlockedCommand("historical_data_result", System.currentTimeMillis());
+            transferStatus.setText(transferProgress.summary());
+            return;
+        }
+        sendBuiltCommand("historical_data_result", "01" + lastHistoryEndAckPayloadHex);
+    }
+
+    private void updateLiveHeartRate(GoosePacketIngestor.Result result, long capturedAtMillis) {
+        int bpm = parseStandardHeartRate(result);
+        if (bpm < 0) {
+            return;
+        }
+        liveHeartRate = bpm;
+        liveHeartRateAtMillis = capturedAtMillis;
+        updateDeviceHeader();
+    }
+
+    private int parseStandardHeartRate(GoosePacketIngestor.Result result) {
+        if (!"standard_heart_rate".equals(result.payloadKind) || result.parseSummary == null) {
+            return -1;
+        }
+        java.util.regex.Matcher matcher =
+                java.util.regex.Pattern.compile("(\\d+) bpm").matcher(result.parseSummary);
+        if (!matcher.find()) {
+            return -1;
+        }
+        try {
+            int bpm = Integer.parseInt(matcher.group(1));
+            return bpm > 0 && bpm < 250 ? bpm : -1;
+        } catch (NumberFormatException error) {
+            return -1;
+        }
+    }
+
+    private void rememberHistoryEndAckPayload(GoosePacketIngestor.Result result) {
+        if (!"HISTORY_END".equals(result.metadataTypeName) || result.ackEndDataHex.trim().isEmpty()) {
+            return;
+        }
+        lastHistoryEndAckPayloadHex = result.ackEndDataHex;
+        packetStatus.setText(packetStatus.getText()
+                + "\nHistory ACK ready: " + lastHistoryEndAckPayloadHex);
+        if (autoAckHistoryEnd) {
+            sendHistoryEndAck();
+        }
     }
 
     static boolean isCurrentCommandBuild(int callbackGeneration, int currentGeneration) {
@@ -925,6 +1013,9 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         }
         if ("send_historical_data".equals(command)) {
             return "History";
+        }
+        if ("historical_data_result".equals(command)) {
+            return "Ack";
         }
         if ("abort_historical_transmits".equals(command)) {
             return "Abort";
@@ -1557,6 +1648,13 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             } else if (label.contains("abort_historical_transmits")) {
                 historyCommandStatus = "abort " + event.status;
                 transferState = "abort " + event.status;
+            } else if (label.contains("historical_data_result")) {
+                historyCommandStatus = "ack " + event.status;
+                if ("queued".equals(event.status) || "writing".equals(event.status) || "written".equals(event.status)) {
+                    transferState = "history end ack " + event.status;
+                } else if ("failed".equals(event.status) || "blocked".equals(event.status)) {
+                    transferState = "history end ack " + event.status;
+                }
             }
         }
 
@@ -1569,6 +1667,10 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
                 historyCommandStatus = "abort blocked";
                 requestedAtMillis = occurredAtMillis;
                 transferState = "abort blocked";
+            } else if ("historical_data_result".equals(command)) {
+                historyCommandStatus = "ack blocked";
+                requestedAtMillis = occurredAtMillis;
+                transferState = "history end ack blocked";
             }
         }
 
@@ -1608,6 +1710,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             }
 
             updateHistoryMarkers(result.eventName);
+            updateHistoryMarkers(result.metadataTypeName);
             if (historyCompleteSeen) {
                 transferState = "history complete marker seen";
             } else if (historyEndSeen) {
@@ -1686,6 +1789,12 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             }
             if (!result.eventName.isEmpty()) {
                 builder.append(" event=").append(result.eventName);
+            }
+            if (!result.metadataTypeName.isEmpty()) {
+                builder.append(" metadata=").append(result.metadataTypeName);
+            }
+            if (!result.ackEndDataHex.isEmpty()) {
+                builder.append(" ack=").append(result.ackEndDataHex);
             }
             return builder.toString();
         }
@@ -1885,6 +1994,11 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         copy.addView(deviceHeaderName);
         deviceHeaderLastSync = bodyText("Last sync: not synced");
         copy.addView(deviceHeaderLastSync);
+        deviceHeaderHr = bodyText("Live HR: -- bpm");
+        deviceHeaderHr.setTextColor(COLOR_DANGER);
+        deviceHeaderHr.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        deviceHeaderHr.setPadding(0, dp(4), 0, 0);
+        copy.addView(deviceHeaderHr);
         row.addView(copy, weightWrap());
         Button refresh = secondaryButton("Refresh");
         refresh.setOnClickListener(view -> refreshAllStatus());
@@ -2021,7 +2135,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         dial.setText(value);
         dial.setTextSize(22);
         dial.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        dial.setTextColor(COLOR_TEXT);
+        dial.setTextColor(tint);
         dial.setGravity(Gravity.CENTER);
         dial.setBackground(ovalBackground(Color.TRANSPARENT, tint));
         item.addView(dial, new LinearLayout.LayoutParams(dp(82), dp(82)));
@@ -2061,6 +2175,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(16), dp(15), dp(16), dp(15));
         card.setBackground(panelBackground(COLOR_PANEL, COLOR_BORDER, 18));
+        card.setElevation(dp(2));
         LinearLayout.LayoutParams params = matchWrap();
         params.setMargins(0, dp(12), 0, 0);
         card.setLayoutParams(params);
@@ -2072,6 +2187,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         view.setTextSize(12);
         view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         view.setTextColor(COLOR_MUTED);
+        view.setLetterSpacing(0.08f);
         return view;
     }
 
@@ -2098,6 +2214,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         view.setTextSize(15);
         view.setTextColor(COLOR_MUTED);
         view.setGravity(Gravity.START);
+        view.setLineSpacing(0, 1.15f);
         return view;
     }
 
@@ -2119,7 +2236,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private Button modeButton(String label) {
         Button button = baseButton(label);
         button.setTextColor(COLOR_MUTED);
-        button.setBackground(panelBackground(COLOR_PANEL, COLOR_PANEL, 0));
+        button.setBackground(rippleWrap(panelBackground(COLOR_PANEL, COLOR_PANEL, 14), COLOR_BORDER));
         modeButtons.add(button);
         return button;
     }
@@ -2127,21 +2244,21 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
     private Button primaryButton(String label) {
         Button button = baseButton(label);
         button.setTextColor(Color.WHITE);
-        button.setBackground(panelBackground(COLOR_PRIMARY, COLOR_PRIMARY, 14));
+        button.setBackground(rippleWrap(panelBackground(COLOR_PRIMARY, COLOR_PRIMARY, 14), Color.WHITE));
         return button;
     }
 
     private Button secondaryButton(String label) {
         Button button = baseButton(label);
         button.setTextColor(COLOR_TEXT);
-        button.setBackground(panelBackground(COLOR_PANEL, COLOR_BORDER, 14));
+        button.setBackground(rippleWrap(panelBackground(COLOR_PANEL, COLOR_BORDER, 14), COLOR_PRIMARY));
         return button;
     }
 
     private Button dangerButton(String label) {
         Button button = baseButton(label);
         button.setTextColor(Color.WHITE);
-        button.setBackground(panelBackground(COLOR_DANGER, COLOR_DANGER, 14));
+        button.setBackground(rippleWrap(panelBackground(COLOR_DANGER, COLOR_DANGER, 14), Color.WHITE));
         return button;
     }
 
@@ -2154,7 +2271,14 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         button.setSingleLine(false);
         button.setMaxLines(2);
         button.setMinHeight(dp(44));
+        button.setStateListAnimator(null);
+        button.setElevation(0);
         return button;
+    }
+
+    private RippleDrawable rippleWrap(GradientDrawable content, int rippleColor) {
+        int pressed = Color.argb(48, Color.red(rippleColor), Color.green(rippleColor), Color.blue(rippleColor));
+        return new RippleDrawable(ColorStateList.valueOf(pressed), content, null);
     }
 
     private GradientDrawable panelBackground(int fillColor, int strokeColor, int radiusDp) {
@@ -2186,7 +2310,7 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
         if (screenTitle != null && screenSubtitle != null) {
             if (visibleSection == homeSection) {
                 screenTitle.setText("Today");
-                screenSubtitle.setText("Daily Scores");
+                screenSubtitle.setText(new SimpleDateFormat("EEEE, MMM d", Locale.US).format(new Date()));
             } else if (visibleSection == reportsSection) {
                 screenTitle.setText("Health");
                 screenSubtitle.setText("Activity, vitals, and algorithms");
@@ -2205,9 +2329,11 @@ public final class MainActivity extends Activity implements GooseBleClient.Liste
             deviceToolbarButton.setVisibility(visibleSection == homeSection ? View.VISIBLE : View.GONE);
         }
         for (Button button : modeButtons) {
-            button.setTextColor(button == activeButton ? COLOR_PRIMARY : COLOR_TEXT);
-            button.setTypeface(Typeface.DEFAULT, button == activeButton ? Typeface.BOLD : Typeface.NORMAL);
-            button.setBackground(panelBackground(COLOR_PANEL, COLOR_PANEL, 0));
+            boolean active = button == activeButton;
+            button.setTextColor(active ? COLOR_PRIMARY : COLOR_MUTED);
+            button.setTypeface(Typeface.DEFAULT, active ? Typeface.BOLD : Typeface.NORMAL);
+            int pillFill = active ? Color.argb(26, 37, 99, 235) : COLOR_PANEL;
+            button.setBackground(rippleWrap(panelBackground(pillFill, pillFill, 14), COLOR_PRIMARY));
         }
     }
 

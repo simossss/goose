@@ -1,7 +1,7 @@
 use goose_core::protocol::{
     COMMAND_GET_HELLO, DataPacketBodySummary, DeviceType, FrameAccumulator, I16SeriesSummary,
     PACKET_TYPE_COMMAND_RESPONSE, PACKET_TYPE_EVENT, PACKET_TYPE_HISTORICAL_DATA,
-    PACKET_TYPE_REALTIME_DATA, PACKET_TYPE_REALTIME_RAW_DATA, ParsedPayload,
+    PACKET_TYPE_METADATA, PACKET_TYPE_REALTIME_DATA, PACKET_TYPE_REALTIME_RAW_DATA, ParsedPayload,
     build_v5_command_frame, build_v5_payload_frame, parse_frame, parse_frame_hex,
 };
 
@@ -511,6 +511,110 @@ fn short_data_packets_preserve_raw_body_and_warn() {
             ],
         })
     );
+}
+
+#[test]
+fn parses_history_end_metadata_and_ack_payload() {
+    let mut payload = vec![PACKET_TYPE_METADATA, 0, 2];
+    payload.extend_from_slice(&1_699_999_999u32.to_le_bytes());
+    payload.extend_from_slice(&321u16.to_le_bytes());
+    payload.extend_from_slice(&0x44332211u32.to_le_bytes());
+    payload.extend_from_slice(&123_456u32.to_le_bytes());
+    payload.extend_from_slice(&16u32.to_le_bytes());
+
+    let frame = build_v5_payload_frame(&payload);
+    let parsed = parse_frame(DeviceType::Goose, &frame).unwrap();
+
+    assert_eq!(parsed.packet_type_name.as_deref(), Some("METADATA"));
+    assert_eq!(parsed.command_or_event, Some(2));
+    assert_eq!(
+        parsed.parsed_payload,
+        Some(ParsedPayload::Metadata {
+            meta_type: Some(2),
+            meta_type_name: Some("HISTORY_END".to_string()),
+            unix: Some(1_699_999_999),
+            subsec: Some(321),
+            trim_cursor: Some(123_456),
+            ack_end_data_hex: Some("40e2010010000000".to_string()),
+            data_offset: 3,
+            data_hex: "fff0536541011122334440e2010010000000000000".to_string(),
+            warnings: Vec::new(),
+        })
+    );
+}
+
+#[test]
+fn parses_history_start_metadata_without_ack_payload() {
+    let frame = build_v5_payload_frame(&[PACKET_TYPE_METADATA, 0, 1]);
+    let parsed = parse_frame(DeviceType::Goose, &frame).unwrap();
+
+    assert_eq!(
+        parsed.parsed_payload,
+        Some(ParsedPayload::Metadata {
+            meta_type: Some(1),
+            meta_type_name: Some("HISTORY_START".to_string()),
+            unix: None,
+            subsec: None,
+            trim_cursor: None,
+            ack_end_data_hex: None,
+            data_offset: 3,
+            data_hex: "00".to_string(),
+            warnings: Vec::new(),
+        })
+    );
+}
+
+#[test]
+fn whoop5_historical_v18_names_step_motion_counter_at_noop_offset() {
+    let mut payload = vec![0; 76];
+    payload[0] = PACKET_TYPE_HISTORICAL_DATA;
+    payload[1] = 18;
+    payload[2] = 1;
+    put_u16(&mut payload, 11, 250);
+    payload[14] = 132;
+    put_u16(&mut payload, 49, 4321);
+    payload[55] = 2;
+    put_u16(&mut payload, 65, 3350);
+
+    let frame = build_v5_payload_frame(&payload);
+    let parsed = parse_frame(DeviceType::Goose, &frame).unwrap();
+    let parsed_payload_json = serde_json::to_value(parsed.parsed_payload.clone()).unwrap();
+    assert_eq!(
+        parsed_payload_json["body_summary"]["kind"],
+        "whoop5_historical_v18"
+    );
+    assert_eq!(
+        parsed_payload_json["body_summary"]["step_motion_counter"],
+        4321
+    );
+
+    match parsed.parsed_payload.unwrap() {
+        ParsedPayload::DataPacket {
+            packet_k,
+            body_offset,
+            body_summary:
+                Some(DataPacketBodySummary::Whoop5HistoricalV18 {
+                    heart_rate,
+                    step_motion_counter,
+                    step_motion_counter_offset,
+                    motion_wear_quality,
+                    skin_temp_raw,
+                    warnings,
+                }),
+            ..
+        } => {
+            assert_eq!(packet_k, Some(18));
+            assert_eq!(body_offset, 13);
+            assert_eq!(heart_rate, Some(132));
+            assert_eq!(step_motion_counter, Some(4321));
+            assert_eq!(step_motion_counter_offset, 49);
+            assert_eq!(step_motion_counter_offset - body_offset, 36);
+            assert_eq!(motion_wear_quality, Some(2));
+            assert_eq!(skin_temp_raw, Some(3350));
+            assert!(warnings.is_empty());
+        }
+        other => panic!("expected whoop5 v18 historical summary, got {other:?}"),
+    }
 }
 
 fn put_u16(bytes: &mut [u8], offset: usize, value: u16) {

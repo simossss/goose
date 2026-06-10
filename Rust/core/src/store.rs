@@ -1958,6 +1958,24 @@ impl GooseStore {
         Ok(changed > 0)
     }
 
+    pub fn delete_decoded_frame(&self, frame_id: &str) -> GooseResult<bool> {
+        validate_required("frame_id", frame_id)?;
+        let changed = self.conn.execute(
+            "DELETE FROM decoded_frames WHERE frame_id = ?1",
+            params![frame_id],
+        )?;
+        Ok(changed > 0)
+    }
+
+    pub fn delete_raw_evidence(&self, evidence_id: &str) -> GooseResult<bool> {
+        validate_required("evidence_id", evidence_id)?;
+        let changed = self.conn.execute(
+            "DELETE FROM raw_evidence WHERE evidence_id = ?1",
+            params![evidence_id],
+        )?;
+        Ok(changed > 0)
+    }
+
     pub fn start_capture_session(&self, input: CaptureSessionInput<'_>) -> GooseResult<bool> {
         validate_required("session_id", input.session_id)?;
         validate_required("source", input.source)?;
@@ -6451,6 +6469,11 @@ fn value_contains_official_whoop_label_marker(value: &Value) -> bool {
 
 fn is_official_whoop_label_token(value: &str) -> bool {
     let normalized = normalized_marker(value);
+    // The policy declaration string states that official values are validation
+    // labels rather than metric inputs; it is not itself a label marker.
+    if normalized == crate::validation_labels::OFFICIAL_WHOOP_LABEL_POLICY {
+        return false;
+    }
     matches!(
         normalized.as_str(),
         "whoop"

@@ -247,6 +247,11 @@ fn run_storage_self_test(store: &GooseStore) -> StorageSelfTestReport {
         }
     };
 
+    // The self-test uses fixed synthetic IDs, so any rows left by a prior run would
+    // make the inserts below report "not inserted" and falsely fail readiness. Clear
+    // them first so every run starts from a clean slate (decoded first for the FK).
+    purge_self_test_fixtures(store, &mut issues);
+
     let raw_input = RawEvidenceInput {
         evidence_id: "goose.storage-check.raw",
         source: "goose.storage-check",
@@ -320,6 +325,10 @@ fn run_storage_self_test(store: &GooseStore) -> StorageSelfTestReport {
         }
     };
 
+    // Remove the synthetic rows so repeated self-tests stay idempotent and the
+    // real store is never polluted with self-test evidence.
+    purge_self_test_fixtures(store, &mut issues);
+
     StorageSelfTestReport {
         ran: true,
         raw_inserted,
@@ -329,6 +338,15 @@ fn run_storage_self_test(store: &GooseStore) -> StorageSelfTestReport {
         foreign_key_rejected,
         next_actions: storage_self_test_next_actions(&issues),
         issues,
+    }
+}
+
+fn purge_self_test_fixtures(store: &GooseStore, issues: &mut Vec<String>) {
+    if let Err(error) = store.delete_decoded_frame("goose.storage-check.frame") {
+        issues.push(format!("self-test cleanup of decoded frame failed: {error}"));
+    }
+    if let Err(error) = store.delete_raw_evidence("goose.storage-check.raw") {
+        issues.push(format!("self-test cleanup of raw evidence failed: {error}"));
     }
 }
 

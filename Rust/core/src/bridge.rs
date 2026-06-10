@@ -2679,6 +2679,7 @@ fn parsed_payload_kind(payload: &ParsedPayload) -> &'static str {
         ParsedPayload::Command { .. } => "command",
         ParsedPayload::CommandResponse { .. } => "command_response",
         ParsedPayload::Event { .. } => "event",
+        ParsedPayload::Metadata { .. } => "metadata",
         ParsedPayload::DataPacket { .. } => "data_packet",
         ParsedPayload::Raw { .. } => "raw",
     }
@@ -2692,6 +2693,7 @@ fn body_summary_kind(summary: Option<&DataPacketBodySummary>) -> &'static str {
         }
         Some(DataPacketBodySummary::RawMotionK10 { .. }) => "raw_motion_k10",
         Some(DataPacketBodySummary::RawMotionK21 { .. }) => "raw_motion_k21",
+        Some(DataPacketBodySummary::Whoop5HistoricalV18 { .. }) => "whoop5_historical_v18",
         None => "none",
     }
 }

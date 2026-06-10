@@ -173,13 +173,18 @@ fn ios_health_metric_display_filters_forbidden_metric_sources() {
 }
 
 fn swift_source_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("core crate has parent")
         .parent()
         .expect("goose project has parent")
-        .join("goose-swift")
-        .join("GooseSwift")
+        .to_path_buf();
+    let in_repo = repo_root.join("GooseSwift");
+    if in_repo.exists() {
+        return in_repo;
+    }
+    // Legacy layout: Swift sources nested under a goose-swift directory.
+    repo_root.join("goose-swift").join("GooseSwift")
 }
 
 fn swift_source(root: &Path, filename: &str) -> String {

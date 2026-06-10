@@ -74,6 +74,39 @@ fn storage_check_passes_fresh_database_with_self_test() {
 }
 
 #[test]
+fn storage_check_self_test_stays_ready_across_repeated_runs() {
+    let tempdir = tempfile::tempdir().unwrap();
+    let db = tempdir.path().join("goose.sqlite");
+
+    // The self-test inserts synthetic rows under fixed IDs. Before cleanup was
+    // added, the second run saw those rows already present, reported the inserts
+    // as no-ops, and falsely failed readiness. Every run must pass.
+    for run in 0..3 {
+        let report = check_storage_database(StorageCheckOptions {
+            database_path: &db,
+            run_self_test: true,
+        })
+        .unwrap();
+        assert!(report.pass, "run {run}: {:?}", report.issues);
+        assert!(report.self_test_ready, "run {run}");
+        let self_test = report.self_test.unwrap();
+        assert!(self_test.raw_inserted, "run {run}");
+        assert!(self_test.decoded_inserted, "run {run}");
+
+        // The synthetic evidence must not pollute the real store between runs.
+        let connection = Connection::open(&db).unwrap();
+        let raw_rows: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM raw_evidence WHERE evidence_id = 'goose.storage-check.raw'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(raw_rows, 0, "run {run}: self-test evidence left behind");
+    }
+}
+
+#[test]
 fn storage_check_can_run_without_mutating_self_test_rows() {
     let tempdir = tempfile::tempdir().unwrap();
     let db = tempdir.path().join("goose.sqlite");

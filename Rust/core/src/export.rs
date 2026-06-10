@@ -23,7 +23,9 @@ use crate::{
         run_sleep_feature_score_report_for_store, run_vital_event_feature_report_for_store,
     },
     protocol::{
-        DataPacketBodySummary, I16SeriesSummary, ParsedPayload, decode_hex_with_whitespace,
+        DataPacketBodySummary, I16SeriesSummary, ParsedPayload, WHOOP5_V18_HEART_RATE_OFFSET,
+        WHOOP5_V18_MOTION_WEAR_QUALITY_OFFSET, WHOOP5_V18_SKIN_TEMP_RAW_OFFSET,
+        decode_hex_with_whitespace,
     },
     store::{
         ActivityIntervalRow, ActivityLabelRow, ActivityMetricRow, ActivitySessionRow,
@@ -495,6 +497,8 @@ struct ExportSensorSampleRow {
     payload_offset: usize,
     raw_i16: Option<i16>,
     raw_u8: Option<u8>,
+    #[serde(default)]
+    raw_u16: Option<u16>,
     sample_value: i64,
     unit: String,
     device_timestamp_seconds: Option<u32>,
@@ -2225,7 +2229,7 @@ fn write_sensor_samples_csv(path: &Path, rows: &[ExportSensorSampleRow]) -> Goos
     let mut bytes = Vec::new();
     writeln!(
         bytes,
-        "sample_id,frame_id,evidence_id,captured_at,sample_time,sample_time_unix_ms,sample_time_source,source_signal,packet_type_name,packet_k,domain,series_name,sample_index,payload_offset,raw_i16,raw_u8,sample_value,unit,device_timestamp_seconds,device_timestamp_subseconds,parser_version,quality_flags_json,provenance_json"
+        "sample_id,frame_id,evidence_id,captured_at,sample_time,sample_time_unix_ms,sample_time_source,source_signal,packet_type_name,packet_k,domain,series_name,sample_index,payload_offset,raw_i16,raw_u8,raw_u16,sample_value,unit,device_timestamp_seconds,device_timestamp_subseconds,parser_version,quality_flags_json,provenance_json"
     )
     .map_err(|error| GooseError::message(format!("cannot write CSV header: {error}")))?;
     for row in rows {
@@ -2256,6 +2260,9 @@ fn write_sensor_samples_csv(path: &Path, rows: &[ExportSensorSampleRow]) -> Goos
                     .map(|value| value.to_string())
                     .unwrap_or_default(),
                 &row.raw_u8
+                    .map(|value| value.to_string())
+                    .unwrap_or_default(),
+                &row.raw_u16
                     .map(|value| value.to_string())
                     .unwrap_or_default(),
                 &row.sample_value.to_string(),
@@ -2390,6 +2397,63 @@ fn export_sensor_samples(
                     )?;
                 }
             }
+            DataPacketBodySummary::Whoop5HistoricalV18 {
+                heart_rate,
+                step_motion_counter,
+                step_motion_counter_offset,
+                motion_wear_quality,
+                skin_temp_raw,
+                ..
+            } => {
+                if let Some(value) = heart_rate.filter(|value| *value > 0) {
+                    rows.push(sensor_u8_sample(
+                        &context,
+                        "whoop5_historical_v18_heart_rate",
+                        "heart_rate",
+                        0,
+                        WHOOP5_V18_HEART_RATE_OFFSET,
+                        value,
+                        "bpm_candidate",
+                        vec!["whoop5_v18_embedded_hr".to_string()],
+                    ));
+                }
+                if let Some(value) = step_motion_counter {
+                    rows.push(sensor_u16_sample(
+                        &context,
+                        "whoop5_historical_v18_step_motion_counter",
+                        "step_motion_counter",
+                        0,
+                        step_motion_counter_offset,
+                        value,
+                        "step_count_candidate",
+                        vec!["whoop5_v18_step_motion_counter".to_string()],
+                    ));
+                }
+                if let Some(value) = motion_wear_quality {
+                    rows.push(sensor_u8_sample(
+                        &context,
+                        "whoop5_historical_v18_motion_wear_quality",
+                        "motion_wear_quality",
+                        0,
+                        WHOOP5_V18_MOTION_WEAR_QUALITY_OFFSET,
+                        value,
+                        "wear_quality_candidate",
+                        vec!["whoop5_v18_motion_wear_quality".to_string()],
+                    ));
+                }
+                if let Some(value) = skin_temp_raw {
+                    rows.push(sensor_u16_sample(
+                        &context,
+                        "whoop5_historical_v18_skin_temp_raw",
+                        "skin_temp_raw",
+                        0,
+                        WHOOP5_V18_SKIN_TEMP_RAW_OFFSET,
+                        value,
+                        "centi_celsius_candidate",
+                        vec!["whoop5_v18_skin_temp_raw".to_string()],
+                    ));
+                }
+            }
         }
     }
     Ok(rows)
@@ -2486,6 +2550,7 @@ fn sensor_i16_sample(
         payload_offset,
         raw_i16: Some(value),
         raw_u8: None,
+        raw_u16: None,
         sample_value: i64::from(value),
         unit: "raw_i16".to_string(),
         device_timestamp_seconds: context.timestamp_seconds,
@@ -2542,6 +2607,64 @@ fn sensor_u8_sample(
         payload_offset,
         raw_i16: None,
         raw_u8: Some(value),
+        raw_u16: None,
+        sample_value: i64::from(value),
+        unit: unit.to_string(),
+        device_timestamp_seconds: context.timestamp_seconds,
+        device_timestamp_subseconds: context.timestamp_subseconds,
+        parser_version: context.row.parser_version.clone(),
+        quality_flags,
+        provenance: json!({
+            "input_source": "decoded_frame_payload",
+            "frame_id": context.row.frame_id,
+            "evidence_id": context.row.evidence_id,
+            "parser_version": context.row.parser_version,
+            "source_signal": source_signal,
+            "series_name": series_name,
+            "sample_index": sample_index,
+            "payload_offset": payload_offset,
+            "sample_time_source": sample_time.source,
+            "device_timestamp_seconds": context.timestamp_seconds,
+            "device_timestamp_subseconds": context.timestamp_subseconds,
+            "unit_policy": unit,
+        }),
+    }
+}
+
+fn sensor_u16_sample(
+    context: &SensorSampleContext<'_>,
+    source_signal: &str,
+    series_name: &str,
+    sample_index: usize,
+    payload_offset: usize,
+    value: u16,
+    unit: &str,
+    mut quality_flags: Vec<String>,
+) -> ExportSensorSampleRow {
+    let sample_time = normalized_sensor_sample_time(
+        context.row,
+        context.timestamp_seconds,
+        context.timestamp_subseconds,
+        &mut quality_flags,
+    );
+    ExportSensorSampleRow {
+        sample_id: sensor_sample_id(&context.row.frame_id, series_name, sample_index),
+        frame_id: context.row.frame_id.clone(),
+        evidence_id: context.row.evidence_id.clone(),
+        captured_at: context.row.captured_at.clone(),
+        sample_time: sample_time.time,
+        sample_time_unix_ms: sample_time.unix_ms,
+        sample_time_source: sample_time.source.clone(),
+        source_signal: source_signal.to_string(),
+        packet_type_name: context.row.packet_type_name.clone(),
+        packet_k: context.packet_k,
+        domain: context.domain.map(ToOwned::to_owned),
+        series_name: series_name.to_string(),
+        sample_index,
+        payload_offset,
+        raw_i16: None,
+        raw_u8: None,
+        raw_u16: Some(value),
         sample_value: i64::from(value),
         unit: unit.to_string(),
         device_timestamp_seconds: context.timestamp_seconds,
@@ -4950,17 +5073,26 @@ fn validate_sensor_sample_reimport(
                 ));
             }
         }
-        match (row.raw_i16, row.raw_u8) {
-            (Some(raw_i16), None) if row.sample_value == i64::from(raw_i16) => {}
-            (None, Some(raw_u8)) if row.sample_value == i64::from(raw_u8) => {}
-            (Some(_), Some(_)) => issues.push(format!(
-                "sensor sample {} must not set raw_i16 and raw_u8 together",
-                row.sample_id
-            )),
-            (None, None) => issues.push(format!(
+        match (row.raw_i16, row.raw_u8, row.raw_u16) {
+            (Some(raw_i16), None, None) if row.sample_value == i64::from(raw_i16) => {}
+            (None, Some(raw_u8), None) if row.sample_value == i64::from(raw_u8) => {}
+            (None, None, Some(raw_u16)) if row.sample_value == i64::from(raw_u16) => {}
+            (None, None, None) => issues.push(format!(
                 "sensor sample {} must set one raw value",
                 row.sample_id
             )),
+            (raw_i16, raw_u8, raw_u16)
+                if [raw_i16.is_some(), raw_u8.is_some(), raw_u16.is_some()]
+                    .iter()
+                    .filter(|set| **set)
+                    .count()
+                    > 1 =>
+            {
+                issues.push(format!(
+                    "sensor sample {} must not set multiple raw values together",
+                    row.sample_id
+                ))
+            }
             _ => issues.push(format!(
                 "sensor sample {} sample_value must match raw value",
                 row.sample_id
@@ -4972,9 +5104,9 @@ fn validate_sensor_sample_reimport(
                 row.sample_id
             ));
         }
-        if row.unit.ends_with("_candidate") && row.raw_u8.is_none() {
+        if row.unit.ends_with("_candidate") && row.raw_u8.is_none() && row.raw_u16.is_none() {
             issues.push(format!(
-                "sensor sample {} candidate unit requires raw_u8",
+                "sensor sample {} candidate unit requires raw_u8 or raw_u16",
                 row.sample_id
             ));
         }
@@ -6986,6 +7118,11 @@ fn value_contains_official_whoop_label_marker(value: &Value) -> bool {
 
 fn is_official_whoop_label_token(value: &str) -> bool {
     let normalized = normalized_marker(value);
+    // The policy declaration string states that official values are validation
+    // labels rather than metric inputs; it is not itself a label marker.
+    if normalized == crate::validation_labels::OFFICIAL_WHOOP_LABEL_POLICY {
+        return false;
+    }
     matches!(
         normalized.as_str(),
         "whoop"
